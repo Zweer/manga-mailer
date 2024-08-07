@@ -1,0 +1,26 @@
+{
+  "name": "manga-mailer",
+  "version": "0.0.1",
+  "description": "A simple utility which emails you the latest manga",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "manga",
+    "mail"
+  ],
+  "author": "Zweer <n.olivieriachille@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.3"
+  },
+  "devDependencies": {
+    "@shopify/eslint-plugin": "^46.0.0",
+    "@tsconfig/node20": "^20.1.4",
+    "@types/node": "^22.1.0",
+    "prettier": "^3.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  }
+}
