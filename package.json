@@ -4,7 +4,10 @@
   "description": "A simple utility which emails you the latest manga",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint .",
+    "format": "prettier . -w",
+    "check": "npm run lint && npm run format",
+    "test": "jest"
   },
   "keywords": [
     "manga",
@@ -18,9 +21,16 @@
   "devDependencies": {
     "@shopify/eslint-plugin": "^46.0.0",
     "@tsconfig/node20": "^20.1.4",
+    "@types/jest": "^29.5.12",
     "@types/node": "^22.1.0",
+    "jest": "^29.7.0",
     "prettier": "^3.3.3",
+    "ts-jest": "^29.2.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
   }
 }
