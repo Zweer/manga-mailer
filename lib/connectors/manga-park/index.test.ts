@@ -1,11 +1,12 @@
 import { readFileSync } from 'fs';
+import { join } from 'path';
 
 import axios from 'axios';
 
 import { MangaParkConnector } from '.';
 
-const getMangas = JSON.parse(readFileSync('./mocks/getMangas.json', 'utf8'));
-const getManga = JSON.parse(readFileSync('./mocks/getManga.json', 'utf8'));
+const getMangas = JSON.parse(readFileSync(join(__dirname, 'mocks', 'getMangas.json'), 'utf8'));
+const getManga = JSON.parse(readFileSync(join(__dirname, 'mocks', 'getManga.json'), 'utf8'));
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;

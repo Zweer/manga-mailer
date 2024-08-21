@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { Connector } from '../index';
+import { Connector } from '../abstract';
 import { Manga } from '../../../model/manga';
 import { MangaWithChapters } from '../../../model/mangaWithChapters';
 

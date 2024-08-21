@@ -1,11 +1,8 @@
-import axios from 'axios';
+import { Connector } from './abstract';
+import { MangaParkConnector } from './manga-park';
 
-import { Manga } from '../../model/manga';
-import { MangaWithChapters } from '../../model/mangaWithChapters';
+export type ConnectorNames = 'mangapark';
 
-export abstract class Connector {
-  protected request = axios.create();
-
-  abstract getMangas(search?: string): Promise<Manga[]>;
-  abstract getManga(id: string): Promise<MangaWithChapters>;
-}
+export const connectors: Record<ConnectorNames, Connector> = {
+  mangapark: new MangaParkConnector(),
+};
