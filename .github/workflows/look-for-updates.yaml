@@ -27,3 +27,8 @@ jobs:
           MAILTRAP_TOKEN: ${{ secrets.MAILTRAP_TOKEN }}
           EMAIL_SENDER: ${{ vars.EMAIL_SENDER }}
           EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+
+      - name: Commit & Push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: Updated the read mangas
