@@ -53,7 +53,8 @@ async function notifyChapter(manga: MangaWithChapters, chapter: Chapter): Promis
   }
 
   const text = chapter.url;
-  const html = chapter.images.map((image) => `<img src="${image}" />`).join('\n');
+  const htmlChapter = chapter.images.map((image) => `<img src="${image}" />`).join('<br />\n');
+  const html = `${htmlChapter}<br /><br />\n${subject}`;
 
   if (!dry) {
     const notification = await notify(subject, text, html);
