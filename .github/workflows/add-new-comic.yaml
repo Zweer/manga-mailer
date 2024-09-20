@@ -31,6 +31,9 @@ jobs:
       - name: Install NPM Packages
         run: npm ci
 
+      - name: Compile assets (required for custom actions)
+        run: npm run build
+
       - name: Add new comic
         id: add-new-comic
         uses: ./.github/actions/add-new-comic
