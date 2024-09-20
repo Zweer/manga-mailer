@@ -19,4 +19,4 @@ outputs:
 
 runs:
   using: node20
-  main: ../../../bin/look-for-updates.js
+  main: ../../../bin/add-new-comic.js
