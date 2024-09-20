@@ -135,6 +135,10 @@ export class MangaParkConnector extends Connector {
       variables,
     });
 
+    if (!data.data.get_comicNode.data) {
+      throw new Error('Comic not found');
+    }
+
     const manga: MangaWithChapters = {
       id: data.data.get_comicNode.data.id,
       title: data.data.get_comicNode.data.name!,

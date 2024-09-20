@@ -8,6 +8,7 @@
     "format": "prettier . -w",
     "check": "npm run lint && npm run format",
     "test": "jest",
+    "build": "tsc",
     "start": "ts-node bin/look-for-updates.ts"
   },
   "keywords": [
@@ -17,6 +18,7 @@
   "author": "Zweer <n.olivieriachille@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "@actions/core": "^1.10.1",
     "axios": "^1.7.4",
     "mailtrap": "^3.4.0",
     "nodemailer": "^6.9.14",

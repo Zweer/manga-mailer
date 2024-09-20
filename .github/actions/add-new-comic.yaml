@@ -1,0 +1,23 @@
+name: Add new comic
+descreiption: Automates the adding of a new comic to the data file
+author: Zweer
+
+inputs:
+  comic_id:
+    description: The id of the comic you want to add
+    required: true
+  comic_source:
+    description: The source from which the comic must be pulled ("mangapark", "omegascans", ...)
+    required: true
+  comic_chapter:
+    description: The chapter number from which the comic must bu pulled
+    default: "0"
+
+outputs:
+  comic_name:
+    description: The name of the added comic
+
+runs:
+  using: node20
+  main: ../../bin/look-for-updates.js
+  pre: npm run build

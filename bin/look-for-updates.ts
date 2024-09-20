@@ -1,14 +1,10 @@
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
-
 import { Manga } from '../data/manga.interface';
 import { connectors } from '../lib/connectors';
 import { notify } from '../lib/notifier';
 import { Chapter } from '../model/chapter';
 import { MangaWithChapters } from '../model/mangaWithChapters';
 
-const mangasPath = join(__dirname, '..', 'data', 'mangas.json');
-const readMangas = JSON.parse(readFileSync(mangasPath, 'utf8')) as { mangas: Manga[] };
+import { getReadMangas, putReadMangas } from './utils';
 
 const dry = process.argv.some((arg) => arg === '--dry');
 
@@ -68,6 +64,7 @@ async function main(): Promise<void> {
     console.log('!!! Dry run !!!');
   }
 
+  const readMangas = getReadMangas();
   const unread = await readMangas.mangas.reduce(async (promise, readManga) => {
     const sum = await promise;
     const unread = await checkManga(readManga);
@@ -78,7 +75,7 @@ async function main(): Promise<void> {
   console.log('Unread manga chapters found:', unread);
 
   if (!dry) {
-    writeFileSync(mangasPath, JSON.stringify(readMangas, null, 2));
+    putReadMangas(readMangas);
   }
 }
 
