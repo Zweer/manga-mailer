@@ -33,7 +33,7 @@ jobs:
 
       - name: Add new comic
         id: add-new-comic
-        uses: ./.github/actions/add-new-comic.yaml
+        uses: ./.github/actions/add-new-comic
         with:
           comic_id: ${{ inputs.comic_id }}
           comic_source: ${{ inputs.comic_source }}
