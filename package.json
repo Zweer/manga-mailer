@@ -27,6 +27,7 @@
   "devDependencies": {
     "@shopify/eslint-plugin": "^46.0.0",
     "@tsconfig/node20": "^20.1.4",
+    "@types/google-apps-script": "^1.0.86",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.1.0",
     "@types/nodemailer": "^6.4.15",
