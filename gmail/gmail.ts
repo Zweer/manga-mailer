@@ -36,13 +36,14 @@ export function mangaChapters(event: Event) {
   const match = subjectRegex.exec(subject);
   if (match) {
     [, title] = match;
+    const mangaTitleRegex = new RegExp(`${title} - (.*)`);
 
     const messages = GmailApp.search(title)
-      .filter((message) => subjectRegex.exec(message.getFirstMessageSubject()))
+      .filter((message) => mangaTitleRegex.exec(message.getFirstMessageSubject()))
       .sort((messageA, messageB) => {
-        const [, , chapterStringA] = subjectRegex.exec(messageA.getFirstMessageSubject())!;
+        const [, , chapterStringA] = mangaTitleRegex.exec(messageA.getFirstMessageSubject())!;
         const chapterA = parseInt(chapterStringA, 10);
-        const [, , chapterStringB] = subjectRegex.exec(messageB.getFirstMessageSubject())!;
+        const [, , chapterStringB] = mangaTitleRegex.exec(messageB.getFirstMessageSubject())!;
         const chapterB = parseInt(chapterStringB, 10);
 
         return chapterB - chapterA;
