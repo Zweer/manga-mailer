@@ -19,6 +19,7 @@ export function mangaChapters(event: Event) {
   const message = GmailApp.getMessageById(messageId);
 
   const sender = message.getFrom();
+  console.log('sender:', sender);
   if (sender !== mangaMailerSender) {
     const card = CardService.newCardBuilder()
       .setHeader(CardService.newCardHeader().setTitle('Wrong message'))
@@ -34,34 +35,50 @@ export function mangaChapters(event: Event) {
 
   const subject = message.getSubject();
   const match = subjectRegex.exec(subject);
+  console.log('match:', match);
   if (match) {
     [, title] = match;
-    const mangaTitleRegex = new RegExp(`${title} - (.*)`);
+    const [, , chapterString] = match;
+    const chapter = parseInt(chapterString, 10);
+    const mangaTitleRegex = new RegExp(`${title.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&')} - (.*)`);
 
-    const messages = GmailApp.search(title)
-      .filter((message) => mangaTitleRegex.exec(message.getFirstMessageSubject()))
-      .sort((messageA, messageB) => {
-        const [, , chapterStringA] = mangaTitleRegex.exec(messageA.getFirstMessageSubject())!;
-        const chapterA = parseInt(chapterStringA, 10);
-        const [, , chapterStringB] = mangaTitleRegex.exec(messageB.getFirstMessageSubject())!;
-        const chapterB = parseInt(chapterStringB, 10);
+    console.log('title:', title);
+    console.log('chapter:', chapter);
 
-        return chapterB - chapterA;
-      });
+    const strippedTitle = title.replace(/\?/g, '').trim();
+    console.log('strippedTitle:', strippedTitle);
+
+    const foundMessages = GmailApp.search(strippedTitle, 0, chapter);
+    console.log('foundMessages:', foundMessages.length);
+
+    const messages = foundMessages
+      .map((message) => ({
+        id: message.getId(),
+        isInInbox: message.isInInbox(),
+        subject: message.getFirstMessageSubject(),
+      }))
+      .filter(({ subject }) => mangaTitleRegex.exec(subject))
+      .map(({ subject, id, isInInbox }) => ({
+        chapter: parseInt(mangaTitleRegex.exec(subject)![1], 10),
+        id,
+        isInInbox,
+        subject,
+      }))
+      .sort(({ chapter: chapterA }, { chapter: chapterB }) => chapterB - chapterA);
+    console.log('messages:', messages.length);
 
     section = CardService.newCardSection().setHeader(
       '<font color="#1257e0"><b>Previous Chapters</b></font>',
     );
 
     for (const message of messages) {
-      const [, , messageChapterString] = /(.*) - (.*)/.exec(message.getFirstMessageSubject())!;
-      const messageLink = `https://mail.google.com/mail/u/0/#inbox/${message.getId()}`;
-
       const link = CardService.newDecoratedText()
-        .setText(messageChapterString)
-        .setOpenLink(CardService.newOpenLink().setUrl(messageLink));
+        .setText(message.chapter.toString())
+        .setOpenLink(
+          CardService.newOpenLink().setUrl(`https://mail.google.com/mail/u/0/#inbox/${message.id}`),
+        );
 
-      if (message.isInInbox()) {
+      if (message.isInInbox) {
         link.setStartIcon(CardService.newIconImage().setIcon(CardService.Icon.EMAIL));
       }
 
