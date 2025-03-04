@@ -2,7 +2,8 @@
   "oauthScopes": [
     "https://www.googleapis.com/auth/gmail.addons.execute",
     "https://www.googleapis.com/auth/gmail.addons.current.message.metadata",
-    "https://www.googleapis.com/auth/gmail.readonly"
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/script.external_request"
   ],
   "gmail": {
     "name": "Mangamailer",
@@ -12,10 +13,15 @@
       },
       "onTriggerFunction": "mangaChapters"
     }],
+    "homepageTrigger": {
+      "enabled": true,
+      "runFunction": "mangaHomepage"
+    },
     "openLinkUrlPrefixes": [
       "https://mail.google.com/"
     ],
     "primaryColor": "#4285F4",
     "secondaryColor": "#4285F4"
-  }
+  },
+  "runtimeVersion": "V8"
 }
