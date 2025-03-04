@@ -1,4 +1,4 @@
-import { ConnectorNames } from '../lib/connectors';
+import { ConnectorNames } from '@zweer/manga-scraper';
 
 export interface Manga {
   site: ConnectorNames;
