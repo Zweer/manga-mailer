@@ -1,4 +1,4 @@
-import { ConnectorNames, connectors } from '@zweer/manga-scraper';
+import { ConnectorNames, connectors } from '../lib';
 
 interface MangaAutocomplete {
   connector: ConnectorNames;
@@ -53,28 +53,25 @@ export function showAddMangaForm() {
   return card;
 }
 
-export async function searchManga(event: { formInput: { mangaName: string } }) {
+export function searchManga(event: { formInput: { mangaName: string } }) {
   console.log('event:', event);
 
   const mangaName = event.formInput.mangaName.toLowerCase()!;
-  const matchingMangas = (
-    await Object.entries(connectors).reduce(
-      async (promise, [connectorName, connector]) => {
-        await promise;
+  const matchingMangas = Object.entries(connectors)
+    .reduce((mangas, [connectorName, connector]) => {
+      const newMangas = connector.getMangas(mangaName);
 
-        const mangas = await connector.getMangas(mangaName);
-
-        return mangas.map((manga) => ({
+      mangas.push(
+        ...newMangas.map((manga) => ({
           connector: connectorName as ConnectorNames,
           id: manga.id,
           title: manga.title,
           chaptersCount: manga.chaptersCount,
-        }));
-      },
-      Promise.resolve([] as MangaAutocomplete[]),
-    )
-  )
-    .flat()
+        })),
+      );
+
+      return mangas;
+    }, [] as MangaAutocomplete[])
     .sort((mangaA, mangaB) => {
       if (mangaA.title.localeCompare(mangaB.title) === 0) {
         return mangaA.chaptersCount - mangaB.chaptersCount;

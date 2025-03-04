@@ -8,7 +8,7 @@ const config = [
   {
     languageOptions: {
       parserOptions: {
-        project: 'tsconfig.json',
+        project: './tsconfig.json',
       },
     },
     rules: {
