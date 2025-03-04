@@ -1,5 +1,6 @@
+import { connectors } from '@zweer/manga-scraper';
+
 import { Manga } from '../data/manga.interface';
-import { connectors } from '../lib/connectors';
 import { notify } from '../lib/notifier';
 import { Chapter } from '../model/chapter';
 import { MangaWithChapters } from '../model/mangaWithChapters';

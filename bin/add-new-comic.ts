@@ -1,6 +1,5 @@
 import { getInput, setFailed, setOutput } from '@actions/core';
-
-import { ConnectorNames, connectors } from '../lib/connectors';
+import { ConnectorNames, connectors } from '@zweer/manga-scraper';
 
 import { getReadMangas, putReadMangas } from './utils';
 
