@@ -1,4 +1,4 @@
-import { ConnectorNames, connectors } from '../lib';
+import { ConnectorNames, connectors } from '../lib/connectors';
 
 interface MangaAutocomplete {
   connector: ConnectorNames;

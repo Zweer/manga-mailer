@@ -8,7 +8,7 @@ interface Event {
   };
 }
 
-export function mangaChapters(event: Event) {
+function mangaChapters(event: Event) {
   const { accessToken, messageId } = event.messageMetadata;
 
   GmailApp.setCurrentMessageAccessToken(accessToken);

@@ -1,4 +1,4 @@
-interface MicroChapter {
+interface OmegaScansMicroChapter {
   id: number;
   chapter_name: string;
   chapter_title: null;
@@ -7,7 +7,7 @@ interface MicroChapter {
   meta: object;
 }
 
-export interface OmegaScansGetChapterDetails {
+export interface OmegaScansGetChapterDetailsResponse {
   chapter: {
     id: number;
     series_id: number;
@@ -44,6 +44,6 @@ export interface OmegaScansGetChapterDetails {
       continuation: null;
     };
   };
-  previous_chapter?: MicroChapter;
-  next_chapter?: MicroChapter;
+  previous_chapter?: OmegaScansMicroChapter;
+  next_chapter?: OmegaScansMicroChapter;
 }

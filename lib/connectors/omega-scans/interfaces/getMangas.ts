@@ -1,6 +1,6 @@
 import { OmegaScansCommonMeta } from './commonMeta';
 
-interface Chapter {
+interface OmegaScansChapter {
   id: number;
   chapter_name: string;
   chapter_slug: string;
@@ -11,7 +11,7 @@ interface Chapter {
   meta: Record<string, never>;
 }
 
-export interface OmegaScansGetMangas {
+export interface OmegaScansGetMangasResponse {
   meta: OmegaScansCommonMeta;
   data: {
     id: number;
@@ -38,8 +38,8 @@ export interface OmegaScansGetMangas {
     };
     nu_link: null;
     is_coming_soon: boolean;
-    paid_chapters: Chapter[];
-    free_chapters: Chapter[];
+    paid_chapters: OmegaScansChapter[];
+    free_chapters: OmegaScansChapter[];
     latest_chapter: null;
     meta: {
       latest_update: null;

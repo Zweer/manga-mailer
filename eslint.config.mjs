@@ -20,6 +20,7 @@ const config = [
       '@typescript-eslint/no-unnecessary-condition': 'off',
       'prettier/prettier': 'warn',
       'no-warning-comments': 'off',
+      '@typescript-eslint/no-namespace': 'off',
     },
   },
 ];

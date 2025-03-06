@@ -1,4 +1,4 @@
-interface Season {
+interface OmegaScansSeason {
   id: number;
   series_id: number;
   season_name: string;
@@ -7,7 +7,7 @@ interface Season {
   updated_at: string;
 }
 
-export interface OmegaScansGetManga {
+export interface OmegaScansGetMangaResponse {
   id: number;
   title: string;
   series_slug: string;
@@ -28,7 +28,7 @@ export interface OmegaScansGetManga {
     sun?: true;
   };
   nu_link: null;
-  seasons: Season[];
+  seasons: OmegaScansSeason[];
   alternative_names: string;
   studio: string;
   author: string;

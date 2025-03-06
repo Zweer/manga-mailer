@@ -1,6 +1,6 @@
 import { MangaParkCommonData } from './commonData';
 
-export interface MangaParkGetMangas {
+export interface MangaParkGetMangasResponse {
   data: {
     get_searchComic: {
       paging: {

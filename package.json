@@ -7,9 +7,12 @@
     "lint": "eslint .",
     "format": "prettier . -w",
     "check": "npm run lint && npm run format",
-    "test": "jest",
-    "build": "tsc",
-    "start": "ts-node bin/look-for-updates.ts"
+    "prebuild": "rimraf dist",
+    "build": "npm run build:manga",
+    "build:manga": "esbuild src/manga.ts --bundle --outfile=dist/manga.js",
+    "postbuild": "copyfiles -u 1 src/*.html dist",
+    "prepush": "npm run check && npm run build",
+    "push": "clasp push"
   },
   "keywords": [
     "manga",
@@ -21,12 +24,16 @@
     "@actions/core": "^1.11.1"
   },
   "devDependencies": {
+    "@google/clasp": "^2.5.0",
     "@shopify/eslint-plugin": "^47.0.1",
     "@tsconfig/node20": "^20.1.4",
     "@types/google-apps-script": "^1.0.97",
     "@types/node": "^22.13.8",
     "@typescript-eslint/parser": "^8.26.0",
+    "copyfiles": "^2.4.1",
+    "esbuild": "^0.25.0",
     "prettier": "^3.5.3",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   },
