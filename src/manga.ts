@@ -311,10 +311,19 @@ function createEmailChapter(event: any) {
   const chapter = manga.chapters.find((chapter) => chapter.index === chapterIndex)!;
   console.log('chapter:', chapter);
 
+  const htmlImages = chapter.images.map((image) => `<img src="${image}" />`).join('<br />\n');
+  const htmlMetadata = `[${connector}] [${manga.id}] ${manga.title} - ${chapterIndex}`;
+
   GmailApp.setCurrentMessageAccessToken(event.messageMetadata.accessToken);
-  GmailApp.sendEmail(Session.getActiveUser().getEmail(), `${manga.title} - ${chapterIndex}`, '', {
-    htmlBody: `${chapter.images.map((image) => `<img src="${image}" />`).join('<br />\n')}<br /><br />\n${manga.title} - ${chapterIndex}`,
-  });
+  GmailApp.sendEmail(
+    Session.getActiveUser().getEmail(),
+    `${manga.title} - ${chapterIndex}`,
+    htmlMetadata,
+    {
+      htmlBody: [htmlImages, htmlMetadata].join('<br /><br />\n'),
+      name: 'MangaMailer',
+    },
+  );
 
   return showChapter(event);
 }

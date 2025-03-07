@@ -128,7 +128,7 @@ function OmegaScansGetChaptersFromPage(
       id: chapter.id.toString(),
       title: chapter.chapter_name,
       index: parseFloat(data.chapter.index),
-      url: `${apiUrl}/series/${chapter.series.series_slug}/${chapter.chapter_slug}`,
+      url: `${baseUrl}/series/${chapter.series.series_slug}/${chapter.chapter_slug}`,
       images: data.chapter.chapter_data.images,
     });
 
