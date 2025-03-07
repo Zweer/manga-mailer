@@ -11,7 +11,7 @@ on:
         required: true
       comic_chapter:
         description: The chapter number from which the comic must bu pulled
-        default: "0"
+        default: '0'
 
 jobs:
   add-new-comic:
@@ -46,5 +46,5 @@ jobs:
         uses: EndBug/add-and-commit@v9
         with:
           default_author: github_actions
-          add: "./data/mangas.json"
-          message: "chore: :heavy_plus_sign: Added `${{ steps.add-new-comic.outputs.comic_name }}`"
+          add: './data/mangas.json'
+          message: 'chore: :heavy_plus_sign: Added `${{ steps.add-new-comic.outputs.comic_name }}`'

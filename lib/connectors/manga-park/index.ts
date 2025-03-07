@@ -5,7 +5,7 @@ import { MangaParkGetMangaResponse } from './interfaces/getManga';
 import { MangaParkGetMangasResponse } from './interfaces/getMangas';
 
 const graphqlQuery = `
-  query getMangas($select: SearchComic_Select) {
+query getMangas($select: SearchComic_Select) {
   get_searchComic(select: $select) {
     paging {
       page
@@ -62,12 +62,13 @@ fragment mangaData on ComicNode {
 `;
 
 const baseUrl = 'https://mangapark.net';
-const basePath = `${baseUrl}/apo`;
+const basePath = `${baseUrl}/apo/`;
 
 const headers = {
   'x-origin': baseUrl,
   'x-referer': `${baseUrl}/`,
   cookie: 'nsfw=2;',
+  'content-type': 'application/json',
 };
 
 export const MangaParkGetMangas: GetMangas = (search?: string) => {

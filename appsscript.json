@@ -3,23 +3,23 @@
     "https://www.googleapis.com/auth/gmail.addons.execute",
     "https://www.googleapis.com/auth/gmail.addons.current.message.metadata",
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/script.external_request"
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/drive"
   ],
   "gmail": {
     "name": "Mangamailer",
     "logoUrl": "https://drive.google.com/uc?id=11-3v5lfiM-LTd9oXzqwlK73q64irv_Qa",
-    "contextualTriggers": [{
-      "unconditional": {
-      },
-      "onTriggerFunction": "mangaChapters"
-    }],
+    "contextualTriggers": [
+      {
+        "unconditional": {},
+        "onTriggerFunction": "mangaChapters"
+      }
+    ],
     "homepageTrigger": {
       "enabled": true,
       "runFunction": "mangaHomepage"
     },
-    "openLinkUrlPrefixes": [
-      "https://mail.google.com/"
-    ],
+    "openLinkUrlPrefixes": ["https://mail.google.com/"],
     "primaryColor": "#4285F4",
     "secondaryColor": "#4285F4"
   },

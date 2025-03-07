@@ -4,15 +4,14 @@
   "description": "A simple utility which emails you the latest manga",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint src lib",
     "format": "prettier . -w",
     "check": "npm run lint && npm run format",
     "prebuild": "rimraf dist",
     "build": "npm run build:manga",
-    "build:manga": "esbuild src/manga.ts --bundle --outfile=dist/manga.js",
-    "postbuild": "copyfiles -u 1 src/*.html dist",
+    "build:manga": "esbuild src/manga.ts --bundle --format=cjs --tree-shaking=false --outfile=dist/manga.js",
     "prepush": "npm run check && npm run build",
-    "push": "clasp push"
+    "push": "clasp push --force"
   },
   "keywords": [
     "manga",
@@ -30,7 +29,6 @@
     "@types/google-apps-script": "^1.0.97",
     "@types/node": "^22.13.8",
     "@typescript-eslint/parser": "^8.26.0",
-    "copyfiles": "^2.4.1",
     "esbuild": "^0.25.0",
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",

@@ -8,17 +8,25 @@ export type ConnectorNames = 'mangapark' | 'omegascans';
 export type GetMangas = (search?: string) => Omit<Manga, 'chapters'>[];
 export type GetManga = (id: string) => Manga;
 
-const mangapark = {
+interface Connector {
+  name: ConnectorNames;
+  initials: string;
+  getMangas: GetMangas;
+  getManga: GetManga;
+}
+
+const mangapark: Connector = {
+  name: 'mangapark',
+  initials: 'MP',
   getMangas: MangaParkGetMangas,
   getManga: MangaParkGetManga,
 };
 
-const omegascans = {
+const omegascans: Connector = {
+  name: 'omegascans',
+  initials: 'OS',
   getMangas: OmegaScansGetMangas,
   getManga: OmegaScansGetManga,
 };
 
-export const connectors: Record<ConnectorNames, { getMangas: GetMangas; getManga: GetManga }> = {
-  mangapark,
-  omegascans,
-};
+export const connectors: Connector[] = [mangapark, omegascans];

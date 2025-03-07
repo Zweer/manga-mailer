@@ -14,7 +14,7 @@
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noUnusedParameters": true,
     "strictBindCallApply": true,
     "strictNullChecks": true,
@@ -53,6 +53,6 @@
     "types": ["google-apps-script"],
     // "typeRoots": ["src/types", "node_modules/@types"],
 
-    "outDir": "dist",
+    "outDir": "dist"
   }
 }

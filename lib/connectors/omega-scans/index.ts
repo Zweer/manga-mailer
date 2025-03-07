@@ -10,7 +10,12 @@ import { OmegaScansGetMangasResponse } from './interfaces/getMangas';
 const baseUrl = 'https://omegascans.org';
 const apiUrl = 'https://api.omegascans.org';
 
+const headers = {
+  'content-type': 'application/json',
+};
+
 export const OmegaScansGetMangas: GetMangas = (search?: string) => {
+  console.log('omega scans get mangas', search);
   const mangas: Omit<Manga, 'chapters'>[] = [];
 
   for (let page = 1, run = true; run; page += 1) {
@@ -26,6 +31,7 @@ export const OmegaScansGetMangas: GetMangas = (search?: string) => {
 };
 
 export const OmegaScansGetManga: GetManga = (id: string) => {
+  console.log('omega scans get manga', id);
   const chapters: Chapter[] = [];
   let mangaSlug = '';
 
@@ -46,8 +52,11 @@ export const OmegaScansGetManga: GetManga = (id: string) => {
     }
   }
 
-  const response = UrlFetchApp.fetch(`${apiUrl}/series/${id}`);
+  const url = `${apiUrl}/series/${mangaSlug}`;
+  console.log(url);
+  const response = UrlFetchApp.fetch(url, { headers });
   const data: OmegaScansGetMangaResponse = JSON.parse(response.getContentText());
+  console.log(data);
 
   return {
     id: data.id.toString(),
@@ -69,10 +78,11 @@ function OmegaScansGetMangasFromPage(
   page: number,
   adult: boolean,
 ): Omit<Manga, 'chapters'>[] {
-  const response = UrlFetchApp.fetch(
-    `${apiUrl}/query?perPage=100&page=${page}&adult=${adult}&query_string=${search}`,
-  );
+  const url = `${apiUrl}/query?perPage=100&page=${page}&adult=${adult}&query_string=${search}`;
+  console.log(url);
+  const response = UrlFetchApp.fetch(url, { headers });
   const data: OmegaScansGetMangasResponse = JSON.parse(response.getContentText());
+  console.log(data);
 
   return data.data.map((manga) => ({
     id: manga.id.toString(),
@@ -92,15 +102,17 @@ function OmegaScansGetChaptersFromPage(
   id: string,
   page: number,
 ): { chapters: Chapter[]; mangaSlug: string } {
-  const response = UrlFetchApp.fetch(
-    `${apiUrl}/chapter/query?perPage=100&page=${page}&series_id=${id}`,
-  );
+  const url = `${apiUrl}/chapter/query?perPage=100&page=${page}&series_id=${id}`;
+  console.log(url);
+  const response = UrlFetchApp.fetch(url, { headers });
   const data: OmegaScansGetChaptersResponse = JSON.parse(response.getContentText());
+  console.log(data);
 
   let mangaSlug = '';
   const chapters = data.data.reduce((chapters, chapter) => {
     const response = UrlFetchApp.fetch(
       `${apiUrl}/chapter/${chapter.series.series_slug}/${chapter.chapter_slug}`,
+      { headers },
     );
     const data: OmegaScansGetChapterDetailsResponse = JSON.parse(response.getContentText());
 

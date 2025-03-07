@@ -11,7 +11,7 @@ inputs:
     required: true
   comic_chapter:
     description: The chapter number from which the comic must bu pulled
-    default: "0"
+    default: '0'
 
 outputs:
   comic_name:
