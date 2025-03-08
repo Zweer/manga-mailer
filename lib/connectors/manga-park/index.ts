@@ -171,6 +171,9 @@ function matchStatus(
     case 'completed':
       return Status.Completed;
 
+    case 'hiatus':
+      return Status.Hiatus;
+
     case null:
       return Status.Unknown;
 
