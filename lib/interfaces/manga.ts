@@ -10,14 +10,17 @@ export enum Status {
 
 export interface Manga {
   id: string;
+  slug: string;
   title: string;
   excerpt?: string;
   image?: string;
   url: string;
-  releasedAt?: Date;
+  releasedAt?: string;
   status: Status;
   genres: string[];
   score?: number;
   chaptersCount: number;
   chapters: Chapter[];
 }
+
+export type MangaWithoutChapters = Omit<Manga, 'chapters'>;

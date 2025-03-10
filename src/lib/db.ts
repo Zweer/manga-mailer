@@ -5,6 +5,7 @@ export interface MangaSave {
   connector: ConnectorNames;
   manga: Manga;
   readChapters: number[];
+  needsLazyLoading: boolean;
 }
 
 const USER_PROPERTIES_DRIVE_FILE_ID = 'driveFileId';
@@ -14,14 +15,21 @@ const DRIVE_MANGA_FILE = 'manga-mailer.json';
 
 function getFileId(): string {
   let fileId = userProperties.getProperty(USER_PROPERTIES_DRIVE_FILE_ID);
-  if (!fileId) {
-    const files = DriveApp.getFilesByName(DRIVE_MANGA_FILE);
-    const file = files.hasNext()
-      ? files.next()
-      : DriveApp.createFile(DRIVE_MANGA_FILE, '[]', 'application/json');
-    fileId = file.getId();
-    userProperties.setProperty(USER_PROPERTIES_DRIVE_FILE_ID, fileId);
+  if (fileId) {
+    try {
+      DriveApp.getFileById(fileId);
+      return fileId;
+    } catch (error) {
+      fileId = null;
+    }
   }
+
+  const files = DriveApp.getFilesByName(DRIVE_MANGA_FILE);
+  const file = files.hasNext()
+    ? files.next()
+    : DriveApp.createFile(DRIVE_MANGA_FILE, '[]', 'application/json');
+  fileId = file.getId();
+  userProperties.setProperty(USER_PROPERTIES_DRIVE_FILE_ID, fileId);
 
   return fileId;
 }
@@ -59,6 +67,14 @@ export function putUserManga(mangaSave: MangaSave): void {
   }
 
   mangas.sort((mangaA: MangaSave, mangaB: MangaSave) => {
+    if (mangaA.manga.status !== mangaB.manga.status) {
+      if (mangaA.manga.status === 'Completed') {
+        return 1;
+      }
+      if (mangaB.manga.status === 'Completed') {
+        return -1;
+      }
+    }
     const unreadChaptersA = mangaA.manga.chaptersCount - mangaA.readChapters.length;
     const unreadChaptersB = mangaB.manga.chaptersCount - mangaB.readChapters.length;
     if (unreadChaptersA !== unreadChaptersB) {

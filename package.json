@@ -7,7 +7,7 @@
     "lint": "eslint src lib",
     "format": "prettier . -w",
     "check": "npm run lint && npm run format",
-    "prebuild": "rimraf dist",
+    "prebuild": "rimraf dist && tsc --noEmit",
     "build": "npm run build:manga",
     "build:manga": "esbuild src/manga.ts --bundle --format=cjs --tree-shaking=false --outfile=dist/manga.js",
     "prepush": "npm run check && npm run build",

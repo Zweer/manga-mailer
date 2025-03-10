@@ -1,32 +1,18 @@
-import { Manga } from '../interfaces/manga';
+import { Manga, MangaWithoutChapters } from '../interfaces/manga';
 
-import { MangaParkGetManga, MangaParkGetMangas } from './manga-park';
-import { OmegaScansGetManga, OmegaScansGetMangas } from './omega-scans';
+import { MangaParkConnector } from './manga-park';
+import { OmegaScansConnector } from './omega-scans';
 
 export type ConnectorNames = 'mangapark' | 'omegascans';
 
-export type GetMangas = (search?: string) => Omit<Manga, 'chapters'>[];
-export type GetManga = (id: string) => Manga;
-
-interface Connector {
+export interface Connector {
   name: ConnectorNames;
   initials: string;
-  getMangas: GetMangas;
-  getManga: GetManga;
+  needsLazyLoading: boolean;
+
+  getMangas(search?: string): MangaWithoutChapters[];
+  getManga(id: string, lazyLoading: boolean): Manga;
+  lazyLoadManga(manga: Manga): Manga;
 }
 
-const mangapark: Connector = {
-  name: 'mangapark',
-  initials: 'MP',
-  getMangas: MangaParkGetMangas,
-  getManga: MangaParkGetManga,
-};
-
-const omegascans: Connector = {
-  name: 'omegascans',
-  initials: 'OS',
-  getMangas: OmegaScansGetMangas,
-  getManga: OmegaScansGetManga,
-};
-
-export const connectors: Connector[] = [mangapark, omegascans];
+export const connectors: Connector[] = [new MangaParkConnector(), new OmegaScansConnector()];
