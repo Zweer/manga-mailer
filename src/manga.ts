@@ -27,12 +27,12 @@ function mangaHomepage() {
     ({ manga, needsLazyLoading, readChapters }) =>
       !needsLazyLoading &&
       manga.status === Status.Completed &&
-      manga.chaptersCount === readChapters.length,
+      manga.chaptersCount <= readChapters.length,
   ) as MangaSaveEagerPartial[];
   const ongoingMangas = mangas.filter(
     ({ manga, needsLazyLoading, readChapters }) =>
       !needsLazyLoading &&
-      (manga.status !== Status.Completed || manga.chaptersCount !== readChapters.length),
+      (manga.status !== Status.Completed || manga.chaptersCount > readChapters.length),
   ) as MangaSaveEagerPartial[];
 
   if (ongoingMangas.length !== 0) {
@@ -127,7 +127,15 @@ function showCompletedMangas() {
     completedMangaListSection.addWidget(link);
   });
 
-  card.addSection(completedMangaListSection);
+  card
+    .addSection(completedMangaListSection)
+    .addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Back to Home')
+          .setOnClickAction(CardService.newAction().setFunctionName('mangaHomepage')),
+      ),
+    );
 
   return card.build();
 }
