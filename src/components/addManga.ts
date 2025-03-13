@@ -2,20 +2,35 @@ import { ConnectorNames, connectors } from '../../lib/connectors';
 import { putUserManga } from '../lib/db';
 import { MangaAutocomplete } from '../lib/types';
 
-function showAddMangaForm() {
-  const card = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle('Add Manga'))
-    .addSection(
-      CardService.newCardSection()
-        .addWidget(CardService.newTextInput().setFieldName('mangaName').setTitle('Manga Name'))
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Search')
-            .setOnClickAction(CardService.newAction().setFunctionName('searchManga')),
-        ),
-    )
-    .build();
-  return card;
+function showAddMangaForm(_: any, hasSelected = false) {
+  let card = CardService.newCardBuilder().setHeader(
+    CardService.newCardHeader().setTitle('Add Manga'),
+  );
+
+  if (hasSelected) {
+    card = card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextParagraph().setText('Manga added successfully!'),
+      ),
+    );
+  }
+
+  card = card.addSection(
+    CardService.newCardSection()
+      .addWidget(CardService.newTextInput().setFieldName('mangaName').setTitle('Manga Name'))
+      .addWidget(
+        CardService.newTextButton()
+          .setText('Search')
+          .setOnClickAction(CardService.newAction().setFunctionName('searchManga')),
+      )
+      .addWidget(
+        CardService.newTextButton()
+          .setText('Back to Home')
+          .setOnClickAction(CardService.newAction().setFunctionName('mangaHomepage')),
+      ),
+  );
+
+  return card.build();
 }
 
 function searchManga(event: { formInput: { mangaName: string } }) {
@@ -82,25 +97,24 @@ function selectManga(event: any) {
     const needsLazyLoading = connector.needsLazyLoading;
     const manga = connector.getManga(mangaId, needsLazyLoading);
 
-    putUserManga({
-      connector: connector.name,
-      needsLazyLoading,
-      manga,
-      readChapters: [],
-    });
+    if (needsLazyLoading) {
+      putUserManga({
+        connector: connector.name,
+        manga,
+        lastChapter: null,
+        readChapters: [],
+        needsLazyLoading: true,
+      });
+    } else {
+      putUserManga({
+        connector: connector.name,
+        manga,
+        lastChapter: manga.chapters[manga.chapters.length - 1],
+        readChapters: [],
+        needsLazyLoading: false,
+      });
+    }
   }
 
-  const card = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle('Manga Selected'))
-    .addSection(
-      CardService.newCardSection()
-        .addWidget(CardService.newTextParagraph().setText('Manga has been added to your list.'))
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Back to Home')
-            .setOnClickAction(CardService.newAction().setFunctionName('mangaHomepage')),
-        ),
-    )
-    .build();
-  return card;
+  return showAddMangaForm(event, Boolean(mangaConnectorId));
 }

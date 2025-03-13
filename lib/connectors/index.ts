@@ -12,7 +12,7 @@ export interface Connector {
 
   getMangas(search?: string): MangaWithoutChapters[];
   getManga(id: string, lazyLoading: boolean): Manga;
-  lazyLoadManga(manga: Manga): Manga;
+  lazyLoadManga(manga: Manga, offset: number, limit?: number): Manga;
 }
 
 export const connectors: Connector[] = [new MangaParkConnector(), new OmegaScansConnector()];

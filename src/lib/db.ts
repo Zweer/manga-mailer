@@ -1,57 +1,71 @@
 import { ConnectorNames } from '../../lib/connectors';
-import { Manga } from '../../lib/interfaces/manga';
+import { Chapter } from '../../lib/interfaces/chapter';
+import { Manga, MangaWithoutChapters } from '../../lib/interfaces/manga';
 
-export interface MangaSave {
+interface MangaSaveLazy<T extends MangaWithoutChapters> {
   connector: ConnectorNames;
-  manga: Manga;
-  readChapters: number[];
-  needsLazyLoading: boolean;
+  manga: T;
+  lastChapter: null;
+  readChapters: never[];
+  needsLazyLoading: true;
 }
+export type MangaSaveLazyPartial = MangaSaveLazy<MangaWithoutChapters>;
+export type MangaSaveLazyComplete = MangaSaveLazy<Manga>;
 
-const USER_PROPERTIES_DRIVE_FILE_ID = 'driveFileId';
-const userProperties = PropertiesService.getUserProperties();
+interface MangaSaveEager<T extends MangaWithoutChapters> {
+  connector: ConnectorNames;
+  manga: T;
+  lastChapter: Chapter;
+  readChapters: number[];
+  needsLazyLoading: false;
+}
+export type MangaSaveEagerPartial = MangaSaveEager<MangaWithoutChapters>;
+export type MangaSaveEagerComplete = MangaSaveEager<Manga>;
 
-const DRIVE_MANGA_FILE = 'manga-mailer.json';
+export type MangaSave = MangaSaveLazyPartial | MangaSaveEagerPartial;
+export type MangaSaveComplete = MangaSaveLazyComplete | MangaSaveEagerComplete;
 
-function getFileId(): string {
-  let fileId = userProperties.getProperty(USER_PROPERTIES_DRIVE_FILE_ID);
-  if (fileId) {
-    try {
-      DriveApp.getFileById(fileId);
-      return fileId;
-    } catch (error) {
-      fileId = null;
-    }
+function getFolder(connector?: ConnectorNames): GoogleAppsScript.Drive.Folder {
+  const rootFolder = connector ? getFolder() : DriveApp.getRootFolder();
+  const folderName = connector ?? 'manga-mailer';
+  const folders = rootFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
   }
 
-  const files = DriveApp.getFilesByName(DRIVE_MANGA_FILE);
-  const file = files.hasNext()
-    ? files.next()
-    : DriveApp.createFile(DRIVE_MANGA_FILE, '[]', 'application/json');
-  fileId = file.getId();
-  userProperties.setProperty(USER_PROPERTIES_DRIVE_FILE_ID, fileId);
-
-  return fileId;
+  return rootFolder.createFolder(folderName);
 }
 
-function getFile(): GoogleAppsScript.Drive.File {
-  return DriveApp.getFileById(getFileId());
+function getMangaFile(connector?: ConnectorNames, id?: string): GoogleAppsScript.Drive.File {
+  console.time('getMangaFile');
+  const folder = getFolder(connector);
+  console.timeEnd('getMangaFile');
+
+  const filename = `${id ?? 'mangas'}.json`;
+  const files = folder.getFilesByName(filename);
+
+  return files.hasNext() ? files.next() : folder.createFile(filename, id ? '{}' : '[]');
+}
+
+function getMangaString(): string;
+function getMangaString(connector: ConnectorNames, id: string): string;
+function getMangaString(connector?: ConnectorNames, id?: string): string {
+  console.time('getMangaString');
+  const json = getMangaFile(connector, id).getBlob().getDataAsString();
+  console.timeEnd('getMangaString');
+
+  return json;
 }
 
 export function getUserMangas(): MangaSave[] {
-  const mangasString = getFile().getBlob().getDataAsString();
-  const mangas: MangaSave[] = JSON.parse(mangasString);
-
-  return mangas;
+  return JSON.parse(getMangaString()) as MangaSave[];
 }
 
-export function getUserManga(mangaId: string, connector: ConnectorNames): MangaSave {
-  const mangas = getUserMangas();
-
-  return mangas.find((manga) => manga.manga.id === mangaId && manga.connector === connector)!;
+export function getUserManga(connector: ConnectorNames, id: string): MangaSaveComplete {
+  return JSON.parse(getMangaString(connector, id)) as MangaSaveComplete;
 }
 
-export function putUserManga(mangaSave: MangaSave): void {
+function putUserMangaInMangas(mangaSave: MangaSaveComplete): void {
   const mangas = getUserMangas();
 
   const found = mangas.find(
@@ -60,8 +74,15 @@ export function putUserManga(mangaSave: MangaSave): void {
   );
 
   if (found) {
-    found.manga = mangaSave.manga;
-    found.readChapters = mangaSave.readChapters;
+    if (mangaSave.needsLazyLoading) {
+      found.manga = mangaSave.manga;
+    } else {
+      const { chapters, ...mangaWithoutChapters } = mangaSave.manga;
+      found.manga = mangaWithoutChapters;
+      found.lastChapter = chapters.pop()!;
+      found.readChapters = mangaSave.readChapters;
+      found.needsLazyLoading = mangaSave.needsLazyLoading;
+    }
   } else {
     mangas.push(mangaSave);
   }
@@ -84,5 +105,16 @@ export function putUserManga(mangaSave: MangaSave): void {
     return mangaA.manga.title.localeCompare(mangaB.manga.title);
   });
 
-  getFile().setContent(JSON.stringify(mangas, null, 2));
+  getMangaFile().setContent(JSON.stringify(mangas, null, 2));
+}
+
+function putUserMangaInManga(mangaSave: MangaSaveComplete): void {
+  getMangaFile(mangaSave.connector, mangaSave.manga.id).setContent(
+    JSON.stringify(mangaSave, null, 2),
+  );
+}
+
+export function putUserManga(mangaSave: MangaSaveComplete): void {
+  putUserMangaInMangas(mangaSave);
+  putUserMangaInManga(mangaSave);
 }

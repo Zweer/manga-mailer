@@ -5,17 +5,17 @@ import { MangaParkGetMangaResponse } from './interfaces/getManga';
 import { MangaParkGetMangasResponse } from './interfaces/getMangas';
 
 export class MangaParkConnector implements Connector {
-  static BASE_URL = 'https://mangapark.net';
-  static BASE_PATH = `${MangaParkConnector.BASE_URL}/apo/`;
-  static HEADERS = {
-    'x-origin': MangaParkConnector.BASE_URL,
-    'x-referer': `${MangaParkConnector.BASE_URL}/`,
+  BASE_URL = 'https://mangapark.net';
+  BASE_PATH = `${this.BASE_URL}/apo/`;
+  HEADERS = {
+    'x-origin': this.BASE_URL,
+    'x-referer': `${this.BASE_URL}/`,
     'accept-language': 'en-US,en;q=0.9',
     cookie: 'nsfw=2;',
     'content-type': 'application/json',
   };
 
-  static GRAPHQL_QUERY = `
+  GRAPHQL_QUERY = `
 query getMangas($select: SearchComic_Select) {
   get_searchComic(select: $select) {
     paging {
@@ -79,7 +79,7 @@ fragment mangaData on ComicNode {
   getMangas(search?: string): MangaWithoutChapters[] {
     const mangas: Omit<Manga, 'chapters'>[] = [];
     const operationName = 'getMangas';
-    const query = MangaParkConnector.GRAPHQL_QUERY;
+    const query = this.GRAPHQL_QUERY;
     const variables = {
       select: {
         page: 1,
@@ -92,10 +92,10 @@ fragment mangaData on ComicNode {
     for (let page = 1, run = true; run; page += 1) {
       variables.select.page = page;
 
-      const response = UrlFetchApp.fetch(MangaParkConnector.BASE_PATH, {
+      const response = UrlFetchApp.fetch(this.BASE_PATH, {
         method: 'post',
         payload: JSON.stringify({ operationName, query, variables }),
-        headers: MangaParkConnector.HEADERS,
+        headers: this.HEADERS,
       });
       const data: MangaParkGetMangasResponse = JSON.parse(response.getContentText());
 
@@ -106,7 +106,7 @@ fragment mangaData on ComicNode {
           title: manga.data.name!,
           excerpt: manga.data.summary,
           image: manga.data.urlCoverOri,
-          url: `${MangaParkConnector.BASE_URL}${manga.data.urlPath}`,
+          url: `${this.BASE_URL}${manga.data.urlPath}`,
           releasedAt: manga.data.dateCreate
             ? new Date(manga.data.dateCreate).toISOString()
             : undefined,
@@ -125,16 +125,16 @@ fragment mangaData on ComicNode {
 
   getManga(id: string): Manga {
     const operationName = 'getManga';
-    const query = MangaParkConnector.GRAPHQL_QUERY;
+    const query = this.GRAPHQL_QUERY;
     const variables = {
       getComicNodeId: id,
       comicId: id,
     };
 
-    const response = UrlFetchApp.fetch(MangaParkConnector.BASE_PATH, {
+    const response = UrlFetchApp.fetch(this.BASE_PATH, {
       method: 'post',
       payload: JSON.stringify({ operationName, query, variables }),
-      headers: MangaParkConnector.HEADERS,
+      headers: this.HEADERS,
     });
     const data: MangaParkGetMangaResponse = JSON.parse(response.getContentText());
 
@@ -145,9 +145,10 @@ fragment mangaData on ComicNode {
     return {
       id: data.data.get_comicNode.data.id,
       title: data.data.get_comicNode.data.name!,
+      slug: data.data.get_comicNode.data.slug!,
       excerpt: data.data.get_comicNode.data.summary,
       image: data.data.get_comicNode.data.urlCoverOri,
-      url: `${MangaParkConnector.BASE_URL}${data.data.get_comicNode.data.urlPath}`,
+      url: `${this.BASE_URL}${data.data.get_comicNode.data.urlPath}`,
       releasedAt: data.data.get_comicNode.data.dateCreate
         ? new Date(data.data.get_comicNode.data.dateCreate).toISOString()
         : undefined,
@@ -158,10 +159,10 @@ fragment mangaData on ComicNode {
       chapters: data.data.get_comicChapterList
         .map((chapter) => ({
           id: chapter.data.dname!,
-          slug: chapter.data.
+          slug: chapter.data.urlPath!.split('/').pop()!,
           title: chapter.data.title,
           index: chapter.data.serial!,
-          url: chapter.data.urlPath!,
+          url: `${this.BASE_URL}${chapter.data.urlPath}`,
           releasedAt: chapter.data.dateCreate
             ? new Date(chapter.data.dateCreate).toISOString()
             : undefined,
