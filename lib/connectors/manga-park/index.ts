@@ -182,6 +182,7 @@ fragment mangaData on ComicNode {
   ): Status {
     switch (status) {
       case 'ongoing':
+      case 'pending':
         return Status.Ongoing;
 
       case 'completed':
