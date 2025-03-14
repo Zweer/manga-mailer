@@ -217,15 +217,11 @@ function createEmailChapter(event: any) {
 
 function markMangaAsRead(event: any) {
   const { connector, mangaId } = getParameters(event);
-  const { manga, lastChapter, needsLazyLoading } = getUserManga(
-    connector,
-    mangaId,
-  ) as MangaSaveComplete;
+  const { manga, needsLazyLoading } = getUserManga(connector, mangaId) as MangaSaveComplete;
 
   putUserManga({
     connector,
     manga,
-    lastChapter,
     readChapters: manga.chapters.map((chapter) => chapter.index),
     needsLazyLoading,
   });
@@ -235,7 +231,7 @@ function markMangaAsRead(event: any) {
 
 function markMangaAsCompleted(event: any) {
   const { connector, mangaId } = getParameters(event);
-  const { manga, lastChapter, readChapters, needsLazyLoading } = getUserManga(
+  const { manga, readChapters, needsLazyLoading } = getUserManga(
     connector,
     mangaId,
   ) as MangaSaveComplete;
@@ -245,7 +241,6 @@ function markMangaAsCompleted(event: any) {
   putUserManga({
     connector,
     manga,
-    lastChapter,
     readChapters,
     needsLazyLoading,
   });
@@ -255,7 +250,7 @@ function markMangaAsCompleted(event: any) {
 
 function markChapterAsRead(event: any) {
   const { connector, mangaId, chapterIndex } = getParameters(event);
-  const { manga, lastChapter, readChapters, needsLazyLoading } = getUserManga(
+  const { manga, readChapters, needsLazyLoading } = getUserManga(
     connector,
     mangaId,
   ) as MangaSaveComplete;
@@ -266,7 +261,6 @@ function markChapterAsRead(event: any) {
   putUserManga({
     connector,
     manga,
-    lastChapter,
     readChapters,
     needsLazyLoading,
   });
@@ -276,15 +270,11 @@ function markChapterAsRead(event: any) {
 
 function markChaptersAsRead(event: any) {
   const { connector, mangaId, chapterIndex } = getParameters(event);
-  const { manga, lastChapter, needsLazyLoading } = getUserManga(
-    connector,
-    mangaId,
-  ) as MangaSaveComplete;
+  const { manga, needsLazyLoading } = getUserManga(connector, mangaId) as MangaSaveComplete;
 
   putUserManga({
     connector,
     manga,
-    lastChapter,
     readChapters: manga.chapters
       .filter((chapter) => chapter.index <= chapterIndex)
       .map((chapter) => chapter.index),

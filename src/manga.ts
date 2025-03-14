@@ -9,7 +9,7 @@ import {
   migrate,
   putUserManga,
 } from './lib/db';
-import { getParameters } from './lib/utils';
+import { calculateLazyChaptersRemainingStart, getParameters } from './lib/utils';
 
 import './components/addManga';
 import './components/showManga';
@@ -152,10 +152,10 @@ function showLazyLoadMangas() {
   );
 
   const lazyLoadMangaListSection = CardService.newCardSection().setHeader('Lazy Load Mangas');
-  lazyLoadMangas.forEach(({ connector, manga }) => {
+  lazyLoadMangas.forEach(({ connector, manga, lazyChaptersRemaining }) => {
     const link = CardService.newDecoratedText()
       .setText(manga.title)
-      .setBottomLabel(`${manga.chaptersCount} chapters left`)
+      .setBottomLabel(`${lazyChaptersRemaining ?? manga.chaptersCount} chapters left`)
       .setOnClickAction(
         CardService.newAction().setFunctionName('lazyLoadManga').setParameters({
           connector,
@@ -181,10 +181,10 @@ function showLazyLoadMangas() {
 
 function lazyLoadManga(event: any) {
   const { connector: connectorName, mangaId } = getParameters(event);
-  const { manga, readChapters, needsLazyLoading } = getUserManga(connectorName, mangaId);
+  const { manga, readChapters } = getUserManga(connectorName, mangaId);
   const connector = connectors.find((connector) => connector.name === connectorName)!;
 
-  const start = manga.chapters.findIndex((chapter) => chapter.images.length === 0);
+  const start = calculateLazyChaptersRemainingStart(manga.chapters);
   console.log(manga.title, start, manga.chapters.length);
 
   connector.lazyLoadManga(manga, start);
@@ -192,9 +192,8 @@ function lazyLoadManga(event: any) {
   putUserManga({
     connector: connectorName,
     manga,
-    lastChapter: manga.chapters[manga.chapters.length - 1],
     readChapters,
-    needsLazyLoading: manga.chapters.findIndex((chapter) => chapter.images.length === 0) !== -1,
+    needsLazyLoading: calculateLazyChaptersRemainingStart(manga.chapters) !== -1,
   });
 
   return showLazyLoadMangas();

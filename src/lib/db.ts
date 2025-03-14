@@ -2,11 +2,14 @@ import { ConnectorNames } from '../../lib/connectors';
 import { Chapter } from '../../lib/interfaces/chapter';
 import { Manga, MangaWithoutChapters } from '../../lib/interfaces/manga';
 
+import { calculateLastChapter, calculateLazyChaptersRemaining } from './utils';
+
 interface MangaSaveCommon<T extends MangaWithoutChapters> {
   connector: ConnectorNames;
   manga: T;
   lastChapter: Chapter;
   needsLazyLoading: boolean;
+  lazyChaptersRemaining: number;
 }
 
 export interface MangaSave extends MangaSaveCommon<MangaWithoutChapters> {
@@ -16,6 +19,8 @@ export interface MangaSave extends MangaSaveCommon<MangaWithoutChapters> {
 export interface MangaSaveComplete extends MangaSaveCommon<Manga> {
   readChapters: number[];
 }
+
+type MangaSaveCompleteRequired = Omit<MangaSaveComplete, 'lastChapter' | 'lazyChaptersRemaining'>;
 
 function getFolder(connector?: ConnectorNames): GoogleAppsScript.Drive.Folder {
   const rootFolder = connector ? getFolder() : DriveApp.getRootFolder();
@@ -57,7 +62,7 @@ export function getUserManga(connector: ConnectorNames, id: string): MangaSaveCo
   return JSON.parse(getMangaString(connector, id)) as MangaSaveComplete;
 }
 
-function putUserMangaInMangas(mangaSave: MangaSaveComplete): void {
+function putUserMangaInMangas(mangaSave: MangaSaveCompleteRequired): void {
   const mangas = getUserMangas();
 
   const found = mangas.find(
@@ -71,11 +76,12 @@ function putUserMangaInMangas(mangaSave: MangaSaveComplete): void {
     } else {
       const { chapters, ...mangaWithoutChapters } = mangaSave.manga;
       found.manga = mangaWithoutChapters;
-      found.lastChapter = mangaSave.lastChapter;
+      found.lastChapter = calculateLastChapter(chapters);
       found.unreadChapters = chapters.filter(
         (chapter) => !mangaSave.readChapters.includes(chapter.index),
       ).length;
       found.needsLazyLoading = mangaSave.needsLazyLoading;
+      found.lazyChaptersRemaining = calculateLazyChaptersRemaining(chapters);
       // @ts-expect-error old stuff
       delete found.readChapters;
     }
@@ -84,9 +90,10 @@ function putUserMangaInMangas(mangaSave: MangaSaveComplete): void {
     mangas.push({
       connector: mangaSave.connector,
       manga: mangaWithoutChapters,
-      lastChapter: mangaSave.lastChapter,
+      lastChapter: calculateLastChapter(chapters),
       unreadChapters: chapters.length,
       needsLazyLoading: mangaSave.needsLazyLoading,
+      lazyChaptersRemaining: calculateLazyChaptersRemaining(chapters),
     });
   }
 
@@ -101,13 +108,16 @@ function putUserMangaInMangas(mangaSave: MangaSaveComplete): void {
   getMangaFile().setContent(JSON.stringify(mangas, null, 2));
 }
 
-function putUserMangaInManga(mangaSave: MangaSaveComplete): void {
-  getMangaFile(mangaSave.connector, mangaSave.manga.id).setContent(
-    JSON.stringify(mangaSave, null, 2),
-  );
+function putUserMangaInManga(mangaSave: MangaSaveCompleteRequired): void {
+  const manga: MangaSaveComplete = {
+    ...mangaSave,
+    lastChapter: calculateLastChapter(mangaSave.manga.chapters),
+    lazyChaptersRemaining: calculateLazyChaptersRemaining(mangaSave.manga.chapters),
+  };
+  getMangaFile(mangaSave.connector, mangaSave.manga.id).setContent(JSON.stringify(manga, null, 2));
 }
 
-export function putUserManga(mangaSave: MangaSaveComplete): void {
+export function putUserManga(mangaSave: MangaSaveCompleteRequired): void {
   putUserMangaInMangas(mangaSave);
   putUserMangaInManga(mangaSave);
 }
@@ -145,7 +155,7 @@ function migrate202503141800reorderChapters() {
     .forEach((mangaSave) => {
       const manga = getUserManga(mangaSave.connector, mangaSave.manga.id);
       manga.manga.chapters.sort((chapterA, chapterB) => chapterA.index - chapterB.index);
-      manga.lastChapter = manga.manga.chapters[manga.manga.chapters.length - 1];
+      manga.lastChapter = calculateLastChapter(manga.manga.chapters);
       putUserManga(manga);
     });
 }

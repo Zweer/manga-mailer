@@ -100,7 +100,6 @@ function selectManga(event: any) {
     putUserManga({
       connector: connector.name,
       manga,
-      lastChapter: manga.chapters[manga.chapters.length - 1],
       readChapters: [],
       needsLazyLoading,
     });

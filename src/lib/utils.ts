@@ -1,4 +1,5 @@
 import { ConnectorNames } from '../../lib/connectors';
+import { Chapter } from '../../lib/interfaces/chapter';
 
 export function getParameters(event: any): {
   connector: ConnectorNames;
@@ -15,4 +16,20 @@ export function getParameters(event: any): {
   console.log('chapterIndex:', chapterIndex);
 
   return { connector, mangaId, chapterIndex };
+}
+
+function lambdaLazyChaptersRemaining(chapter: Chapter): boolean {
+  return chapter.images.length === 0;
+}
+
+export function calculateLazyChaptersRemaining(chapters: Chapter[]): number {
+  return chapters.filter(lambdaLazyChaptersRemaining).length;
+}
+
+export function calculateLazyChaptersRemainingStart(chapters: Chapter[]): number {
+  return chapters.findIndex(lambdaLazyChaptersRemaining);
+}
+
+export function calculateLastChapter(chapters: Chapter[]): Chapter {
+  return chapters[chapters.length - 1];
 }
