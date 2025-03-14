@@ -9,7 +9,7 @@ export interface MangaParkCommonData {
     genres?: string[];
     id: string;
     name?: string;
-    originalStatus: 'ongoing' | 'completed' | 'hiatus' | 'pending';
+    originalStatus: 'ongoing' | 'completed' | 'hiatus' | 'pending' | 'cancelled';
     score_avg?: number;
     sfw_result?: boolean;
     slug?: string;

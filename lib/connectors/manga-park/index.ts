@@ -191,6 +191,9 @@ fragment mangaData on ComicNode {
       case 'hiatus':
         return Status.Hiatus;
 
+      case 'cancelled':
+        return Status.Cancelled;
+
       case null:
         return Status.Unknown;
 
