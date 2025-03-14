@@ -62,7 +62,7 @@ export class OmegaScansConnector implements Connector {
       excerpt: data.description,
       image: data.thumbnail,
       url: `${this.BASE_URL}/series/${data.series_slug}`,
-      releasedAt: new Date(data.seasons[0].created_at).toISOString(),
+      releasedAt: new Date(data.seasons[0]?.created_at ?? data.release_year).toISOString(),
       status: this.matchStatus(data.status),
       genres: [],
       score: data.rating ?? 0,
