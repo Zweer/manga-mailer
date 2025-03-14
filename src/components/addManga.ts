@@ -2,15 +2,15 @@ import { ConnectorNames, connectors } from '../../lib/connectors';
 import { putUserManga } from '../lib/db';
 import { MangaAutocomplete } from '../lib/types';
 
-function showAddMangaForm(_: any, hasSelected = false) {
+function showAddMangaForm(_: any, mangaTitle?: string) {
   let card = CardService.newCardBuilder().setHeader(
     CardService.newCardHeader().setTitle('Add Manga'),
   );
 
-  if (hasSelected) {
+  if (mangaTitle) {
     card = card.addSection(
       CardService.newCardSection().addWidget(
-        CardService.newTextParagraph().setText('Manga added successfully!'),
+        CardService.newTextParagraph().setText(`Manga "${mangaTitle}" added successfully!`),
       ),
     );
   }
@@ -104,7 +104,9 @@ function selectManga(event: any) {
       readChapters: [],
       needsLazyLoading,
     });
+
+    return showAddMangaForm(event, manga.title);
   }
 
-  return showAddMangaForm(event, Boolean(mangaConnectorId));
+  return showAddMangaForm(event);
 }
