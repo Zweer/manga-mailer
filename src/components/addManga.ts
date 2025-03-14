@@ -95,25 +95,15 @@ function selectManga(event: any) {
     const [connectorName, mangaId] = mangaConnectorId.split(':');
     const connector = connectors.find((connector) => connector.name === connectorName)!;
     const needsLazyLoading = connector.needsLazyLoading;
-    const manga = connector.getManga(mangaId, needsLazyLoading);
+    const manga = connector.getManga(mangaId);
 
-    if (needsLazyLoading) {
-      putUserManga({
-        connector: connector.name,
-        manga,
-        lastChapter: null,
-        readChapters: [],
-        needsLazyLoading: true,
-      });
-    } else {
-      putUserManga({
-        connector: connector.name,
-        manga,
-        lastChapter: manga.chapters[manga.chapters.length - 1],
-        readChapters: [],
-        needsLazyLoading: false,
-      });
-    }
+    putUserManga({
+      connector: connector.name,
+      manga,
+      lastChapter: manga.chapters[manga.chapters.length - 1],
+      readChapters: [],
+      needsLazyLoading,
+    });
   }
 
   return showAddMangaForm(event, Boolean(mangaConnectorId));

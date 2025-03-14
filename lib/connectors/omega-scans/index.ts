@@ -16,7 +16,7 @@ export class OmegaScansConnector implements Connector {
 
   name = 'omegascans' as const;
   initials = 'OS';
-  needsLazyLoading = false;
+  needsLazyLoading = true;
 
   getMangas(search?: string): MangaWithoutChapters[] {
     const mangas: MangaWithoutChapters[] = [];
@@ -78,8 +78,10 @@ export class OmegaScansConnector implements Connector {
       });
       const data: OmegaScansGetChapterDetailsResponse = JSON.parse(response.getContentText());
 
+      chapter.index = parseFloat(data.chapter.index);
       chapter.images = data.chapter.chapter_data.images;
     });
+    manga.chapters = manga.chapters.sort((chapterA, chapterB) => chapterA.index - chapterB.index);
 
     return manga;
   }

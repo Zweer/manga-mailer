@@ -1,4 +1,4 @@
-import { getUserManga, MangaSaveEagerComplete, putUserManga } from '../lib/db';
+import { getUserManga, MangaSaveComplete, putUserManga } from '../lib/db';
 import { Status } from '../../lib/interfaces/manga';
 import { getParameters } from '../lib/utils';
 
@@ -7,7 +7,7 @@ function showManga(event: any) {
   const { manga, lastChapter, readChapters } = getUserManga(
     connector,
     mangaId,
-  ) as MangaSaveEagerComplete;
+  ) as MangaSaveComplete;
 
   let lastChapterWidget = CardService.newDecoratedText().setText(`Last Chapter: ${lastChapter.id}`);
   if (lastChapter.releasedAt) {
@@ -58,7 +58,7 @@ function showManga(event: any) {
         )
         .addWidget(
           CardService.newTextButton()
-            .setText('Mark as Read')
+            .setText('Mark Manga as Read')
             .setOnClickAction(
               CardService.newAction().setFunctionName('markMangaAsRead').setParameters({
                 connector,
@@ -68,13 +68,25 @@ function showManga(event: any) {
         )
         .addWidget(
           CardService.newTextButton()
-            .setText('Mark as Completed')
+            .setText('Mark Manga as Completed')
             .setOnClickAction(
               CardService.newAction().setFunctionName('markMangaAsCompleted').setParameters({
                 connector,
                 mangaId: manga.id,
               }),
             ),
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Delete Manga')
+            .setOnClickAction(
+              // function on homepage
+              CardService.newAction().setFunctionName('deleteManga').setParameters({
+                connector,
+                mangaId: manga.id,
+              }),
+            )
+            .setTextButtonStyle(CardService.TextButtonStyle.FILLED),
         ),
     )
     .addSection(chapters)
@@ -91,7 +103,7 @@ function showManga(event: any) {
 
 function showChapter(event: any) {
   const { connector, mangaId } = getParameters(event);
-  const { manga } = getUserManga(connector, mangaId) as MangaSaveEagerComplete;
+  const { manga } = getUserManga(connector, mangaId) as MangaSaveComplete;
   let { chapterIndex } = getParameters(event);
   if (!chapterIndex) {
     chapterIndex = parseInt(event.formInput.chapterDropdown, 10);
@@ -154,6 +166,17 @@ function showChapter(event: any) {
                 chapter: chapter.index.toString(),
               }),
             ),
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Mark as Read (up to this)')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('markChaptersAsRead').setParameters({
+                connector,
+                mangaId: manga.id,
+                chapter: chapter.index.toString(),
+              }),
+            ),
         ),
     )
     .addSection(messagesSection)
@@ -170,7 +193,7 @@ function showChapter(event: any) {
 
 function createEmailChapter(event: any) {
   const { connector, mangaId, chapterIndex } = getParameters(event);
-  const { manga } = getUserManga(connector, mangaId) as MangaSaveEagerComplete;
+  const { manga } = getUserManga(connector, mangaId) as MangaSaveComplete;
 
   const chapter = manga.chapters.find((chapter) => chapter.index === chapterIndex)!;
   console.log('chapter:', chapter);
@@ -197,7 +220,7 @@ function markMangaAsRead(event: any) {
   const { manga, lastChapter, needsLazyLoading } = getUserManga(
     connector,
     mangaId,
-  ) as MangaSaveEagerComplete;
+  ) as MangaSaveComplete;
 
   putUserManga({
     connector,
@@ -215,7 +238,7 @@ function markMangaAsCompleted(event: any) {
   const { manga, lastChapter, readChapters, needsLazyLoading } = getUserManga(
     connector,
     mangaId,
-  ) as MangaSaveEagerComplete;
+  ) as MangaSaveComplete;
 
   manga.status = Status.Completed;
 
@@ -224,6 +247,47 @@ function markMangaAsCompleted(event: any) {
     manga,
     lastChapter,
     readChapters,
+    needsLazyLoading,
+  });
+
+  return CardService.newNavigation().updateCard(showManga(event));
+}
+
+function markChapterAsRead(event: any) {
+  const { connector, mangaId, chapterIndex } = getParameters(event);
+  const { manga, lastChapter, readChapters, needsLazyLoading } = getUserManga(
+    connector,
+    mangaId,
+  ) as MangaSaveComplete;
+
+  readChapters.push(chapterIndex);
+  readChapters.sort((chapterA, chapterB) => chapterA - chapterB);
+
+  putUserManga({
+    connector,
+    manga,
+    lastChapter,
+    readChapters,
+    needsLazyLoading,
+  });
+
+  return CardService.newNavigation().updateCard(showManga(event));
+}
+
+function markChaptersAsRead(event: any) {
+  const { connector, mangaId, chapterIndex } = getParameters(event);
+  const { manga, lastChapter, needsLazyLoading } = getUserManga(
+    connector,
+    mangaId,
+  ) as MangaSaveComplete;
+
+  putUserManga({
+    connector,
+    manga,
+    lastChapter,
+    readChapters: manga.chapters
+      .filter((chapter) => chapter.index <= chapterIndex)
+      .map((chapter) => chapter.index),
     needsLazyLoading,
   });
 

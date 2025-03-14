@@ -2,11 +2,12 @@ import { connectors } from '../lib/connectors';
 import { Status } from '../lib/interfaces/manga';
 
 import {
+  deleteUserManga,
   getUserManga,
   getUserMangas,
-  MangaSaveEagerPartial,
-  MangaSaveLazyComplete,
-  MangaSaveLazyPartial,
+  MangaSave,
+  migrate,
+  putUserManga,
 } from './lib/db';
 import { getParameters } from './lib/utils';
 
@@ -14,30 +15,32 @@ import './components/addManga';
 import './components/showManga';
 
 function mangaHomepage() {
+  migrate();
+
   const mangas = getUserMangas();
 
   let card = CardService.newCardBuilder().setHeader(
     CardService.newCardHeader().setTitle('Manga Mailer'),
   );
 
-  const lazyLoadMangas = mangas.filter(
-    ({ needsLazyLoading }) => needsLazyLoading,
-  ) as MangaSaveLazyPartial[];
+  const lazyLoadMangas = mangas.filter(({ needsLazyLoading }) => needsLazyLoading) as MangaSave[];
+  console.log('lazyLoadMangas:', lazyLoadMangas.length);
+
   const completedMangas = mangas.filter(
-    ({ manga, needsLazyLoading, readChapters }) =>
-      !needsLazyLoading &&
-      manga.status === Status.Completed &&
-      manga.chaptersCount <= readChapters.length,
-  ) as MangaSaveEagerPartial[];
+    ({ manga, needsLazyLoading, unreadChapters }) =>
+      !needsLazyLoading && manga.status === Status.Completed && unreadChapters === 0,
+  ) as MangaSave[];
+  console.log('completedMangas:', completedMangas.length);
+
   const ongoingMangas = mangas.filter(
-    ({ manga, needsLazyLoading, readChapters }) =>
-      !needsLazyLoading &&
-      (manga.status !== Status.Completed || manga.chaptersCount > readChapters.length),
-  ) as MangaSaveEagerPartial[];
+    ({ manga, needsLazyLoading, unreadChapters }) =>
+      !needsLazyLoading && (manga.status !== Status.Completed || unreadChapters > 0),
+  ) as MangaSave[];
+  console.log('ongoingMangas:', ongoingMangas.length);
 
   if (ongoingMangas.length !== 0) {
     const mangaListSection = CardService.newCardSection().setHeader('Your Mangas');
-    ongoingMangas.forEach(({ connector, manga, lastChapter, readChapters }) => {
+    ongoingMangas.forEach(({ connector, manga, lastChapter, unreadChapters }) => {
       const link = CardService.newDecoratedText()
         .setText(`${manga.title} (Chapter ${lastChapter.index})`)
         .setOnClickAction(
@@ -47,9 +50,9 @@ function mangaHomepage() {
           }),
         );
 
-      if (manga.chaptersCount > readChapters.length) {
+      if (unreadChapters) {
         link
-          .setBottomLabel(`New chapters: ${manga.chaptersCount - readChapters.length}`)
+          .setBottomLabel(`New chapters: ${unreadChapters}`)
           .setStartIcon(CardService.newIconImage().setIcon(CardService.Icon.EMAIL));
       } else if (manga.status === Status.Hiatus) {
         link
@@ -105,8 +108,7 @@ function showCompletedMangas() {
   const mangas = getUserMangas();
 
   const completedMangas = mangas.filter(
-    ({ manga, readChapters }) =>
-      manga.status === Status.Completed && manga.chaptersCount === readChapters.length,
+    ({ manga, unreadChapters }) => manga.status === Status.Completed && unreadChapters === 0,
   );
 
   const card = CardService.newCardBuilder().setHeader(
@@ -152,7 +154,8 @@ function showLazyLoadMangas() {
   const lazyLoadMangaListSection = CardService.newCardSection().setHeader('Lazy Load Mangas');
   lazyLoadMangas.forEach(({ connector, manga }) => {
     const link = CardService.newDecoratedText()
-      .setText(`${manga.title} (${manga.chaptersCount} chapters left)`)
+      .setText(manga.title)
+      .setBottomLabel(`${manga.chaptersCount} chapters left`)
       .setOnClickAction(
         CardService.newAction().setFunctionName('lazyLoadManga').setParameters({
           connector,
@@ -163,20 +166,44 @@ function showLazyLoadMangas() {
     lazyLoadMangaListSection.addWidget(link);
   });
 
-  card.addSection(lazyLoadMangaListSection);
+  card
+    .addSection(lazyLoadMangaListSection)
+    .addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Back to Home')
+          .setOnClickAction(CardService.newAction().setFunctionName('mangaHomepage')),
+      ),
+    );
 
   return card.build();
 }
 
 function lazyLoadManga(event: any) {
   const { connector: connectorName, mangaId } = getParameters(event);
-  const { manga } = getUserManga(connectorName, mangaId) as MangaSaveLazyComplete;
+  const { manga, readChapters, needsLazyLoading } = getUserManga(connectorName, mangaId);
   const connector = connectors.find((connector) => connector.name === connectorName)!;
 
   const start = manga.chapters.findIndex((chapter) => chapter.images.length === 0);
+  console.log(manga.title, start, manga.chapters.length);
+
   connector.lazyLoadManga(manga, start);
 
-  const nav = CardService.newNavigation().popToRoot().updateCard(showLazyLoadMangas());
+  putUserManga({
+    connector: connectorName,
+    manga,
+    lastChapter: manga.chapters[manga.chapters.length - 1],
+    readChapters,
+    needsLazyLoading: manga.chapters.findIndex((chapter) => chapter.images.length === 0) !== -1,
+  });
 
-  return CardService.newActionResponseBuilder().setNavigation(nav).build();
+  return showLazyLoadMangas();
+}
+
+function deleteManga(event: any) {
+  const { connector, mangaId } = getParameters(event);
+
+  deleteUserManga(connector, mangaId);
+
+  return CardService.newNavigation().updateCard(mangaHomepage());
 }

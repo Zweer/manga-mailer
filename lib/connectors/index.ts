@@ -11,7 +11,7 @@ export interface Connector {
   needsLazyLoading: boolean;
 
   getMangas(search?: string): MangaWithoutChapters[];
-  getManga(id: string, lazyLoading: boolean): Manga;
+  getManga(id: string): Manga;
   lazyLoadManga(manga: Manga, offset: number, limit?: number): Manga;
 }
 

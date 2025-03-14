@@ -77,7 +77,7 @@ fragment mangaData on ComicNode {
   needsLazyLoading = false;
 
   getMangas(search?: string): MangaWithoutChapters[] {
-    const mangas: Omit<Manga, 'chapters'>[] = [];
+    const mangas: MangaWithoutChapters[] = [];
     const operationName = 'getMangas';
     const query = this.GRAPHQL_QUERY;
     const variables = {
