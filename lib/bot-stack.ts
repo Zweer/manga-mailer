@@ -22,15 +22,7 @@ export class BotStack extends NestedStack {
   constructor(scope: Construct, id: string, props: BotStackProps) {
     super(scope, id, props);
 
-    const telegramSecret = new Secret(this, 'TelegramSecret', {
-      secretName: PROJECT_NAME,
-      generateSecretString: {
-        generateStringKey: '_',
-        secretStringTemplate: JSON.stringify({
-          token: '',
-        }),
-      },
-    });
+    const telegramSecret = Secret.fromSecretNameV2(this, 'TelegramSecret', `${PROJECT_NAME}/bot`);
 
     const api = new RestApi(this, 'RestApi', {
       restApiName: PROJECT_NAME,
