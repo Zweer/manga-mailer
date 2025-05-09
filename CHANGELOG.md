@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/Zweer/manga-mailer/compare/v1.0.2...v1.0.3) (2025-05-09)
+
+
+### Performance Improvements
+
+* **bot:** :alembic: Debugging the webhook set ([81ee24d](https://github.com/Zweer/manga-mailer/commit/81ee24d0b19ce7c49ead5c7b863a282d1ca761bf))
+
 ## [1.0.2](https://github.com/Zweer/manga-mailer/compare/v1.0.1...v1.0.2) (2025-05-09)
 
 
