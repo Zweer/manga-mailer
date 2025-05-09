@@ -8,16 +8,31 @@ import { getLogger, getTelegramToken } from './utils';
 const logger = getLogger();
 
 class Lambda implements LambdaInterface {
-  @logger.injectLambdaContext()
-  public async handler(event: APIGatewayProxyEventV2, context: unknown): Promise<void> {
+  protected bot: Bot | null = null;
+
+  async createBot(): Promise<Bot> {
     const token = await getTelegramToken();
     const bot = new Bot(token);
-
     bot.on('message', async (ctx) => {
+      logger.info('Received message', { message: ctx.message });
       await ctx.reply('Hi there!');
     });
 
-    return webhookCallback(bot, 'aws-lambda-async')(event, context);
+    return bot;
+  }
+
+  @logger.injectLambdaContext()
+  public async handler(event: APIGatewayProxyEventV2, context: unknown): Promise<void> {
+    if (!this.bot) {
+      this.bot = await this.createBot();
+    }
+
+    this.bot.on('message', async (ctx) => {
+      logger.info('Received message', { message: ctx.message }, { ctx });
+      await ctx.reply('Hi there!');
+    });
+
+    return webhookCallback(this.bot, 'aws-lambda-async')(event, context);
   }
 }
 
