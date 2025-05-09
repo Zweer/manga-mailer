@@ -1,5 +1,6 @@
 import { ConnectorNames } from '../../lib/connectors';
 import { Chapter } from '../../lib/interfaces/chapter';
+import { MangaSave } from './db';
 
 export function getParameters(event: any): {
   connector: ConnectorNames;
@@ -32,4 +33,16 @@ export function calculateLazyChaptersRemainingStart(chapters: Chapter[]): number
 
 export function calculateLastChapter(chapters: Chapter[]): Chapter {
   return chapters[chapters.length - 1];
+}
+
+export function calculateLazyLoadMangas(mangas: MangaSave[]): MangaSave[] {
+  return mangas.filter(({ needsLazyLoading }) => needsLazyLoading);
+}
+
+export function calculateLazyLoadMangas(mangas: MangaSave[]): MangaSave[] {
+  return mangas.filter(({ needsLazyLoading }) => needsLazyLoading);
+}
+
+export function calculateLazyLoadMangas(mangas: MangaSave[]): MangaSave[] {
+  return mangas.filter(({ needsLazyLoading }) => needsLazyLoading);
 }
