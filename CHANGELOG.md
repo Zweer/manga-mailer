@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/Zweer/manga-mailer/compare/v1.0.0...v1.0.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* **bot:** :ambulance: Fixed `cdk` errors ([0bb7625](https://github.com/Zweer/manga-mailer/commit/0bb7625a5752abee16f633a8573bafcb90bd87da))
+
 # 1.0.0 (2025-05-09)
 
 
