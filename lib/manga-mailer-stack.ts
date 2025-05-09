@@ -1,7 +1,7 @@
 import type { StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
 
-import { RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { Stack } from 'aws-cdk-lib';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 import { BotStack } from './bot-stack';
