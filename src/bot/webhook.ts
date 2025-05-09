@@ -1,36 +1,52 @@
+import type { LambdaInterface } from '@aws-lambda-powertools/commons/types';
 import type {
-  CdkCustomResourceHandler,
+  CdkCustomResourceEvent,
+  CdkCustomResourceResponse,
   CloudFormationCustomResourceResponseCommon,
 } from 'aws-lambda';
 
 import { Bot } from 'grammy';
 
-import { getTelegramToken } from './utils';
+import { getLogger, getTelegramToken } from './utils';
 
-export const handler: CdkCustomResourceHandler<{ endpoint: string }> = async (event) => {
-  const commonData: CloudFormationCustomResourceResponseCommon = {
-    LogicalResourceId: event.LogicalResourceId,
-    PhysicalResourceId: event.RequestType === 'Create' ? event.RequestId : event.PhysicalResourceId,
-    RequestId: event.RequestId,
-    StackId: event.StackId,
-  };
+const logger = getLogger();
 
-  const token = await getTelegramToken();
-  const bot = new Bot(token);
+class Lambda implements LambdaInterface {
+  @logger.injectLambdaContext()
+  public async handler(event: CdkCustomResourceEvent<{ endpoint: string }>, _context: unknown): Promise<CdkCustomResourceResponse> {
+    const token = await getTelegramToken();
+    const bot = new Bot(token);
 
-  try {
-    const endpoint = event.RequestType === 'Delete' ? '' : event.ResourceProperties.endpoint;
-    await bot.api.setWebhook(endpoint);
-  } catch (error) {
+    logger.info('Received event', { event });
+
+    const commonData: CloudFormationCustomResourceResponseCommon = {
+      LogicalResourceId: event.LogicalResourceId,
+      PhysicalResourceId: event.RequestType === 'Create' ? event.RequestId : event.PhysicalResourceId,
+      RequestId: event.RequestId,
+      StackId: event.StackId,
+    };
+
+    try {
+      const endpoint = event.RequestType === 'Delete' ? '' : event.ResourceProperties.endpoint;
+      const isSuccess = await bot.api.setWebhook(endpoint);
+
+      logger.info('Set webhook', { endpoint, isSuccess });
+    } catch (error) {
+      logger.error('Failed to set webhook', { error });
+
+      return {
+        ...commonData,
+        Status: 'FAILED',
+        Reason: (error as Error).message,
+      };
+    }
+
     return {
       ...commonData,
-      Status: 'FAILED',
-      Reason: (error as Error).message,
+      Status: 'SUCCESS',
     };
   }
+}
 
-  return {
-    ...commonData,
-    Status: 'SUCCESS',
-  };
-};
+const lambda = new Lambda();
+export const handler = lambda.handler.bind(lambda);

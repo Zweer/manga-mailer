@@ -13,7 +13,7 @@ export class MangaMailerStack extends Stack {
     const logGroup = new LogGroup(this, 'MangaMailerLogGroup', {
       logGroupName: 'manga-mailer',
       retention: RetentionDays.ONE_WEEK,
-      removalPolicy: RemovalPolicy.DESTROY,
+      // removalPolicy: RemovalPolicy.DESTROY,
     });
 
     new BotStack(this, 'BotStack', {
