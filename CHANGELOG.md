@@ -1,3 +1,11 @@
+## [1.0.4](https://github.com/Zweer/manga-mailer/compare/v1.0.3...v1.0.4) (2025-05-09)
+
+
+### Performance Improvements
+
+* :wrench: The logGroup is now set to destroy ([434722f](https://github.com/Zweer/manga-mailer/commit/434722f064d33119da697880d9ddde15db49687f))
+* **bot:** :zap: Initializing bot only once ([b438aa4](https://github.com/Zweer/manga-mailer/commit/b438aa45a7cf622367bb3572dba900f5dc37f659))
+
 ## [1.0.3](https://github.com/Zweer/manga-mailer/compare/v1.0.2...v1.0.3) (2025-05-09)
 
 
