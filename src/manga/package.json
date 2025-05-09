@@ -1,13 +1,13 @@
 {
   "name": "@zweer/manga-mailer",
   "version": "0.1.0",
+  "description": "",
+  "author": "Zweer <n.olivieriachille@gmail.com>",
+  "license": "MIT",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Zweer <n.olivieriachille@gmail.com>",
-  "license": "MIT",
-  "description": "",
   "dependencies": {
     "@zweer/manga-scraper": "^2.1.0"
   }

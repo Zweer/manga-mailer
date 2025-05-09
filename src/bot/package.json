@@ -1,13 +1,13 @@
 {
   "name": "@zweer/manga-mailer-bot",
   "version": "0.1.0",
+  "description": "",
+  "author": "Zweer <n.olivieriachille@gmail.com>",
+  "license": "MIT",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Zweer <n.olivieriachille@gmail.com>",
-  "license": "MIT",
-  "description": "",
   "dependencies": {
     "@aws-lambda-powertools/commons": "^2.19.1",
     "@aws-lambda-powertools/logger": "^2.19.1",
