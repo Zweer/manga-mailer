@@ -1,0 +1,553 @@
+{
+  "$schema": "./manga.schema.json",
+  "mangas": [
+    {
+      "site": "mangapark",
+      "id": "83654",
+      "title": "Sweet Guy",
+      "lastReadChapter": 75
+    },
+    {
+      "site": "mangapark",
+      "id": "85029",
+      "title": "Perfect Half",
+      "lastReadChapter": 197
+    },
+    {
+      "site": "mangapark",
+      "id": "109002",
+      "title": "Under Observation: My First Loves And I",
+      "lastReadChapter": 51.5
+    },
+    {
+      "site": "mangapark",
+      "id": "113873",
+      "title": "Stepmother's Friends",
+      "lastReadChapter": 147
+    },
+    {
+      "site": "mangapark",
+      "id": "124452",
+      "title": "A Pervert's Daily Life",
+      "lastReadChapter": 144
+    },
+    {
+      "site": "mangapark",
+      "id": "124459",
+      "title": "A Wonderful New World",
+      "lastReadChapter": 262
+    },
+    {
+      "site": "mangapark",
+      "id": "124460",
+      "title": "A Sensitive Issue",
+      "lastReadChapter": 40
+    },
+    {
+      "site": "mangapark",
+      "id": "124571",
+      "title": "Love Limit Exceeded",
+      "lastReadChapter": 30
+    },
+    {
+      "site": "mangapark",
+      "id": "124574",
+      "title": "Lucky Guy",
+      "lastReadChapter": 73
+    },
+    {
+      "site": "mangapark",
+      "id": "124585",
+      "title": "The Girlfriend Dice",
+      "lastReadChapter": 4,
+      "disabled": true
+    },
+    {
+      "site": "mangapark",
+      "id": "124641",
+      "title": "My High School Bully",
+      "lastReadChapter": 224
+    },
+    {
+      "site": "mangapark",
+      "id": "124712",
+      "title": "Touch to Unlock",
+      "lastReadChapter": 109.3
+    },
+    {
+      "site": "mangapark",
+      "id": "124736",
+      "title": "Log in to Lust-a-land",
+      "lastReadChapter": 82
+    },
+    {
+      "site": "mangapark",
+      "id": "124742",
+      "title": "Young Boss",
+      "lastReadChapter": 133
+    },
+    {
+      "site": "mangapark",
+      "id": "127286",
+      "title": "Circles",
+      "lastReadChapter": 199
+    },
+    {
+      "site": "mangapark",
+      "id": "221033",
+      "title": "My Landlady Noona",
+      "lastReadChapter": 150
+    },
+    {
+      "site": "mangapark",
+      "id": "223698",
+      "title": "Private Tutoring in These Trying Times",
+      "lastReadChapter": 140
+    },
+    {
+      "site": "mangapark",
+      "id": "230188",
+      "title": "Is There No Goddess in My College?",
+      "lastReadChapter": 150.5
+    },
+    {
+      "site": "mangapark",
+      "id": "234275",
+      "title": "The Main Character is the Villain",
+      "lastReadChapter": 100
+    },
+    {
+      "site": "mangapark",
+      "id": "234737",
+      "title": "Sextudy Group",
+      "lastReadChapter": 110
+    },
+    {
+      "site": "mangapark",
+      "id": "234831",
+      "title": "Supervisor Access",
+      "lastReadChapter": 137
+    },
+    {
+      "site": "mangapark",
+      "id": "235881",
+      "title": "Rise and Shine, Hero!",
+      "lastReadChapter": 55
+    },
+    {
+      "site": "mangapark",
+      "id": "238588",
+      "title": "Cheer Up, Namjoo",
+      "lastReadChapter": 45
+    },
+    {
+      "site": "mangapark",
+      "id": "247528",
+      "title": "Trapped in the Academy's Eroge",
+      "lastReadChapter": 121
+    },
+    {
+      "site": "mangapark",
+      "id": "249282",
+      "title": "Sex-stop Watch",
+      "lastReadChapter": 131
+    },
+    {
+      "site": "mangapark",
+      "id": "259598",
+      "title": "Intern Haenyeo",
+      "lastReadChapter": 102.5
+    },
+    {
+      "site": "mangapark",
+      "id": "259609",
+      "title": "Breaking A Romantic Fantasy Villain",
+      "lastReadChapter": 87.5
+    },
+    {
+      "site": "mangapark",
+      "id": "264315",
+      "title": "The Secret Affairs Of The 3rd Generation Chaebol",
+      "lastReadChapter": 63
+    },
+    {
+      "site": "mangapark",
+      "id": "264977",
+      "title": "That’s Not How You Do It",
+      "lastReadChapter": 117
+    },
+    {
+      "site": "mangapark",
+      "id": "268845",
+      "title": "Too Good At Massages",
+      "lastReadChapter": 51.5
+    },
+    {
+      "site": "mangapark",
+      "id": "341009",
+      "title": "The Hole is Open",
+      "lastReadChapter": 115.5
+    },
+    {
+      "site": "mangapark",
+      "id": "341602",
+      "title": "Pervert Diary",
+      "lastReadChapter": 0,
+      "disabled": true
+    },
+    {
+      "site": "mangapark",
+      "id": "341963",
+      "title": "My Illustrator",
+      "lastReadChapter": 74
+    },
+    {
+      "site": "mangapark",
+      "id": "345084",
+      "title": "Pay with Sperm Pay",
+      "lastReadChapter": 85
+    },
+    {
+      "site": "mangapark",
+      "id": "346116",
+      "title": "Fucked the World Tree",
+      "lastReadChapter": 56
+    },
+    {
+      "site": "mangapark",
+      "id": "352825",
+      "title": "Night Hospital",
+      "lastReadChapter": 78
+    },
+    {
+      "site": "mangapark",
+      "id": "353605",
+      "title": "Milf Hunting in Another World",
+      "lastReadChapter": 74.5
+    },
+    {
+      "site": "mangapark",
+      "id": "361713",
+      "title": "Destiny Land",
+      "lastReadChapter": 44
+    },
+    {
+      "site": "mangapark",
+      "id": "370663",
+      "title": "Your Girlfriend Was Amazing",
+      "lastReadChapter": 80
+    },
+    {
+      "site": "mangapark",
+      "id": "379352",
+      "title": "I Ended Up in the World of Murim",
+      "lastReadChapter": 63
+    },
+    {
+      "site": "mangapark",
+      "id": "381899",
+      "title": "SSS-Class Undercover Agent",
+      "lastReadChapter": 47
+    },
+    {
+      "site": "mangapark",
+      "id": "385709",
+      "title": "Moby Dick",
+      "lastReadChapter": 59
+    },
+    {
+      "site": "mangapark",
+      "id": "386054",
+      "title": "The Cheat Code Hitter Fucks Them All",
+      "lastReadChapter": 67
+    },
+    {
+      "site": "mangapark",
+      "id": "386279",
+      "title": "Playing a game with my Busty Manager NEW",
+      "lastReadChapter": 60.5
+    },
+    {
+      "site": "mangapark",
+      "id": "387331",
+      "title": "Making Friends With Streamers by Hacking! NEW",
+      "lastReadChapter": 55.5
+    },
+    {
+      "site": "mangapark",
+      "id": "387792",
+      "title": "Corruption: Obscene Tales",
+      "lastReadChapter": 21
+    },
+    {
+      "site": "mangapark",
+      "id": "388450",
+      "title": "Sorcery: A Yokai Harem",
+      "lastReadChapter": 24
+    },
+    {
+      "site": "mangapark",
+      "id": "389327",
+      "title": "Greed Game",
+      "lastReadChapter": 35
+    },
+    {
+      "site": "mangapark",
+      "id": "391736",
+      "title": "This Shithole Company is Mine Now!",
+      "lastReadChapter": 51
+    },
+    {
+      "site": "mangapark",
+      "id": "392385",
+      "title": "Revenge By Harem",
+      "lastReadChapter": 31.5
+    },
+    {
+      "site": "mangapark",
+      "id": "393643",
+      "title": "My New Family Treats Me Well",
+      "lastReadChapter": 59
+    },
+    {
+      "site": "mangapark",
+      "id": "394066",
+      "title": "Alice's Sensual Radio",
+      "lastReadChapter": 27.5
+    },
+    {
+      "site": "mangapark",
+      "id": "395128",
+      "title": "Using Eroge Abilities In Real Life",
+      "lastReadChapter": 51
+    },
+    {
+      "site": "mangapark",
+      "id": "395430",
+      "title": "Welcome To The Isekai Convenience Store",
+      "lastReadChapter": 26
+    },
+    {
+      "site": "mangapark",
+      "id": "396215",
+      "title": "Regressed Warrior’s Female Dominance Diary",
+      "lastReadChapter": 58
+    },
+    {
+      "site": "mangapark",
+      "id": "399814",
+      "title": "The Girl Next Door",
+      "lastReadChapter": 30
+    },
+    {
+      "site": "mangapark",
+      "id": "400149",
+      "title": "Relationship Reversal",
+      "lastReadChapter": 39
+    },
+    {
+      "site": "mangapark",
+      "id": "400345",
+      "title": "Corruption In The Dungeon",
+      "lastReadChapter": 51
+    },
+    {
+      "site": "mangapark",
+      "id": "404418",
+      "title": "I Became a Sugar Daddy",
+      "lastReadChapter": 35
+    },
+    {
+      "site": "mangapark",
+      "id": "404658",
+      "title": "My Stowaway Diary",
+      "lastReadChapter": 25.5
+    },
+    {
+      "site": "mangapark",
+      "id": "404665",
+      "title": "Sexual Guidance Officer",
+      "lastReadChapter": 30
+    },
+    {
+      "site": "mangapark",
+      "id": "405020",
+      "title": "For Sale: Fallen Lady, Never Used",
+      "lastReadChapter": 48
+    },
+    {
+      "site": "mangapark",
+      "id": "406421",
+      "title": "My Sweet Home",
+      "lastReadChapter": 33
+    },
+    {
+      "site": "mangapark",
+      "id": "406518",
+      "title": "A Secret Lesson With My Younger Sister",
+      "lastReadChapter": 40
+    },
+    {
+      "site": "mangapark",
+      "id": "406865",
+      "title": "Instant Sex Lottery Ticket",
+      "lastReadChapter": 45
+    },
+    {
+      "site": "mangapark",
+      "id": "407900",
+      "title": "Do You Wanna Fight in This Life, Too?",
+      "lastReadChapter": 25.6
+    },
+    {
+      "site": "mangapark",
+      "id": "408727",
+      "title": "The Chairman's Wife",
+      "lastReadChapter": 42
+    },
+    {
+      "site": "mangapark",
+      "id": "409146",
+      "title": "Chicken Club",
+      "lastReadChapter": 40
+    },
+    {
+      "site": "mangapark",
+      "id": "409783",
+      "title": "The Gacha Girl Next Door",
+      "lastReadChapter": 36
+    },
+    {
+      "site": "mangapark",
+      "id": "411986",
+      "title": "The Protagonist Gets Stronger When He Fucks the Female Hunter",
+      "lastReadChapter": 7
+    },
+    {
+      "site": "mangapark",
+      "id": "411988",
+      "title": "The Female Professor and the Nude Artist",
+      "lastReadChapter": 10
+    },
+    {
+      "site": "mangapark",
+      "id": "412118",
+      "title": "Global Sexual Culture Research Institute",
+      "lastReadChapter": 29
+    },
+    {
+      "site": "mangapark",
+      "id": "412351",
+      "title": "Isekai Dragondick Knight Commander",
+      "lastReadChapter": 36
+    },
+    {
+      "site": "mangapark",
+      "id": "412706",
+      "title": "The Billionaire’s Monster Cock Son-In-Law",
+      "lastReadChapter": 33
+    },
+    {
+      "site": "mangapark",
+      "id": "412923",
+      "title": "Cold? Hot!",
+      "lastReadChapter": 22
+    },
+    {
+      "site": "mangapark",
+      "id": "413071",
+      "title": "Disciplining the Top Delinquent Bitch Through a Random Chatting App",
+      "lastReadChapter": 32
+    },
+    {
+      "site": "mangapark",
+      "id": "413181",
+      "title": "The Warrior Became an Academy Professor After Divorce",
+      "lastReadChapter": 34
+    },
+    {
+      "site": "mangapark",
+      "id": "413276",
+      "title": "Set It!",
+      "lastReadChapter": 33
+    },
+    {
+      "site": "mangapark",
+      "id": "413686",
+      "title": "I wanna OO you!",
+      "lastReadChapter": 20
+    },
+    {
+      "site": "mangapark",
+      "id": "413706",
+      "title": "A Guy and a Girl Stuck in an Elevator",
+      "lastReadChapter": 20
+    },
+    {
+      "site": "mangapark",
+      "id": "413856",
+      "title": "Magical Girl Service",
+      "lastReadChapter": 25
+    },
+    {
+      "site": "mangapark",
+      "id": "414152",
+      "title": "Love Gacha",
+      "lastReadChapter": 23
+    },
+    {
+      "site": "mangapark",
+      "id": "415132",
+      "title": "Sex for Survival",
+      "lastReadChapter": 14.5
+    },
+    {
+      "site": "mangapark",
+      "id": "415174",
+      "title": "An Introduction to MILFs",
+      "lastReadChapter": 31
+    },
+    {
+      "site": "mangapark",
+      "id": "415679",
+      "title": "You Watch Stuff Like That?",
+      "lastReadChapter": 25
+    },
+    {
+      "site": "mangapark",
+      "id": "415940",
+      "title": "Rented Room Brides",
+      "lastReadChapter": 23
+    },
+    {
+      "site": "mangapark",
+      "id": "416504",
+      "title": "Taming Females to Rise in Status",
+      "lastReadChapter": 25
+    },
+    {
+      "site": "mangapark",
+      "id": "417788",
+      "title": "Tax Girlfriend",
+      "lastReadChapter": 16
+    },
+    {
+      "site": "mangapark",
+      "id": "418850",
+      "title": "I Became a Pornhwa NPC",
+      "lastReadChapter": 19
+    },
+    {
+      "site": "mangapark",
+      "id": "419102",
+      "title": "Tremors",
+      "lastReadChapter": 16
+    },
+    {
+      "site": "mangapark",
+      "id": "419270",
+      "title": "Keep It a Secret in School",
+      "lastReadChapter": 20
+    }
+  ]
+}

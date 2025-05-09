@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "manga.schema.json",
+  "title": "Read Mangas",
+  "description": "A list of already read mangas",
+  "type": "object",
+  "properties": {
+    "mangas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string",
+            "enum": ["mangapark"]
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "lastReadChapter": {
+            "type": "number",
+            "minimum": 0
+          },
+          "disabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": ["site", "id", "lastReadChapter"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["mangas"]
+}
