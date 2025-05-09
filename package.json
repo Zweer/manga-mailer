@@ -1,6 +1,7 @@
 {
   "name": "@zweer/manga-mailer-infra",
   "version": "0.1.0",
+  "private": true,
   "bin": {
     "manga-mailer": "bin/manga-mailer.js"
   },
@@ -17,6 +18,7 @@
       "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
       "@semantic-release/changelog",
+      "@semantic-release/npm",
       "@semantic-release/git"
     ]
   },
