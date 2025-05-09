@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
+
 import { MangaMailerStack } from '../lib/manga-mailer-stack';
 
 const app = new cdk.App();

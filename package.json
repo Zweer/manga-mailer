@@ -5,22 +5,27 @@
     "manga-mailer": "bin/manga-mailer.js"
   },
   "scripts": {
+    "lint": "eslint .",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk"
   },
-  "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@types/node": "22.7.9",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
-    "aws-cdk": "2.1014.0",
-    "ts-node": "^10.9.2",
-    "typescript": "~5.6.3"
-  },
   "dependencies": {
     "aws-cdk-lib": "2.194.0",
     "constructs": "^10.0.0"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.13.0",
+    "@eslint-react/eslint-plugin": "^1.49.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "22.7.9",
+    "aws-cdk": "2.1014.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.6.3"
   }
 }

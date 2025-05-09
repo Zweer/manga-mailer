@@ -4,7 +4,7 @@
 
 // example test. To run these tests, uncomment this file along with the
 // example resource in lib/manga-mailer-stack.ts
-test('SQS Queue Created', () => {
+it('sQS Queue Created', () => {
 //   const app = new cdk.App();
 //     // WHEN
 //   const stack = new MangaMailer.MangaMailerStack(app, 'MyTestStack');
