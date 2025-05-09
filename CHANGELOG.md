@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/Zweer/manga-mailer/compare/v1.0.1...v1.0.2) (2025-05-09)
+
+
+### Performance Improvements
+
+* **bot:** :sparkles: Retrieving secret, not creating it ([0dc2d62](https://github.com/Zweer/manga-mailer/commit/0dc2d6237cce68a4d2e7774a6d3c95cddaabab0a))
+
 ## [1.0.1](https://github.com/Zweer/manga-mailer/compare/v1.0.0...v1.0.1) (2025-05-09)
 
 
