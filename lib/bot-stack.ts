@@ -38,7 +38,6 @@ export class BotStack extends NestedStack {
 
     const projectRoot = join(__dirname, '..', 'src', 'bot');
     const commonNodejsProps: NodejsFunctionProps = {
-      projectRoot,
       depsLockFilePath: join(__dirname, '..', 'package-lock.json'),
       environment: {
         NODE_OPTIONS: '--enable-source-maps',
@@ -69,7 +68,7 @@ export class BotStack extends NestedStack {
       onEventHandler: webhookFunction,
     });
 
-    new CustomResource(this, 'TelegramWebhookProvider', {
+    new CustomResource(this, 'TelegramWebhookCustomResource', {
       serviceToken: crProvider.serviceToken,
       properties: {
         url: api.url,
