@@ -13,6 +13,8 @@ export async function search(title: string): Promise<MangaAutocomplete[]> {
       const mangas = await mangasPromise;
       const newMangas = await connector.getMangas(title);
 
+      console.log(newMangas);
+
       mangas.push(
         ...newMangas.map(manga => ({
           connectorName,
@@ -30,6 +32,8 @@ export async function search(title: string): Promise<MangaAutocomplete[]> {
       }
       return mangaA.title.localeCompare(mangaB.title);
     });
+
+  console.log(mangas);
 
   return mangas;
 }
