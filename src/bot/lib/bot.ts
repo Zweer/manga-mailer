@@ -76,6 +76,7 @@ function createTrackConversation(bot: Bot, logger: Logger) {
     const ctxName = await conversation.waitFor('message:text');
     const title = ctxName.message.text;
     logger.info('[track] Received name', { ctx: ctxName });
+    await ctx.reply(`Cool, I'm searching for "${title}"...`);
     const mangas = await conversation.external(async () => search(title));
 
     const buttons = mangas.map(manga =>
