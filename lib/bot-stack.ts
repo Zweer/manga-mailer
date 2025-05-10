@@ -6,7 +6,9 @@ import type { Construct } from 'constructs';
 import { join } from 'node:path';
 
 import { CustomResource, NestedStack } from 'aws-cdk-lib';
-import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { AccessLogFormat } from 'aws-cdk-lib/aws-apigateway';
+import { HttpApi, HttpMethod, HttpRoute, HttpRouteKey, LogGroupLogDestination } from 'aws-cdk-lib/aws-apigatewayv2';
+import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { LoggingFormat } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
@@ -24,8 +26,16 @@ export class BotStack extends NestedStack {
 
     const telegramSecret = Secret.fromSecretNameV2(this, 'TelegramSecret', `${PROJECT_NAME}/bot`);
 
-    const api = new RestApi(this, 'RestApi', {
-      restApiName: PROJECT_NAME,
+    const httpApi = new HttpApi(this, 'HttpApi', {
+      apiName: `${PROJECT_NAME}-api`,
+      createDefaultStage: false,
+    });
+    const stage = httpApi.addStage('prod', {
+      autoDeploy: true,
+      accessLogSettings: {
+        destination: new LogGroupLogDestination(props.logGroup),
+        format: AccessLogFormat.jsonWithStandardFields(),
+      },
     });
 
     const projectRoot = join(__dirname, '..', 'src', 'bot');
@@ -47,7 +57,11 @@ export class BotStack extends NestedStack {
       entry: join(projectRoot, 'handler.ts'),
     });
     telegramSecret.grantRead(handlerFunction);
-    api.root.addMethod('POST', new LambdaIntegration(handlerFunction));
+    new HttpRoute(this, 'TelegramWebhookRoute', {
+      httpApi,
+      routeKey: HttpRouteKey.with('/', HttpMethod.POST),
+      integration: new HttpLambdaIntegration('WebhookIntegration', handlerFunction),
+    });
 
     const webhookFunction = new NodejsFunction(this, 'TelegramWebhookFunction', {
       ...commonNodejsProps,
@@ -63,7 +77,7 @@ export class BotStack extends NestedStack {
     new CustomResource(this, 'TelegramWebhookCustomResource', {
       serviceToken: crProvider.serviceToken,
       properties: {
-        url: api.url,
+        url: stage.url,
       },
     });
   }
