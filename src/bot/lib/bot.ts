@@ -2,12 +2,11 @@ import type { Logger } from '@aws-lambda-powertools/logger';
 import type { Conversation, ConversationFlavor } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import process from 'node:process';
-
 import {
   conversations,
   createConversation,
 } from '@grammyjs/conversations';
+import { userRepository } from '@zweer/manga-mailer-database';
 import { Bot as BotConstructor } from 'grammy';
 
 import { getTelegramToken } from '../utils';
@@ -20,11 +19,7 @@ export async function createBot(logger: Logger) {
   const token = await getTelegramToken();
   const bot = new BotConstructor<ConversationFlavor<Context>>(token);
   bot.use(conversations({
-    storage: new DynamoDBStorageAdapter(
-      process.env.SESSION_TABLE_NAME!,
-      process.env.SESSION_KEY_NAME!,
-      logger,
-    ),
+    storage: new DynamoDBStorageAdapter(logger),
   }));
 
   createSignupConversation(bot, logger);
@@ -44,13 +39,20 @@ function createSignupConversation(bot: Bot, logger: Logger) {
     await ctx.reply('Hi there! What is your name?');
 
     const ctxName = await conversation.waitFor('message:text');
+    const userId = ctxName.chat.id;
+    const name = ctxName.message.text;
     logger.info('[signup] Received name', { ctx: ctxName });
-    await ctx.reply(`Welcome to Manga Mailer, ${ctxName.message.text}!`);
+    await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
     await ctx.reply(`Where do you want us to mail you updates?`);
 
     const ctxEmail = await conversation.waitFor('message:text');
+    const email = ctxEmail.message.text;
     logger.info('[signup] Received email', { ctx: ctxEmail });
-    await ctx.reply(`Perfect, we'll use "${ctxEmail.message.text}" as email address!`);
+    await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
+
+    await conversation.external(async () => {
+      await userRepository.put({ userId, name, email });
+    });
   }
   bot.use(createConversation(signup));
 

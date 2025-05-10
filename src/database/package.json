@@ -1,14 +1,17 @@
 {
-  "name": "@zweer/manga-mailer",
+  "name": "@zweer/manga-mailer-database",
   "version": "0.0.0",
+  "private": true,
   "description": "",
   "author": "Zweer <n.olivieriachille@gmail.com>",
   "license": "MIT",
   "main": "index.js",
+  "types": "index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@zweer/manga-scraper": "^2.1.0"
+    "@aws-lambda-powertools/logger": "^2.19.1",
+    "dynamodb-toolbox": "^2.2.1"
   }
 }

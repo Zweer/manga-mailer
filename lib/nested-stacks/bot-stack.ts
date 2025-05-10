@@ -3,7 +3,7 @@ import type { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import type { LogGroup } from 'aws-cdk-lib/aws-logs';
 import type { Construct } from 'constructs';
 
-import type { BotCustomResourceProperties } from './types';
+import type { BotCustomResourceProperties } from '../types';
 
 import { join } from 'node:path';
 
@@ -17,14 +17,15 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 
-import { PROJECT_NAME } from './constants';
+import { PROJECT_NAME, sessionKey } from '../constants';
 
-interface BotStackProps extends NestedStackProps {
+interface BotNestedStackProps extends NestedStackProps {
   readonly logGroup: LogGroup;
+  readonly userTable: TableV2;
 }
 
-export class BotStack extends NestedStack {
-  constructor(scope: Construct, id: string, props: BotStackProps) {
+export class BotNestedStack extends NestedStack {
+  constructor(scope: Construct, id: string, props: BotNestedStackProps) {
     super(scope, id, props);
 
     const telegramSecret = Secret.fromSecretNameV2(this, 'TelegramSecret', `${PROJECT_NAME}/bot`);
@@ -41,11 +42,10 @@ export class BotStack extends NestedStack {
       },
     });
 
-    const partitionKeyName = 'key';
     const sessionTable = new TableV2(this, 'SessionTable', {
       tableName: `${PROJECT_NAME}.session`,
       partitionKey: {
-        name: partitionKeyName,
+        name: sessionKey,
         type: AttributeType.STRING,
       },
     });
@@ -57,7 +57,7 @@ export class BotStack extends NestedStack {
         NODE_OPTIONS: '--enable-source-maps',
         TELEGRAM_TOKEN_SECRET: telegramSecret.secretName,
         SESSION_TABLE_NAME: sessionTable.tableName,
-        SESSION_KEY_NAME: partitionKeyName,
+        SESSION_KEY_NAME: sessionKey,
       },
       logGroup: props.logGroup,
       loggingFormat: LoggingFormat.JSON,
@@ -73,8 +73,9 @@ export class BotStack extends NestedStack {
     });
     telegramSecret.grantRead(handlerFunction);
     handlerFunction.addEnvironment('SESSION_TABLE_NAME', sessionTable.tableName);
-    handlerFunction.addEnvironment('SESSION_KEY_NAME', partitionKeyName);
     sessionTable.grantReadWriteData(handlerFunction);
+    handlerFunction.addEnvironment('USER_TABLE_NAME', props.userTable.tableName);
+    props.userTable.grantReadWriteData(handlerFunction);
     new HttpRoute(this, 'TelegramWebhookRoute', {
       httpApi,
       routeKey: HttpRouteKey.with('/', HttpMethod.POST),

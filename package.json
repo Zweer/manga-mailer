@@ -45,6 +45,7 @@
   },
   "workspaces": [
     "src/bot",
-    "src/manga"
+    "src/manga",
+    "src/database"
   ]
 }

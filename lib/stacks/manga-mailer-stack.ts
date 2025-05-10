@@ -4,7 +4,8 @@ import type { Construct } from 'constructs';
 import { RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 
-import { BotStack } from './bot-stack';
+import { BotNestedStack } from '../nested-stacks/bot-stack';
+import { MangaMailerNestedStack } from '../nested-stacks/manga-mailer-stack';
 
 export class MangaMailerStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -16,8 +17,13 @@ export class MangaMailerStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    new BotStack(this, 'BotStack', {
+    const mangaMailer = new MangaMailerNestedStack(this, 'MangaMailerStack', {
       logGroup,
+    });
+
+    new BotNestedStack(this, 'BotStack', {
+      logGroup,
+      userTable: mangaMailer.userTable,
     });
   }
 }
