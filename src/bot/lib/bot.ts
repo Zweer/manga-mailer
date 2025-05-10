@@ -7,7 +7,8 @@ import {
   createConversation,
 } from '@grammyjs/conversations';
 import { userRepository } from '@zweer/manga-mailer-database';
-import { Bot as BotConstructor } from 'grammy';
+import { search } from '@zweer/manga-mailer-manga';
+import { Bot as BotConstructor, InlineKeyboard } from 'grammy';
 
 import { getTelegramToken } from '../utils';
 import { commands } from './constants';
@@ -23,11 +24,12 @@ export async function createBot(logger: Logger) {
   }));
 
   createSignupConversation(bot, logger);
-  await createHelpMessage(bot, logger);
+  createTrackConversation(bot, logger);
+  createHelpMessage(bot, logger);
 
   bot.on('message', async (ctx) => {
     logger.info('Received message', { receivedMessage: ctx.message }, { ctx });
-    await ctx.reply('Hi there!');
+    await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
 
   return bot;
@@ -50,9 +52,8 @@ function createSignupConversation(bot: Bot, logger: Logger) {
     logger.info('[signup] Received email', { ctx: ctxEmail });
     await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
 
-    await conversation.external(async () => {
-      await userRepository.put({ userId, name, email });
-    });
+    const response = await conversation.external(async () => userRepository.put({ userId, name, email }));
+    logger.info('[signup] Saved user', { userId, name, email, response });
   }
   bot.use(createConversation(signup));
 
@@ -62,7 +63,47 @@ function createSignupConversation(bot: Bot, logger: Logger) {
   });
 }
 
-async function createHelpMessage(bot: Bot, logger: Logger) {
+function createTrackConversation(bot: Bot, logger: Logger) {
+  async function track(conversation: Conversation, ctx: Context) {
+    logger.info('[track] Entered track conversation', { ctx });
+    await ctx.reply('Hi there! What is the name of the manga you want to track?');
+
+    const ctxName = await conversation.waitFor('message:text');
+    const title = ctxName.message.text;
+    logger.info('[track] Received name', { ctx: ctxName });
+    const mangas = await conversation.external(async () => search(title));
+
+    const buttons = mangas.map(manga =>
+      [
+        InlineKeyboard.text(
+          `[${manga.connectorName}] ${manga.title} (${manga.chaptersCount})`,
+          `${manga.connectorName}:${manga.id}`,
+        ),
+      ]);
+    buttons.push([InlineKeyboard.text('❌ Cancel', '/cancel')]);
+    await ctx.reply('Please select the manga you want to track:', {
+      reply_markup: InlineKeyboard.from(buttons),
+    });
+
+    const ctxManga = await conversation.waitFor('message:text');
+    const [connectorName, mangaId] = ctxManga.message.text.split(':');
+    await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
+  }
+  bot.use(createConversation(track));
+
+  bot.command('track', async (ctx) => {
+    logger.info('[track] Received track command', { ctx });
+    const user = await userRepository.get({ userId: ctx.chat.id });
+
+    if (user.Item) {
+      await ctx.conversation.enter('track');
+    } else {
+      await ctx.conversation.enter('signup');
+    }
+  });
+}
+
+function createHelpMessage(bot: Bot, logger: Logger) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
