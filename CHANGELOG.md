@@ -1,3 +1,15 @@
+## [1.2.2](https://github.com/Zweer/manga-mailer/compare/v1.2.1...v1.2.2) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :ambulance: Added the `documentClient` instance ([52a2882](https://github.com/Zweer/manga-mailer/commit/52a2882f784b6f7c9f874ca233821662b8f6b0da))
+
+
+### Performance Improvements
+
+* **bot:** :fire: Removed useless env var ([289ba9c](https://github.com/Zweer/manga-mailer/commit/289ba9cbc0687ab9ce79ab1d9c406776c3a5c619))
+
 ## [1.2.1](https://github.com/Zweer/manga-mailer/compare/v1.2.0...v1.2.1) (2025-05-10)
 
 
