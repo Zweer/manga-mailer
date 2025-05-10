@@ -1,3 +1,10 @@
+## [1.3.5](https://github.com/Zweer/manga-mailer/compare/v1.3.4...v1.3.5) (2025-05-10)
+
+
+### Performance Improvements
+
+* **bot:** :loud_sound: Logging the retrieved mangas ([ca80aa1](https://github.com/Zweer/manga-mailer/commit/ca80aa10fffef8f5d692ad3a0933e876f57908e8))
+
 ## [1.3.4](https://github.com/Zweer/manga-mailer/compare/v1.3.3...v1.3.4) (2025-05-10)
 
 
