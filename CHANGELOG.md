@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/Zweer/manga-mailer/compare/v1.3.1...v1.3.2) (2025-05-10)
+
+
+### Performance Improvements
+
+* **bot:** :wrench: Increasing the timeout ([29da6b6](https://github.com/Zweer/manga-mailer/commit/29da6b679d66503f68e43213b74ee3a474acc8fa))
+
 ## [1.3.1](https://github.com/Zweer/manga-mailer/compare/v1.3.0...v1.3.1) (2025-05-10)
 
 
