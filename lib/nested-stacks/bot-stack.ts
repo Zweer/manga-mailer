@@ -57,8 +57,6 @@ export class BotNestedStack extends NestedStack {
       environment: {
         NODE_OPTIONS: '--enable-source-maps',
         TELEGRAM_TOKEN_SECRET: telegramSecret.secretName,
-        SESSION_TABLE_NAME: sessionTable.tableName,
-        SESSION_KEY_NAME: sessionKey,
       },
       logGroup: props.logGroup,
       loggingFormat: LoggingFormat.JSON,
