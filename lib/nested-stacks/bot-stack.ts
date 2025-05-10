@@ -50,9 +50,10 @@ export class BotNestedStack extends NestedStack {
       },
     });
 
-    const projectRoot = join(__dirname, '..', 'src', 'bot');
+    const rootFolder = join(__dirname, '..', '..');
+    const projectRoot = join(rootFolder, 'src', 'bot');
     const commonNodejsProps: NodejsFunctionProps = {
-      depsLockFilePath: join(__dirname, '..', 'package-lock.json'),
+      depsLockFilePath: join(rootFolder, 'package-lock.json'),
       environment: {
         NODE_OPTIONS: '--enable-source-maps',
         TELEGRAM_TOKEN_SECRET: telegramSecret.secretName,
