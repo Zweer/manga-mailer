@@ -28,7 +28,7 @@ class Lambda implements LambdaInterface {
     }
 
     this.bot.on('message', async (ctx) => {
-      logger.info('Received message', { message: ctx.message }, { ctx });
+      logger.info('Received message', { originalMessage: ctx.message }, { ctx });
       await ctx.reply('Hi there!');
     });
 
