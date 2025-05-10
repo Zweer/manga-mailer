@@ -12,7 +12,10 @@
     "@aws-lambda-powertools/commons": "^2.19.1",
     "@aws-lambda-powertools/logger": "^2.19.1",
     "@aws-lambda-powertools/parameters": "^2.19.1",
+    "@aws-sdk/client-dynamodb": "^3.806.0",
     "@aws-sdk/client-secrets-manager": "^3.806.0",
+    "@aws-sdk/lib-dynamodb": "^3.806.0",
+    "@grammyjs/conversations": "^2.1.0",
     "grammy": "^1.36.1"
   },
   "devDependencies": {

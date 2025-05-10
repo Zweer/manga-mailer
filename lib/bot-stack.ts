@@ -11,6 +11,7 @@ import { CustomResource, NestedStack } from 'aws-cdk-lib';
 import { AccessLogFormat } from 'aws-cdk-lib/aws-apigateway';
 import { HttpApi, HttpMethod, HttpRoute, HttpRouteKey, LogGroupLogDestination } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import { AttributeType, TableV2 } from 'aws-cdk-lib/aws-dynamodb';
 import { LoggingFormat } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
@@ -40,12 +41,23 @@ export class BotStack extends NestedStack {
       },
     });
 
+    const partitionKeyName = 'key';
+    const sessionTable = new TableV2(this, 'SessionTable', {
+      tableName: `${PROJECT_NAME}.session`,
+      partitionKey: {
+        name: partitionKeyName,
+        type: AttributeType.STRING,
+      },
+    });
+
     const projectRoot = join(__dirname, '..', 'src', 'bot');
     const commonNodejsProps: NodejsFunctionProps = {
       depsLockFilePath: join(__dirname, '..', 'package-lock.json'),
       environment: {
         NODE_OPTIONS: '--enable-source-maps',
         TELEGRAM_TOKEN_SECRET: telegramSecret.secretName,
+        SESSION_TABLE_NAME: sessionTable.tableName,
+        SESSION_KEY_NAME: partitionKeyName,
       },
       logGroup: props.logGroup,
       loggingFormat: LoggingFormat.JSON,
@@ -59,6 +71,9 @@ export class BotStack extends NestedStack {
       entry: join(projectRoot, 'handler.ts'),
     });
     telegramSecret.grantRead(handlerFunction);
+    handlerFunction.addEnvironment('SESSION_TABLE_NAME', sessionTable.tableName);
+    handlerFunction.addEnvironment('SESSION_KEY_NAME', partitionKeyName);
+    sessionTable.grantReadWriteData(handlerFunction);
     new HttpRoute(this, 'TelegramWebhookRoute', {
       httpApi,
       routeKey: HttpRouteKey.with('/', HttpMethod.POST),
