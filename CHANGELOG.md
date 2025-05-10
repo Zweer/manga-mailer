@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/Zweer/manga-mailer/compare/v1.3.3...v1.3.4) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :wrench: Increasing the timeout of the webhook ([29c10f2](https://github.com/Zweer/manga-mailer/commit/29c10f24bdb7ffc75716ee2363181975ba15bf63))
+
 ## [1.3.3](https://github.com/Zweer/manga-mailer/compare/v1.3.2...v1.3.3) (2025-05-10)
 
 
