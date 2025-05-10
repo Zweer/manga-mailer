@@ -1,3 +1,15 @@
+## [1.3.1](https://github.com/Zweer/manga-mailer/compare/v1.3.0...v1.3.1) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :goal_net: Catching signup errors ([4b7c1e9](https://github.com/Zweer/manga-mailer/commit/4b7c1e92f1448c4d4b645dcae3ecba20d9bd65a0))
+
+
+### Performance Improvements
+
+* **bot:** :wrench: Timeout moved to 30 seconds ([2c687ff](https://github.com/Zweer/manga-mailer/commit/2c687ff01da04f901331e480669bfa5a4aca70cd))
+
 # [1.3.0](https://github.com/Zweer/manga-mailer/compare/v1.2.2...v1.3.0) (2025-05-10)
 
 
