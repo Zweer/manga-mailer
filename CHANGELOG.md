@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/Zweer/manga-mailer/compare/v1.3.2...v1.3.3) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :alembic: Trying to reply ASAP to force webhook to close ([478331a](https://github.com/Zweer/manga-mailer/commit/478331a0b4b8051d84f6abfdc86b6a9b8bc8c633))
+
 ## [1.3.2](https://github.com/Zweer/manga-mailer/compare/v1.3.1...v1.3.2) (2025-05-10)
 
 
