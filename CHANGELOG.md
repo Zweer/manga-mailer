@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/Zweer/manga-mailer/compare/v1.0.4...v1.0.5) (2025-05-10)
+
+
+### Performance Improvements
+
+* **bot:** :loud_sound: Adding http logging ([be2aa94](https://github.com/Zweer/manga-mailer/commit/be2aa9447d6e85b897cf176272fe63aeb11d6b37))
+
 ## [1.0.4](https://github.com/Zweer/manga-mailer/compare/v1.0.3...v1.0.4) (2025-05-09)
 
 
