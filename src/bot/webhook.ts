@@ -5,6 +5,8 @@ import type {
   CloudFormationCustomResourceResponseCommon,
 } from 'aws-lambda';
 
+import type { BotCustomResourceProperties } from '../../lib/types';
+
 import { Bot } from 'grammy';
 
 import { getLogger, getTelegramToken } from './utils';
@@ -13,7 +15,10 @@ const logger = getLogger();
 
 class Lambda implements LambdaInterface {
   @logger.injectLambdaContext()
-  public async handler(event: CdkCustomResourceEvent<{ endpoint: string }>, _context: unknown): Promise<CdkCustomResourceResponse> {
+  public async handler(
+    event: CdkCustomResourceEvent<BotCustomResourceProperties>,
+    _context: unknown,
+  ): Promise<CdkCustomResourceResponse> {
     const token = await getTelegramToken();
     const bot = new Bot(token);
 

@@ -3,6 +3,8 @@ import type { NodejsFunctionProps } from 'aws-cdk-lib/aws-lambda-nodejs';
 import type { LogGroup } from 'aws-cdk-lib/aws-logs';
 import type { Construct } from 'constructs';
 
+import type { BotCustomResourceProperties } from './types';
+
 import { join } from 'node:path';
 
 import { CustomResource, NestedStack } from 'aws-cdk-lib';
@@ -74,11 +76,12 @@ export class BotStack extends NestedStack {
       onEventHandler: webhookFunction,
     });
 
+    const properties: BotCustomResourceProperties = {
+      endpoint: stage.url,
+    };
     new CustomResource(this, 'TelegramWebhookCustomResource', {
       serviceToken: crProvider.serviceToken,
-      properties: {
-        url: stage.url,
-      },
+      properties,
     });
   }
 }
