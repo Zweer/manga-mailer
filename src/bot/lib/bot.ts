@@ -50,10 +50,15 @@ function createSignupConversation(bot: Bot, logger: Logger) {
     const ctxEmail = await conversation.waitFor('message:text');
     const email = ctxEmail.message.text;
     logger.info('[signup] Received email', { ctx: ctxEmail });
-    await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
+    try {
+      const response = await conversation.external(async () => userRepository.put({ userId, name, email }));
 
-    const response = await conversation.external(async () => userRepository.put({ userId, name, email }));
-    logger.info('[signup] Saved user', { userId, name, email, response });
+      await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
+      logger.info('[signup] Saved user', { userId, name, email, response });
+    } catch (error) {
+      logger.error('[signup] Error saving user', { error });
+      await ctx.reply('❗️ Something went wrong, please try again later.');
+    }
   }
   bot.use(createConversation(signup));
 
