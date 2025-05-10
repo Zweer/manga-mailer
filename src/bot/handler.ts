@@ -19,7 +19,9 @@ class Lambda implements LambdaInterface {
       this.bot = await createBot(logger);
     }
 
-    return webhookCallback(this.bot, 'aws-lambda-async')(event, context);
+    return webhookCallback(this.bot, 'aws-lambda-async', {
+      timeoutMilliseconds: 5 * 60_000,
+    })(event, context);
   }
 }
 
