@@ -1,5 +1,7 @@
 import process from 'node:process';
 
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { Entity } from 'dynamodb-toolbox/entity';
 import { EntityRepository } from 'dynamodb-toolbox/entity/actions/repository';
 import { item, number, string } from 'dynamodb-toolbox/schema';
@@ -22,6 +24,7 @@ const table = new Table({
     name: userKey,
     type: 'number',
   },
+  documentClient: DynamoDBDocumentClient.from(new DynamoDBClient()),
 });
 
 const schema = item({
