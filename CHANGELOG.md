@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/Zweer/manga-mailer/compare/v1.1.0...v1.1.1) (2025-05-10)
+
+
+### Performance Improvements
+
+* **bot:** :wrench: Moving timeout to 10 seconds ([ade7cf2](https://github.com/Zweer/manga-mailer/commit/ade7cf27f1a65dd6e18e0e2220cd5894db4fb8a4))
+
 # [1.1.0](https://github.com/Zweer/manga-mailer/compare/v1.0.6...v1.1.0) (2025-05-10)
 
 
