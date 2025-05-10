@@ -1,3 +1,20 @@
+# [1.2.0](https://github.com/Zweer/manga-mailer/compare/v1.1.1...v1.2.0) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :bug: Fixed the markdown list ([fa2e5a8](https://github.com/Zweer/manga-mailer/commit/fa2e5a8ab34674a1af5c4fffdd4fe040e190c948))
+
+
+### Features
+
+* **bot:** :sparkles: Added the user handling and saving ([c4d9da8](https://github.com/Zweer/manga-mailer/commit/c4d9da8ca87fbd7a4914a7cf20a9988c9a529953))
+
+
+### Performance Improvements
+
+* **bot:** :recycle: Moving the help command sending into custom resource ([cc177b6](https://github.com/Zweer/manga-mailer/commit/cc177b635220c9ff73c79d9395261fe6b4216ed2))
+
 ## [1.1.1](https://github.com/Zweer/manga-mailer/compare/v1.1.0...v1.1.1) (2025-05-10)
 
 
