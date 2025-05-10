@@ -68,7 +68,7 @@ async function createHelpMessage(bot: Bot, logger: Logger) {
     { command: 'remove', description: 'Remove a tracked manga' },
   ];
 
-  const commandDescriptions = commands.map(({ command, description }) => `- /${command} - ${description}`).join('\n');
+  const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
   logger.info('[help] Sending help commands');
   await bot.api.setMyCommands(commands);
 
