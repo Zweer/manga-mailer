@@ -7,7 +7,7 @@ import type { BotCustomResourceProperties } from './types';
 
 import { join } from 'node:path';
 
-import { CustomResource, NestedStack } from 'aws-cdk-lib';
+import { CustomResource, Duration, NestedStack } from 'aws-cdk-lib';
 import { AccessLogFormat } from 'aws-cdk-lib/aws-apigateway';
 import { HttpApi, HttpMethod, HttpRoute, HttpRouteKey, LogGroupLogDestination } from 'aws-cdk-lib/aws-apigatewayv2';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
@@ -64,6 +64,7 @@ export class BotStack extends NestedStack {
       bundling: {
         sourceMap: true,
       },
+      timeout: Duration.seconds(10),
     };
     const handlerFunction = new NodejsFunction(this, 'TelegramHandlerFunction', {
       ...commonNodejsProps,
