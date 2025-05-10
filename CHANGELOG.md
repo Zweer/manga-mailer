@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/Zweer/manga-mailer/compare/v1.0.5...v1.0.6) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :label: Using the same interface for CR properties ([d63342f](https://github.com/Zweer/manga-mailer/commit/d63342fdead4e174513fd02849c744be7c7567e3))
+
 ## [1.0.5](https://github.com/Zweer/manga-mailer/compare/v1.0.4...v1.0.5) (2025-05-10)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@zweer/manga-mailer-infra",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "bin": {
     "manga-mailer": "bin/manga-mailer.js"
