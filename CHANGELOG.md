@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Zweer/manga-mailer/compare/v1.2.2...v1.3.0) (2025-05-10)
+
+
+### Features
+
+* **bot:** :sparkles: Created the conversation to a tracked manga ([d236b3d](https://github.com/Zweer/manga-mailer/commit/d236b3d7420dad5289923a7fd7a491ce18e47ab4))
+
 ## [1.2.2](https://github.com/Zweer/manga-mailer/compare/v1.2.1...v1.2.2) (2025-05-10)
 
 
