@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/Zweer/manga-mailer/compare/v1.0.6...v1.1.0) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :loud_sound: Using another key apart from `message` ([48dacd7](https://github.com/Zweer/manga-mailer/commit/48dacd72aaa6e3418d04cd081ac60815464a0823))
+
+
+### Features
+
+* **bot:** :sparkles: Added the `signup` conversation ([3f56c99](https://github.com/Zweer/manga-mailer/commit/3f56c9966a234b1aa61387a49e24ddb5381f342b))
+
 ## [1.0.6](https://github.com/Zweer/manga-mailer/compare/v1.0.5...v1.0.6) (2025-05-10)
 
 
