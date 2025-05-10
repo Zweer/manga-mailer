@@ -1,7 +1,6 @@
 import type { Logger } from '@aws-lambda-powertools/logger';
 import type { Conversation, ConversationFlavor } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
-import type { BotCommand } from 'grammy/types';
 
 import process from 'node:process';
 
@@ -12,6 +11,7 @@ import {
 import { Bot as BotConstructor } from 'grammy';
 
 import { getTelegramToken } from '../utils';
+import { commands } from './constants';
 import { DynamoDBStorageAdapter } from './dynamodbStorageAdapter';
 
 export type Bot = BotConstructor<ConversationFlavor<Context>>;
@@ -61,16 +61,7 @@ function createSignupConversation(bot: Bot, logger: Logger) {
 }
 
 async function createHelpMessage(bot: Bot, logger: Logger) {
-  const commands: BotCommand[] = [
-    { command: 'start', description: 'Signup to the bot, providing name and email address' },
-    { command: 'track', description: 'Track a new manga' },
-    { command: 'list', description: 'List all the manga you are tracking' },
-    { command: 'remove', description: 'Remove a tracked manga' },
-  ];
-
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
-  logger.info('[help] Sending help commands');
-  await bot.api.setMyCommands(commands);
 
   bot.command('help', async (ctx) => {
     logger.info('[help] Received help command', { ctx });

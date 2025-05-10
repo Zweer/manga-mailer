@@ -9,6 +9,7 @@ import type { BotCustomResourceProperties } from '../../lib/types';
 
 import { Bot } from 'grammy';
 
+import { commands } from './lib/constants';
 import { getLogger, getTelegramToken } from './utils';
 
 const logger = getLogger();
@@ -33,9 +34,12 @@ class Lambda implements LambdaInterface {
 
     try {
       const endpoint = event.RequestType === 'Delete' ? '' : event.ResourceProperties.endpoint;
-      const isSuccess = await bot.api.setWebhook(endpoint);
+      const isWebhookSuccess = await bot.api.setWebhook(endpoint);
 
-      logger.info('Set webhook', { endpoint, isSuccess });
+      logger.info('Set webhook', { endpoint, isSuccess: isWebhookSuccess });
+
+      const isHelpCommandSuccess = await bot.api.setMyCommands(commands);
+      logger.info('Set help command', { endpoint, isSuccess: isHelpCommandSuccess });
     } catch (error) {
       logger.error('Failed to set webhook', { error });
 
