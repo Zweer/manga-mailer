@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/Zweer/manga-mailer/compare/v1.2.0...v1.2.1) (2025-05-10)
+
+
+### Bug Fixes
+
+* **bot:** :truck: Fixed the path to sources ([26d40ac](https://github.com/Zweer/manga-mailer/commit/26d40aca0bb2e48e5f37dabb0771d2d1b60878e9))
+
 # [1.2.0](https://github.com/Zweer/manga-mailer/compare/v1.1.1...v1.2.0) (2025-05-10)
 
 
