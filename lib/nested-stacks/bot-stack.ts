@@ -63,7 +63,7 @@ export class BotNestedStack extends NestedStack {
       bundling: {
         sourceMap: true,
       },
-      timeout: Duration.seconds(30),
+      timeout: Duration.minutes(5),
     };
     const handlerFunction = new NodejsFunction(this, 'TelegramHandlerFunction', {
       ...commonNodejsProps,

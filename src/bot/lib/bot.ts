@@ -94,7 +94,9 @@ function createTrackConversation(bot: Bot, logger: Logger) {
     const [connectorName, mangaId] = ctxManga.message.text.split(':');
     await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
   }
-  bot.use(createConversation(track));
+  bot.use(createConversation(track, {
+    maxMillisecondsToWait: 5 * 60 * 1_000,
+  }));
 
   bot.command('track', async (ctx) => {
     logger.info('[track] Received track command', { ctx });
