@@ -1,5 +1,6 @@
 import type { Logger } from '@aws-lambda-powertools/logger';
 import type { Conversation } from '@grammyjs/conversations';
+import type { AxiosError } from 'axios';
 import type { Context } from 'grammy';
 
 import type { Bot } from '../bot';
@@ -20,8 +21,8 @@ export function createTrackConversation(bot: Bot, logger: Logger) {
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
     // const mangas = await conversation.external(async () => search(title));
     const mangas = await search(title)
-      .catch((error) => {
-        logger.error('[track] Error while searching', { error });
+      .catch((error: AxiosError) => {
+        logger.error('[track] Error while searching', { error }, { response: error.response });
         return [];
       });
 
