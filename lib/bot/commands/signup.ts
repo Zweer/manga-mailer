@@ -23,7 +23,7 @@ export function createSignupConversation(bot: Bot) {
 
     const ctxEmail = await conversation.waitFor('message:text');
     const email = ctxEmail.message.text;
-    console.log('[signup] Received email:', ctxEmail);
+    console.log('[signup] Received email:', email);
     try {
       // await conversation.external(async () => db.insert(userTable).values({
       //   telegramId,
