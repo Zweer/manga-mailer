@@ -17,22 +17,28 @@ export function createSignupConversation(bot: Bot) {
     const ctxName = await conversation.waitFor('message:text');
     const telegramId = ctxName.chat.id;
     const name = ctxName.message.text;
-    console.log('[signup] Received name', ctxName);
+    console.log('[signup] Received name:', name);
     await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
     await ctx.reply(`Where do you want us to mail you updates?`);
 
     const ctxEmail = await conversation.waitFor('message:text');
     const email = ctxEmail.message.text;
-    console.log('[signup] Received email', { ctx: ctxEmail });
+    console.log('[signup] Received email:', ctxEmail);
     try {
-      const response = await conversation.external(async () => db.insert(userTable).values({
+      // await conversation.external(async () => db.insert(userTable).values({
+      //   telegramId,
+      //   name,
+      //   email,
+      // }));
+
+      await db.insert(userTable).values({
         telegramId,
         name,
         email,
-      }));
+      });
 
       await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
-      console.log('[signup] Saved user', { telegramId, name, email, response });
+      console.log('[signup] Saved user:', telegramId, name, email);
     } catch (error) {
       console.error('[signup] Error saving user', { error });
       await ctx.reply('❗️ Something went wrong, please try again later.');
