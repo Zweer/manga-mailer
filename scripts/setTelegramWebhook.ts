@@ -4,7 +4,7 @@ declare global {
   // eslint-disable-next-line ts/no-namespace
   namespace NodeJS {
     interface ProcessEnv {
-      VERCEL_URL: string;
+      VERCEL_PROJECT_PRODUCTION_URL: string;
     }
   }
 }
@@ -12,9 +12,7 @@ declare global {
 export async function main() {
   const bot = createBot(false);
 
-  console.log(process.env);
-
-  const endpoint = `https://${process.env.VERCEL_URL}`;
+  const endpoint = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   console.log('[setTelegramWebhook] setting new endpoint:', endpoint);
 
   await bot.api.setWebhook(endpoint);
