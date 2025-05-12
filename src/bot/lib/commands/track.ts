@@ -19,7 +19,16 @@ export function createTrackConversation(bot: Bot, logger: Logger) {
     logger.info('[track] Received name', { ctx: ctxName });
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
     // const mangas = await conversation.external(async () => search(title));
-    const mangas = await search(title);
+    const mangas = await search(title)
+      .catch((error) => {
+        logger.error('[track] Error while searching', { error });
+        return [];
+      });
+
+    if (mangas.length === 0) {
+      await ctx.reply('No manga found');
+      return;
+    }
 
     const buttons = mangas.map(manga =>
       [
