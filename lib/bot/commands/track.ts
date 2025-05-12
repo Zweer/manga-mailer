@@ -40,7 +40,7 @@ export function createTrackConversation(bot: Bot) {
       reply_markup: InlineKeyboard.from(buttons),
     });
 
-    const ctxManga = await conversation.waitFor('message');
+    const ctxManga = await conversation.waitFor('callback_query');
     console.log(ctxManga.message);
     const [connectorName, mangaId] = ['id', 'name'];
     await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
