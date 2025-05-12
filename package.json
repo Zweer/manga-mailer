@@ -9,7 +9,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@grammyjs/conversations": "^2.1.0",
     "@zweer/manga-scraper": "^2.1.2",
+    "grammy": "^1.36.1",
     "next": "15.3.2"
   },
   "devDependencies": {
