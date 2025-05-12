@@ -7,6 +7,9 @@ import type { Bot } from '../';
 import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
 import { search } from '@/lib/manga';
+import { db } from '@/lib/db';
+import { userTable } from '@/lib/db/model';
+import { eq } from 'drizzle-orm';
 
 export function createTrackConversation(bot: Bot) {
   async function track(conversation: Conversation, ctx: Context) {
@@ -51,9 +54,12 @@ export function createTrackConversation(bot: Bot) {
 
   bot.command('track', async (ctx) => {
     console.log('[track] Received track command', { ctx });
-    const user = await userRepository.get({ userId: ctx.chat.id });
+    const telegramId = ctx.chat.id;
+    const user = await db.query.userTable.findFirst({
+      where: eq(userTable.telegramId, telegramId),
+    });
 
-    if (user.Item) {
+    if (user) {
       await ctx.conversation.enter('track');
     } else {
       await ctx.conversation.enter('signup');

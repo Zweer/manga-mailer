@@ -6,13 +6,17 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.1.0",
+    "@neondatabase/serverless": "^1.0.0",
     "@zweer/manga-scraper": "^2.1.2",
     "grammy": "^1.36.1",
-    "next": "15.3.2"
+    "next": "15.3.2",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.0",
@@ -20,6 +24,10 @@
     "@next/eslint-plugin-next": "^15.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
+    "@types/ws": "^8.18.1",
+    "dotenv": "^16.5.0",
+    "drizzle-kit": "^0.31.1",
+    "drizzle-orm": "^0.43.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "typescript": "^5"
