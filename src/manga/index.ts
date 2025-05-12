@@ -8,12 +8,15 @@ interface MangaAutocomplete {
 }
 
 export async function search(title: string): Promise<MangaAutocomplete[]> {
+  console.log('[manga] search:', title);
+
   const mangas = (await Object.entries(connectors)
     .reduce(async (mangasPromise, [connectorName, connector]) => {
+      console.log('[manga] connector:', connectorName);
       const mangas = await mangasPromise;
       const newMangas = await connector.getMangas(title);
 
-      console.log(newMangas);
+      console.log('[manga] connector:', connectorName, 'mangas:', newMangas);
 
       mangas.push(
         ...newMangas.map(manga => ({
@@ -33,7 +36,7 @@ export async function search(title: string): Promise<MangaAutocomplete[]> {
       return mangaA.title.localeCompare(mangaB.title);
     });
 
-  console.log(mangas);
+  console.log('[manga] mangas:', mangas);
 
   return mangas;
 }
