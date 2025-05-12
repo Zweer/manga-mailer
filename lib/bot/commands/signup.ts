@@ -49,7 +49,7 @@ export function createSignupConversation(bot: Bot) {
         });
 
         if (user) {
-          await db.update(userTable).set(user);
+          await db.update(userTable).set(newUser).where(eq(userTable.id, user.id));
         } else {
           await db.insert(userTable).values(newUser);
         }
