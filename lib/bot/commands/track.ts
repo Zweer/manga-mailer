@@ -20,7 +20,7 @@ export function createTrackConversation(bot: Bot) {
 
     const ctxName = await conversation.waitFor('message:text');
     const title = ctxName.message.text;
-    console.log('[track] Received name', ctxName);
+    console.log('[track] Received title', title);
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
     // const mangas = await conversation.external(async () => search(title));
     const mangas = await search(title)
@@ -55,8 +55,8 @@ export function createTrackConversation(bot: Bot) {
   }));
 
   bot.command('track', async (ctx) => {
-    console.log('[track] Received track command', { ctx });
     const telegramId = ctx.chat.id;
+    console.log('[track] Received track command', telegramId);
     const user = await db.query.userTable.findFirst({
       where: eq(userTable.telegramId, telegramId),
     });
