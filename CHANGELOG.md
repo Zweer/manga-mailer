@@ -1,3 +1,10 @@
+## [1.3.7](https://github.com/Zweer/manga-mailer/compare/v1.3.6...v1.3.7) (2025-05-12)
+
+
+### Performance Improvements
+
+* **bot:** :alembic: Refactoring the `search` function ([7b3e4b4](https://github.com/Zweer/manga-mailer/commit/7b3e4b49f08ea59e04334a0993680edb7973af27))
+
 ## [1.3.6](https://github.com/Zweer/manga-mailer/compare/v1.3.5...v1.3.6) (2025-05-12)
 
 
