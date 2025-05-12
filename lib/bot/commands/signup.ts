@@ -20,6 +20,7 @@ export function createSignupConversation(bot: Bot) {
     const telegramId = ctxName.chat.id;
     const name = ctxName.message.text;
     console.log('[signup] Received name:', name);
+    const preEmailCheckpoint = conversation.checkpoint();
     await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
     await ctx.reply(`Where do you want us to mail you updates?`);
 
@@ -38,7 +39,7 @@ export function createSignupConversation(bot: Bot) {
       await ctx.reply(`❗️ Something went wrong:\n${Object.entries(parsingResult.error.flatten().fieldErrors)
         .map(([field, errors]) => `• ${field}: ${errors.join(', ')}`)
         .join('\n')}`);
-      return;
+      await conversation.rewind(preEmailCheckpoint);
     }
 
     try {
