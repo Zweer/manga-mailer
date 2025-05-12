@@ -8,6 +8,7 @@ import { createConversation } from '@grammyjs/conversations';
 import { eq } from 'drizzle-orm';
 import { InlineKeyboard } from 'grammy';
 
+import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
 import { search } from '@/lib/manga';
@@ -50,7 +51,7 @@ export function createTrackConversation(bot: Bot) {
     await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
   }
   bot.use(createConversation(track, {
-    maxMillisecondsToWait: 5 * 60 * 1_000,
+    id: trackConversationId,
   }));
 
   bot.command('track', async (ctx) => {
@@ -61,9 +62,9 @@ export function createTrackConversation(bot: Bot) {
     });
 
     if (user) {
-      await ctx.conversation.enter('track');
+      await ctx.conversation.enter(trackConversationId);
     } else {
-      await ctx.conversation.enter('signup');
+      await ctx.conversation.enter(signupConversationId);
     }
   });
 }

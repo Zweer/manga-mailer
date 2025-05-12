@@ -5,6 +5,7 @@ import type { Bot } from '../';
 
 import { createConversation } from '@grammyjs/conversations';
 
+import { signupConversationId } from '@/lib/bot/constants';
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
 
@@ -37,10 +38,12 @@ export function createSignupConversation(bot: Bot) {
       await ctx.reply('❗️ Something went wrong, please try again later.');
     }
   }
-  bot.use(createConversation(signup));
+  bot.use(createConversation(signup, {
+    id: signupConversationId,
+  }));
 
   bot.command('start', async (ctx) => {
     console.log('[signup] Received start command');
-    await ctx.conversation.enter('signup');
+    await ctx.conversation.enter(signupConversationId);
   });
 }
