@@ -1,5 +1,4 @@
 import type { Conversation } from '@grammyjs/conversations';
-import type { AxiosError } from 'axios';
 import type { Context } from 'grammy';
 
 import type { Bot } from '../';
@@ -22,12 +21,7 @@ export function createTrackConversation(bot: Bot) {
     const title = ctxName.message.text;
     console.log('[track] Received title', title);
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
-    // const mangas = await conversation.external(async () => search(title));
-    const mangas = await search(title)
-      .catch((error: AxiosError) => {
-        console.error('[track] Error while searching', { error }, { response: error.response });
-        return [];
-      });
+    const mangas = await conversation.external(async () => search(title));
 
     if (mangas.length === 0) {
       await ctx.reply('No manga found');
@@ -46,8 +40,9 @@ export function createTrackConversation(bot: Bot) {
       reply_markup: InlineKeyboard.from(buttons),
     });
 
-    const ctxManga = await conversation.waitFor('message:text');
-    const [connectorName, mangaId] = ctxManga.message.text.split(':');
+    const ctxManga = await conversation.waitFor('message');
+    console.log(ctxManga.message);
+    const [connectorName, mangaId] = ['id', 'name'];
     await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
   }
   bot.use(createConversation(track, {

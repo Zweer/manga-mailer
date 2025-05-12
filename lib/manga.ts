@@ -15,11 +15,7 @@ export async function search(title: string): Promise<MangaAutocomplete[]> {
   await Object.entries(connectors).reduce(async (promise, [connectorName, connector]) => {
     await promise;
 
-    console.log('[manga] connector:', connectorName);
-
     const newMangas = await connector.getMangas(title);
-
-    console.log('[manga] connector:', connectorName, 'mangas:', newMangas);
 
     mangas.push(
       ...newMangas.map(manga => ({
@@ -38,7 +34,7 @@ export async function search(title: string): Promise<MangaAutocomplete[]> {
     return mangaA.title.localeCompare(mangaB.title);
   });
 
-  console.log('[manga] mangas:', mangas);
+  console.log('[manga] mangas found:', mangas.length);
 
   return mangas;
 }
