@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { webhookCallback } from 'grammy';
 
-import { search } from '@/lib/manga';
+import { createBot } from '@/lib/bot';
 
-export async function GET() {
-  const mangas = await search('illustrator');
+export async function POST() {
+  const bot = createBot();
 
-  return NextResponse.json({ mangas });
+  return webhookCallback(bot, 'next-js');
 }
