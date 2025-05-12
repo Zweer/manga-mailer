@@ -10,7 +10,7 @@ import { InlineKeyboard } from 'grammy';
 import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
-import { search } from '@/lib/manga';
+import { getManga, searchMangas } from '@/lib/manga';
 
 export function createTrackConversation(bot: Bot) {
   async function track(conversation: Conversation, ctx: Context) {
@@ -21,7 +21,7 @@ export function createTrackConversation(bot: Bot) {
     const title = ctxName.message.text;
     console.log('[track] Received title', title);
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
-    const mangas = await conversation.external(async () => search(title));
+    const mangas = await conversation.external(async () => searchMangas(title));
 
     if (mangas.length === 0) {
       await ctx.reply('No manga found');
@@ -46,7 +46,11 @@ export function createTrackConversation(bot: Bot) {
       return;
     }
     const [connectorName, mangaId] = data.split(':');
-    await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
+    await ctx.reply('Retrieving the selected manga...');
+
+    const manga = await conversation.external(async () => getManga(connectorName, mangaId));
+
+    await ctx.reply(`Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
   }
   bot.use(createConversation(track, {
     id: trackConversationId,
