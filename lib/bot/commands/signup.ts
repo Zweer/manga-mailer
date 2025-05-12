@@ -16,7 +16,7 @@ export function createSignupConversation(bot: Bot) {
     const ctxName = await conversation.waitFor('message:text');
     const telegramId = ctxName.chat.id;
     const name = ctxName.message.text;
-    console.log('[signup] Received name', ctxName );
+    console.log('[signup] Received name', ctxName);
     await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
     await ctx.reply(`Where do you want us to mail you updates?`);
 

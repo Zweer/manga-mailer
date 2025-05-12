@@ -5,11 +5,12 @@ import type { Context } from 'grammy';
 import type { Bot } from '../';
 
 import { createConversation } from '@grammyjs/conversations';
+import { eq } from 'drizzle-orm';
 import { InlineKeyboard } from 'grammy';
-import { search } from '@/lib/manga';
+
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
-import { eq } from 'drizzle-orm';
+import { search } from '@/lib/manga';
 
 export function createTrackConversation(bot: Bot) {
   async function track(conversation: Conversation, ctx: Context) {

@@ -1,6 +1,6 @@
-import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
-import { timestamps } from "@/lib/db/model/helpers";
+import { timestamps } from '@/lib/db/model/helpers';
 
 export const userTable = pgTable('user', {
   id: text()

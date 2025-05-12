@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "postbuild": "npm run script:setTelegramHook",
+    "script:setTelegramHook": "node -r esbuild-register ./scripts/setTelegramWebhook.js",
     "start": "next start",
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
@@ -28,6 +30,7 @@
     "dotenv": "^16.5.0",
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.43.1",
+    "esbuild-register": "^3.6.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "typescript": "^5"
