@@ -10,31 +10,33 @@ interface MangaAutocomplete {
 export async function search(title: string): Promise<MangaAutocomplete[]> {
   console.log('[manga] search:', title);
 
-  const mangas = (await Object.entries(connectors)
-    .reduce(async (mangasPromise, [connectorName, connector]) => {
-      console.log('[manga] connector:', connectorName);
-      const mangas = await mangasPromise;
-      const newMangas = await connector.getMangas(title);
+  const mangas: MangaAutocomplete[] = [];
 
-      console.log('[manga] connector:', connectorName, 'mangas:', newMangas);
+  await Object.entries(connectors).reduce(async (promise, [connectorName, connector]) => {
+    await promise;
 
-      mangas.push(
-        ...newMangas.map(manga => ({
-          connectorName,
-          id: manga.id,
-          title: manga.title,
-          chaptersCount: manga.chaptersCount,
-        })),
-      );
+    console.log('[manga] connector:', connectorName);
 
-      return mangas;
-    }, Promise.resolve([] as MangaAutocomplete[])))
-    .sort((mangaA, mangaB) => {
-      if (mangaA.title.localeCompare(mangaB.title) === 0) {
-        return mangaA.chaptersCount - mangaB.chaptersCount;
-      }
-      return mangaA.title.localeCompare(mangaB.title);
-    });
+    const newMangas = await connector.getMangas(title);
+
+    console.log('[manga] connector:', connectorName, 'mangas:', newMangas);
+
+    mangas.push(
+      ...newMangas.map(manga => ({
+        connectorName,
+        id: manga.id,
+        title: manga.title,
+        chaptersCount: manga.chaptersCount,
+      })),
+    );
+  }, Promise.resolve());
+
+  mangas.sort((mangaA, mangaB) => {
+    if (mangaA.title.localeCompare(mangaB.title) === 0) {
+      return mangaA.chaptersCount - mangaB.chaptersCount;
+    }
+    return mangaA.title.localeCompare(mangaB.title);
+  });
 
   console.log('[manga] mangas:', mangas);
 
