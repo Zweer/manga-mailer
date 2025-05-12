@@ -2,8 +2,6 @@ import { webhookCallback } from 'grammy';
 
 import { createBot } from '@/lib/bot';
 
-export async function POST() {
-  const bot = createBot();
+const bot = createBot();
 
-  return webhookCallback(bot, 'next-js');
-}
+export const POST = webhookCallback(bot, 'std/http');
