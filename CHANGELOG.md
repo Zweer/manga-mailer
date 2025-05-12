@@ -1,3 +1,10 @@
+## [1.3.6](https://github.com/Zweer/manga-mailer/compare/v1.3.5...v1.3.6) (2025-05-12)
+
+
+### Performance Improvements
+
+* **bot:** :alembic: Trying to log something more ([650c5fd](https://github.com/Zweer/manga-mailer/commit/650c5fd25dcae18b22cb42b4f24f791156b3679d))
+
 ## [1.3.5](https://github.com/Zweer/manga-mailer/compare/v1.3.4...v1.3.5) (2025-05-10)
 
 
