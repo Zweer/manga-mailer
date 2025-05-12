@@ -1,3 +1,10 @@
+## [1.3.8](https://github.com/Zweer/manga-mailer/compare/v1.3.7...v1.3.8) (2025-05-12)
+
+
+### Bug Fixes
+
+* **bot:** :bug: Fixed the graphql bug in the scraper ([43a2830](https://github.com/Zweer/manga-mailer/commit/43a2830b4e873c9d2ec17a662da64c154a827bdb))
+
 ## [1.3.7](https://github.com/Zweer/manga-mailer/compare/v1.3.6...v1.3.7) (2025-05-12)
 
 
