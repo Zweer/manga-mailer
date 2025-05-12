@@ -1,6 +1,3 @@
-/* eslint-disable ts/no-unsafe-member-access */
-/* eslint-disable ts/no-unsafe-call */
-/* eslint-disable ts/no-unsafe-assignment */
 import { webhookCallback } from 'grammy';
 import { NextResponse } from 'next/server';
 
