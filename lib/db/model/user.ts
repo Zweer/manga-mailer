@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 import { timestamps } from '@/lib/db/model/helpers';
 
@@ -12,4 +12,7 @@ export const userTable = pgTable('user', {
   image: text(),
   telegramId: integer().unique(),
   ...timestamps,
-});
+}, userTable => [{
+  telegramIdIdx: index('user_telegramId_idx').on(userTable.telegramId),
+  emailIdx: index('client_email_idx').on(userTable.email),
+}]);

@@ -4,10 +4,12 @@ import type { Context } from 'grammy';
 import type { Bot } from '../';
 
 import { createConversation } from '@grammyjs/conversations';
+import { eq } from 'drizzle-orm';
 
 import { signupConversationId } from '@/lib/bot/constants';
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
+import { userValidation } from '@/lib/validation/user';
 
 export function createSignupConversation(bot: Bot) {
   async function signup(conversation: Conversation, ctx: Context) {
@@ -24,17 +26,32 @@ export function createSignupConversation(bot: Bot) {
     const ctxEmail = await conversation.waitFor('message:text');
     const email = ctxEmail.message.text;
     console.log('[signup] Received email:', email);
-    try {
-      // await conversation.external(async () => db.insert(userTable).values({
-      //   telegramId,
-      //   name,
-      //   email,
-      // }));
 
-      await db.insert(userTable).values({
-        telegramId,
-        name,
-        email,
+    const newUser = {
+      telegramId,
+      name,
+      email,
+    };
+    const parsingResult = userValidation.safeParse(newUser);
+    if (!parsingResult.success) {
+      console.error('[signup] Validation error:', parsingResult.error);
+      await ctx.reply(`❗️ Something went wrong:\n${Object.entries(parsingResult.error.flatten().fieldErrors)
+        .map(([field, errors]) => `• ${field}: ${errors.join(', ')}`)
+        .join('\n')}`);
+      return;
+    }
+
+    try {
+      await conversation.external(async () => {
+        const user = await db.query.userTable.findFirst({
+          where: eq(userTable.telegramId, telegramId),
+        });
+
+        if (user) {
+          await db.update(userTable).set(user);
+        } else {
+          db.insert(userTable).values(newUser);
+        }
       });
 
       await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
