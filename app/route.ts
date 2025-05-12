@@ -1,5 +1,6 @@
-import { search } from "@/lib/manga";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+
+import { search } from '@/lib/manga';
 
 export async function GET() {
   const mangas = await search('illustrator');
