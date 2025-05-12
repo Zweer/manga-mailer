@@ -21,13 +21,16 @@ declare global {
 
 export type Bot = BotConstructor<ConversationFlavor<Context>>;
 
-export async function createBot() {
+export function createBot(doInit = true) {
   const bot = new BotConstructor<ConversationFlavor<Context>>(process.env.TELEGRAM_TOKEN);
-  bot.use(conversations());
 
-  createSignupConversation(bot);
-  createTrackConversation(bot);
-  createHelpMessage(bot);
+  if (doInit) {
+    bot.use(conversations());
+
+    createSignupConversation(bot);
+    createTrackConversation(bot);
+    createHelpMessage(bot);
+  }
 
   bot.on('message', async (ctx) => {
     console.log('Received message', ctx.message);
