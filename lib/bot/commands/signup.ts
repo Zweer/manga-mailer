@@ -51,7 +51,7 @@ export function createSignupConversation(bot: Bot) {
         if (user) {
           await db.update(userTable).set(user);
         } else {
-          db.insert(userTable).values(newUser);
+          await db.insert(userTable).values(newUser);
         }
       });
 
