@@ -12,6 +12,8 @@ declare global {
 export async function main() {
   const bot = createBot(false);
 
+  console.log(process.env);
+
   const endpoint = `https://${process.env.VERCEL_URL}`;
   console.log('[setTelegramWebhook] setting new endpoint:', endpoint);
 
