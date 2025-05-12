@@ -40,9 +40,12 @@ export function createTrackConversation(bot: Bot) {
       reply_markup: InlineKeyboard.from(buttons),
     });
 
-    const ctxManga = await conversation.waitFor('callback_query');
-    console.log(ctxManga.message);
-    const [connectorName, mangaId] = ['id', 'name'];
+    const ctxManga = await conversation.waitFor('callback_query:data');
+    const data = ctxManga.callbackQuery.data;
+    if (data === '/cancel') {
+      return;
+    }
+    const [connectorName, mangaId] = data.split(':');
     await ctx.reply(`Perfect, we'll track "${mangaId}" on "${connectorName}"!`);
   }
   bot.use(createConversation(track, {
