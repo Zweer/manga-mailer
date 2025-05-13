@@ -52,7 +52,7 @@ export function createTrackConversation(bot: Bot) {
     await ctx.reply('Which chapter you read last? (if you don\'t know, type "0")');
 
     const ctxChapter = await conversation.waitFor('message:text');
-    const lastReadChapter = parseFloat(ctxChapter.message.text);
+    const lastReadChapter = Number.parseFloat(ctxChapter.message.text);
     const result = await conversation.external(async () => trackManga(manga, telegramId, lastReadChapter));
 
     if (result.success) {
