@@ -1,15 +1,14 @@
 import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import type { Bot } from '../';
+import type { Bot } from '@/lib/bot';
 
 import { createConversation } from '@grammyjs/conversations';
-import { eq } from 'drizzle-orm';
 import { InlineKeyboard } from 'grammy';
 
 import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
-import { db } from '@/lib/db';
-import { userTable } from '@/lib/db/model';
+import { trackManga } from '@/lib/db/action/manga';
+import { findUserByTelegramId } from '@/lib/db/action/user';
 import { getManga, searchMangas } from '@/lib/manga';
 
 export function createTrackConversation(bot: Bot) {
@@ -18,6 +17,7 @@ export function createTrackConversation(bot: Bot) {
     await ctx.reply('Hi there! What is the name of the manga you want to track?');
 
     const ctxName = await conversation.waitFor('message:text');
+    const telegramId = ctxName.chat.id;
     const title = ctxName.message.text;
     console.log('[track] Received title', title);
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
@@ -49,8 +49,18 @@ export function createTrackConversation(bot: Bot) {
     await ctx.reply('Retrieving the selected manga...');
 
     const manga = await conversation.external(async () => getManga(connectorName, mangaId));
+    const result = await conversation.external(async () => trackManga(manga, telegramId));
 
-    await ctx.reply(`Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
+    if (result.success) {
+      await ctx.reply(`Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
+    } else if (result.invalidUser) {
+      await ctx.reply('❗️ Invalid user. Please try to /start again');
+    } else if (result.alreadyTracked) {
+      await ctx.reply('❗️ It seems you\'re already tracking this manga!');
+    } else {
+      console.error('[track] Database error:', result.databaseError);
+      await ctx.reply('❗️ Something went wrong, please try again later');
+    }
   }
   bot.use(createConversation(track, {
     id: trackConversationId,
@@ -59,9 +69,7 @@ export function createTrackConversation(bot: Bot) {
   bot.command('track', async (ctx) => {
     const telegramId = ctx.chat.id;
     console.log('[track] Received track command', telegramId);
-    const user = await db.query.userTable.findFirst({
-      where: eq(userTable.telegramId, telegramId),
-    });
+    const user = await findUserByTelegramId(telegramId);
 
     if (user) {
       await ctx.conversation.enter(trackConversationId);

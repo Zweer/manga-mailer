@@ -1,14 +1,12 @@
 import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import type { Bot } from '../';
+import type { Bot } from '@/lib/bot';
 
 import { createConversation } from '@grammyjs/conversations';
-import { eq } from 'drizzle-orm';
 
 import { signupConversationId } from '@/lib/bot/constants';
-import { db } from '@/lib/db';
-import { userTable } from '@/lib/db/model';
+import { upsertUser } from '@/lib/db/action/user';
 import { userValidation } from '@/lib/validation/user';
 
 export function createSignupConversation(bot: Bot) {
@@ -33,6 +31,23 @@ export function createSignupConversation(bot: Bot) {
       name,
       email,
     };
+
+    const result = await conversation.external(async () => upsertUser(newUser));
+
+    if (!result.success) {
+      if (result.validationError) {
+        console.error('[signup] Validation error:', result.validationError);
+        await ctx.reply(`❗️ Something went wrong:\n\n• ${result.validationError.join('\n •')}`);
+        await conversation.rewind(preEmailCheckpoint);
+      } else if (typeof result.databaseError === 'string') {
+        console.error('[signup] Database error:', result.databaseError);
+        await ctx.reply('❗️ Something went wrong, please try again later');
+        return;
+      }
+    } else {
+      await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
+      console.log('[signup] Saved user:', telegramId, name, email);
+    }
     const parsingResult = userValidation.safeParse(newUser);
     if (!parsingResult.success) {
       console.error('[signup] Validation error:', parsingResult.error);
@@ -40,26 +55,6 @@ export function createSignupConversation(bot: Bot) {
         .map(([field, errors]) => `• ${field}: ${errors.join(', ')}`)
         .join('\n')}`);
       await conversation.rewind(preEmailCheckpoint);
-    }
-
-    try {
-      await conversation.external(async () => {
-        const user = await db.query.userTable.findFirst({
-          where: eq(userTable.telegramId, telegramId),
-        });
-
-        if (user) {
-          await db.update(userTable).set(newUser).where(eq(userTable.id, user.id));
-        } else {
-          await db.insert(userTable).values(newUser);
-        }
-      });
-
-      await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
-      console.log('[signup] Saved user:', telegramId, name, email);
-    } catch (error) {
-      console.error('[signup] Error saving user', { error });
-      await ctx.reply('❗️ Something went wrong, please try again later.');
     }
   }
   bot.use(createConversation(signup, {

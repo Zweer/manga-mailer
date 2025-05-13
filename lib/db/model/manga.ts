@@ -1,6 +1,8 @@
-import { integer, jsonb, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+import { integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { timestamps } from '@/lib/db/model/helpers';
+import { userMangaTable } from '@/lib/db/model/user';
 
 export const statusType = pgEnum('type', [
   'Ongoing',
@@ -28,4 +30,12 @@ export const mangaTable = pgTable('manga', {
   score: integer(),
   chaptersCount: integer(),
   ...timestamps,
-});
+}, mangaTable => [
+  {
+    sourceUniqueIndex: uniqueIndex('manga_unique_source_idx').on(mangaTable.sourceName, mangaTable.sourceId),
+  },
+]);
+
+export const mangaRelations = relations(mangaTable, ({ many }) => ({
+  userManga: many(userMangaTable),
+}));
