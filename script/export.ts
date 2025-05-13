@@ -34,7 +34,7 @@ if (!existsSync(docFolder)) {
   mkdirSync(docFolder);
 }
 
-const exportFilename = join(docFolder, 'export.md');
+const exportFilename = join(docFolder, 'EXPORT.md');
 const filesExport = files2export.map((file) => {
   const filePath = join(rootFolder, file);
   if (lstatSync(filePath).isDirectory()) {
