@@ -1,0 +1,1 @@
+ALTER TABLE "manga" ALTER COLUMN "score" SET DATA TYPE real;

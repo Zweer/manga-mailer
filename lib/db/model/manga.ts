@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { timestamps } from '@/lib/db/model/helpers';
 import { userMangaTable } from '@/lib/db/model/user';
@@ -27,7 +27,7 @@ export const mangaTable = pgTable('manga', {
   releasedAt: timestamp({ mode: 'date' }),
   status: statusType(),
   genres: jsonb('genres').$type<string[]>(),
-  score: integer(),
+  score: real(),
   chaptersCount: integer(),
   ...timestamps,
 }, mangaTable => [
