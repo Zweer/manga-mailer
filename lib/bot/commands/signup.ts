@@ -24,6 +24,9 @@ export function createSignupConversation(bot: Bot) {
 
     const ctxEmail = await conversation.waitFor('message:text');
     const email = ctxEmail.message.text;
+    if (email === '/cancel') {
+      return;
+    }
     console.log('[signup] Received email:', email);
 
     const newUser = {
@@ -37,7 +40,7 @@ export function createSignupConversation(bot: Bot) {
     if (!result.success) {
       if (result.validationError) {
         console.error('[signup] Validation error:', result.validationError);
-        await ctx.reply(`❗️ Something went wrong:\n\n• ${result.validationError.join('\n •')}`);
+        await ctx.reply(`❗️ Something went wrong:\n\n${result.validationError.map(({ field, error }) => `• ${field}: ${error}`).join('\n')}`);
         await conversation.rewind(preEmailCheckpoint);
       } else if (typeof result.databaseError === 'string') {
         console.error('[signup] Database error:', result.databaseError);
