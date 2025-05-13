@@ -69,20 +69,25 @@ export async function trackManga(manga: typeof mangaTable.$inferInsert, telegram
 }
 
 export async function listTrackedMangas(userId: string): Promise<(typeof mangaTable.$inferSelect)[]> {
-  // const userMangas = await db.query.userMangaTable.findMany({
-  //   where: eq(userMangaTable.userId, userId),
-  //   with: {
-  //     manga: true,
-  //   },
-  // });
-
-  const mangas = await db.query.mangaTable.findMany({
+  const userMangas = await db.query.userMangaTable.findMany({
     where: eq(userMangaTable.userId, userId),
     with: {
-      userManga: true,
+      manga: true,
     },
-    orderBy: (manga, { asc }) => asc(manga.title),
   });
+
+  const mangas = userMangas
+    .map(userManga => userManga.manga!)
+    .sort((mangaA, mangaB) => {
+      if (mangaA.title === null) {
+        return 1;
+      }
+      if (mangaB.title === null) {
+        return -1;
+      }
+
+      return mangaA.title.localeCompare(mangaB.title);
+    });
 
   return mangas;
 }
