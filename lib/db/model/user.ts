@@ -34,7 +34,7 @@ export const userMangaTable = pgTable('user-manga', {
 ]);
 
 export const userRelations = relations(userTable, ({ many }) => ({
-  userManga: many(userMangaTable),
+  userMangas: many(userMangaTable),
 }));
 
 export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
