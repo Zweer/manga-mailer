@@ -17,6 +17,7 @@ const ignoreFile = `${readFileSync(ignoreFilename).toString()}
 *.md
 *.svg
 *.ico
+docs
 drizzle
 package-lock.json`;
 // console.log('Ignore file:', ignoreFile);
