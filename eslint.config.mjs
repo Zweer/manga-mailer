@@ -36,5 +36,13 @@ export default antfu({
     }],
   },
 }, {
+  rules: {
+    'ts/no-unsafe-assignment': 'off',
+    'ts/no-unsafe-call': 'off',
+    'ts/no-unsafe-member-access': 'off',
+    'ts/no-unsafe-return': 'off',
+  },
+  files: ['test/setup.ts', '**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[tj]s?(x)'],
+}, {
   ignores: ['.next/*', './components/ui/*.tsx'],
 });
