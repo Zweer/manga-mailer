@@ -1,0 +1,1 @@
+ALTER TABLE "user-manga" ADD COLUMN "lastReadChapter" real DEFAULT 0 NOT NULL;
