@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { index, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, primaryKey, real, text, timestamp } from 'drizzle-orm/pg-core';
 
 import { timestamps } from '@/lib/db/model/helpers';
 import { mangaTable } from '@/lib/db/model/manga';
@@ -27,6 +27,8 @@ export const userMangaTable = pgTable('user-manga', {
   mangaId: text()
     .references(() => mangaTable.id, { onDelete: 'cascade' })
     .notNull(),
+
+  lastReadChapter: real().notNull().default(0),
 
   ...timestamps,
 }, userMangaTable => [

@@ -13,7 +13,11 @@ type TrackMangaOutput = {
   databaseError?: string;
 };
 
-export async function trackManga(manga: typeof mangaTable.$inferInsert, telegramId: number): Promise<TrackMangaOutput> {
+export async function trackManga(
+  manga: typeof mangaTable.$inferInsert,
+  telegramId: number,
+  lastReadChapter: number,
+): Promise<TrackMangaOutput> {
   try {
     const user = await findUserByTelegramId(telegramId);
     if (!user) {
@@ -53,6 +57,7 @@ export async function trackManga(manga: typeof mangaTable.$inferInsert, telegram
     await db.insert(userMangaTable).values({
       userId: user.id,
       mangaId: existingManga.id,
+      lastReadChapter,
     });
 
     return { success: true };
