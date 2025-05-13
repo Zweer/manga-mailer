@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { findUserByTelegramId } from '@/lib/db/action/user';
@@ -71,23 +71,12 @@ export async function trackManga(manga: typeof mangaTable.$inferInsert, telegram
 export async function listTrackedMangas(userId: string): Promise<(typeof mangaTable.$inferSelect)[]> {
   const userMangas = await db.query.userMangaTable.findMany({
     where: eq(userMangaTable.userId, userId),
-    with: {
-      manga: true,
-    },
   });
 
-  const mangas = userMangas
-    .map(userManga => userManga.manga!)
-    .sort((mangaA, mangaB) => {
-      if (mangaA.title === null) {
-        return 1;
-      }
-      if (mangaB.title === null) {
-        return -1;
-      }
-
-      return mangaA.title.localeCompare(mangaB.title);
-    });
+  const mangas = await db.query.mangaTable.findMany({
+    where: inArray(mangaTable.id, userMangas.map(userManga => userManga.mangaId)),
+    orderBy: (manga, { asc }) => asc(manga.title),
+  });
 
   return mangas;
 }
