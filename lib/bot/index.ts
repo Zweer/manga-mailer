@@ -6,9 +6,10 @@ import {
 } from '@grammyjs/conversations';
 import { Bot as BotConstructor } from 'grammy';
 
-import { createHelpMessage } from './commands/help';
-import { createSignupConversation } from './commands/signup';
-import { createTrackConversation } from './commands/track';
+import { createHelpMessage } from '@/lib/bot/commands/help';
+import { createListConversation } from '@/lib/bot/commands/list';
+import { createSignupConversation } from '@/lib/bot/commands/signup';
+import { createTrackConversation } from '@/lib/bot/commands/track';
 
 declare global {
   // eslint-disable-next-line ts/no-namespace
@@ -29,6 +30,7 @@ export function createBot(doInit = true) {
 
     createSignupConversation(bot);
     createTrackConversation(bot);
+    createListConversation(bot);
     createHelpMessage(bot);
   }
 
