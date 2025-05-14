@@ -35,6 +35,8 @@ export const mangaTable = pgTable('manga', {
     sourceUniqueIndex: uniqueIndex('manga_unique_source_idx').on(mangaTable.sourceName, mangaTable.sourceId),
   },
 ]);
+export type MangaInsert = typeof mangaTable.$inferInsert;
+export type Manga = typeof mangaTable.$inferSelect;
 
 export const mangaRelations = relations(mangaTable, ({ many }) => ({
   userMangas: many(userMangaTable),

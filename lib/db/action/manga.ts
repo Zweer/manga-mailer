@@ -1,3 +1,5 @@
+import type { Manga, MangaInsert } from '@/lib/db/model';
+
 import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
@@ -14,7 +16,7 @@ type TrackMangaOutput = {
 };
 
 export async function trackManga(
-  manga: typeof mangaTable.$inferInsert,
+  manga: MangaInsert,
   telegramId: number,
   lastReadChapter: number,
 ): Promise<TrackMangaOutput> {
@@ -73,7 +75,7 @@ export async function trackManga(
   }
 }
 
-export async function listTrackedMangas(userId: string): Promise<(typeof mangaTable.$inferSelect)[]> {
+export async function listTrackedMangas(userId: string): Promise<Manga[]> {
   const userMangas = await db.query.userMangaTable.findMany({
     where: eq(userMangaTable.userId, userId),
   });

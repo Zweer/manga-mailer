@@ -8,17 +8,19 @@ export const userTable = pgTable('user', {
   id: text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: text(),
-  email: text().unique(),
+  name: text().notNull(),
+  email: text().notNull().unique(),
   emailVerified: timestamp({ mode: 'date' }),
   image: text(),
-  telegramId: integer().unique(),
+  telegramId: integer().notNull().unique(),
 
   ...timestamps,
 }, userTable => [{
   telegramIdIdx: index('user_telegramId_idx').on(userTable.telegramId),
   emailIdx: index('client_email_idx').on(userTable.email),
 }]);
+export type UserInsert = typeof userTable.$inferInsert;
+export type User = typeof userTable.$inferSelect;
 
 export const userMangaTable = pgTable('user-manga', {
   userId: text()
@@ -34,6 +36,8 @@ export const userMangaTable = pgTable('user-manga', {
 }, userMangaTable => [
   primaryKey({ columns: [userMangaTable.userId, userMangaTable.mangaId] }),
 ]);
+export type UserMangaInsert = typeof userMangaTable.$inferInsert;
+export type UserManga = typeof userMangaTable.$inferSelect;
 
 export const userRelations = relations(userTable, ({ many }) => ({
   userMangas: many(userMangaTable),

@@ -1,6 +1,6 @@
 import type { ConnectorNames } from '@zweer/manga-scraper';
 
-import type { mangaTable } from '@/lib/db/model/manga';
+import type { MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
@@ -43,7 +43,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
   return mangas;
 }
 
-export async function getManga(connectorName: string, id: string): Promise<typeof mangaTable.$inferInsert> {
+export async function getManga(connectorName: string, id: string): Promise<MangaInsert> {
   const connector = connectors[connectorName as ConnectorNames];
   // eslint-disable-next-line ts/strict-boolean-expressions
   if (!connector) {

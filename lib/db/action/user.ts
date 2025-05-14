@@ -1,3 +1,5 @@
+import type { User } from '@/lib/db/model';
+
 import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
@@ -48,7 +50,7 @@ export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
   return { success: true };
 }
 
-export async function findUserByTelegramId(telegramId: number): Promise<typeof userTable.$inferSelect | undefined> {
+export async function findUserByTelegramId(telegramId: number): Promise<User | undefined> {
   const user = await db.query.userTable.findFirst({
     where: eq(userTable.telegramId, telegramId),
   });

@@ -7,6 +7,10 @@ describe('db -> action -> user', () => {
   const email = 'testjest@example.com';
   const telegramId = 123;
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('findUserByTelegramId', () => {
     it('should return undefined if user is not found', async () => {
       const user = await findUserByTelegramId(12345);
