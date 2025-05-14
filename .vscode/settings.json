@@ -2,5 +2,12 @@
   "conventionalCommits.scopes": [
     "bot",
     "database"
+  ],
+  "vsicons.associations.folders": [
+    {
+      "icon": "db",
+      "extensions": ["db", "database", "drizzle", "sql", "data", "repo", "repository", "repositories"],
+      "format": "svg",
+    }
   ]
 }
