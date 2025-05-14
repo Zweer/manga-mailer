@@ -1,14 +1,12 @@
 import { userValidation } from '@/lib/validation/user';
 
 describe('validation -> user', () => {
-  const baseValidInput = {
-    name: 'Test User',
-    email: 'test@example.com',
-    telegramId: 12345,
-  };
-
   it('should validate a correct full user input', () => {
-    const result = userValidation.safeParse(baseValidInput);
+    const result = userValidation.safeParse({
+      name: 'Test User',
+      email: 'test@example.com',
+      telegramId: 12345,
+    });
     expect(result.success).toBe(true);
   });
 
