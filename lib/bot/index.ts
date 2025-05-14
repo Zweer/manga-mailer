@@ -10,6 +10,9 @@ import { createHelpMessage } from '@/lib/bot/commands/help';
 import { createListConversation } from '@/lib/bot/commands/list';
 import { createSignupConversation } from '@/lib/bot/commands/signup';
 import { createTrackConversation } from '@/lib/bot/commands/track';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'bot' });
 
 declare global {
   // eslint-disable-next-line ts/no-namespace
@@ -35,7 +38,7 @@ export function createBot(doInit = true) {
   }
 
   bot.on('message', async (ctx) => {
-    console.log('Received message', ctx.message);
+    logger.debug('Received message', ctx.message);
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
 

@@ -4,6 +4,10 @@ import type { MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'lib:manga' });
+
 interface MangaAutocomplete {
   connectorName: string;
   id: string;
@@ -12,12 +16,12 @@ interface MangaAutocomplete {
 }
 
 export async function searchMangas(title: string): Promise<MangaAutocomplete[]> {
-  console.log('[manga] search:', title);
+  logger.debug('[manga] search:', title);
 
   const mangasArr: MangaAutocomplete[][] = await Promise.all(
     Object.entries(connectors).map(async ([connectorName, connector]) => {
       try {
-        console.log(`[manga] Searching with connector: ${connectorName}`);
+        logger.info(`[manga] Searching "${title}" with connector: ${connectorName}`);
         const newMangas = await connector.getMangas(title);
 
         return newMangas.map(manga => ({
@@ -27,7 +31,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
           chaptersCount: manga.chaptersCount,
         }));
       } catch (error) {
-        console.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
+        logger.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
         return [];
       }
     }),
@@ -42,7 +46,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
       return mangaA.title.localeCompare(mangaB.title);
     });
 
-  console.log('[manga] mangas found:', mangas.length);
+  logger.info('[manga] mangas found:', mangas.length);
 
   return mangas;
 }

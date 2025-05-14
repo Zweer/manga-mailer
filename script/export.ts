@@ -22,14 +22,12 @@ const ignoreFile = `${readFileSync(ignoreFilename).toString()}
 docs/EXPORT.md
 drizzle
 package-lock.json`;
-// console.log('Ignore file:', ignoreFile);
 const files = readdirSync(rootFolder, { recursive: true, encoding: 'utf-8' });
 
 const files2export = ignore()
   .add(ignoreFile)
   .filter(files)
   .sort();
-// console.log('Files to export:', files2export);
 
 const docFolder = join(rootFolder, 'docs');
 if (!existsSync(docFolder)) {

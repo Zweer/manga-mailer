@@ -5,6 +5,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { findUserByTelegramId } from '@/lib/db/action/user';
 import { mangaTable, userMangaTable } from '@/lib/db/model';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'db:action:manga' });
 
 type TrackMangaOutput = {
   success: true;
@@ -64,7 +67,7 @@ export async function trackManga(
 
     return { success: true };
   } catch (error) {
-    console.error('[action:manga:trackManga] Database error:', error);
+    logger.error('[trackManga] Database error:', error);
 
     return {
       success: false,

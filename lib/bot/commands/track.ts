@@ -9,17 +9,20 @@ import { InlineKeyboard } from 'grammy';
 import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
 import { trackManga } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
+import { logger as originalLogger } from '@/lib/logger';
 import { getManga, searchMangas } from '@/lib/manga';
+
+const logger = originalLogger.child({ name: 'bot:command:track' });
 
 export function createTrackConversation(bot: Bot) {
   async function track(conversation: Conversation, ctx: Context) {
-    console.log('[track] Entered track conversation');
+    logger.debug('Entered track conversation');
     await ctx.reply('Hi there! What is the name of the manga you want to track?');
 
     const ctxName = await conversation.waitFor('message:text');
     const telegramId = ctxName.chat.id;
     const title = ctxName.message.text;
-    console.log('[track] Received title', title);
+    logger.debug('Received title', title);
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
     const mangas = await conversation.external(async () => searchMangas(title));
 
@@ -62,7 +65,7 @@ export function createTrackConversation(bot: Bot) {
     } else if (result.alreadyTracked) {
       await ctx.reply('❗️ It seems you\'re already tracking this manga!');
     } else {
-      console.error('[track] Database error:', result.databaseError);
+      logger.error('Database error:', result.databaseError);
       await ctx.reply('❗️ Something went wrong, please try again later');
     }
   }
@@ -72,7 +75,7 @@ export function createTrackConversation(bot: Bot) {
 
   bot.command('track', async (ctx) => {
     const telegramId = ctx.chat.id;
-    console.log('[track] Received track command', telegramId);
+    logger.debug('Received track command', telegramId);
     const user = await findUserByTelegramId(telegramId);
 
     if (user) {

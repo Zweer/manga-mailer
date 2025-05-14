@@ -168,6 +168,9 @@ import { webhookCallback } from 'grammy';
 import { NextResponse } from 'next/server';
 
 import { createBot } from '@/lib/bot';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'route:/' });
 
 const bot = createBot();
 
@@ -179,8 +182,8 @@ export async function GET() {
 
     return NextResponse.json({ webhook });
   } catch (error) {
-    console.error('Error while retrieving webhook');
-    console.info(error);
+    logger.error('Error while retrieving webhook');
+    logger.debug(error);
 
     return NextResponse.json({ error });
   }
@@ -574,6 +577,9 @@ instrumentation.ts:
 
 ```ts
 import { createBot } from '@/lib/bot';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'instrumentation' });
 
 declare global {
 
@@ -590,14 +596,14 @@ async function registerTelegramWebhook() {
   const bot = createBot(false);
 
   const endpoint = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  console.log('[setTelegramWebhook] setting new endpoint:', endpoint);
+  logger.debug('[setTelegramWebhook] setting new endpoint:', endpoint);
 
   try {
     await bot.api.setWebhook(endpoint);
-    console.log('[setTelegramWebhook] ✅ endpoint set successfully!');
+    logger.debug('[setTelegramWebhook] ✅ endpoint set successfully!');
   } catch (error) {
-    console.error('[setTelegramWebhook] ❌ endpoint set error!');
-    console.log(error);
+    logger.error('[setTelegramWebhook] ❌ endpoint set error!');
+    logger.debug(error);
   }
 }
 
@@ -617,15 +623,18 @@ export async function register() {
 lib/bot/commands/help.ts:
 
 ```ts
-import type { Bot } from '../';
+import type { Bot } from '@/lib/bot';
 
-import { commands } from '../constants';
+import { commands } from '@/lib/bot/constants';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'instrumentation' });
 
 export function createHelpMessage(bot: Bot) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
-    console.log('[help] Received help command');
+    logger.debug('[help] Received help command');
 
     await ctx.reply(
       `⚙️ *Commands*:
@@ -647,11 +656,14 @@ import type { Bot } from '@/lib/bot';
 import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'bot:command:list' });
 
 export function createListConversation(bot: Bot) {
   bot.command('list', async (ctx) => {
     const telegramId = ctx.chat.id;
-    console.log('[track] Received list command', telegramId);
+    logger.debug('Received list command', telegramId);
     const user = await findUserByTelegramId(telegramId);
     if (!user) {
       await ctx.conversation.enter(signupConversationId);
@@ -686,17 +698,20 @@ import { createConversation } from '@grammyjs/conversations';
 
 import { signupConversationId } from '@/lib/bot/constants';
 import { upsertUser } from '@/lib/db/action/user';
+import { logger as originalLogger } from '@/lib/logger';
 import { userValidation } from '@/lib/validation/user';
+
+const logger = originalLogger.child({ name: 'bot:command:signup' });
 
 export function createSignupConversation(bot: Bot) {
   async function signup(conversation: Conversation, ctx: Context) {
-    console.log('[signup] Entered signup conversation');
+    logger.debug('Entered signup conversation');
     await ctx.reply('Hi there! What is your name?');
 
     const ctxName = await conversation.waitFor('message:text');
     const telegramId = ctxName.chat.id;
     const name = ctxName.message.text;
-    console.log('[signup] Received name:', name);
+    logger.debug('Received name:', name);
     const preEmailCheckpoint = conversation.checkpoint();
     await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
     await ctx.reply(`Where do you want us to mail you updates?`);
@@ -706,7 +721,7 @@ export function createSignupConversation(bot: Bot) {
     if (email === '/cancel') {
       return;
     }
-    console.log('[signup] Received email:', email);
+    logger.debug('Received email:', email);
 
     const newUser = {
       telegramId,
@@ -718,21 +733,21 @@ export function createSignupConversation(bot: Bot) {
 
     if (!result.success) {
       if (result.validationError) {
-        console.error('[signup] Validation error:', result.validationError);
+        logger.error('Validation error:', result.validationError);
         await ctx.reply(`❗️ Something went wrong:\n\n${result.validationError.map(({ field, error }) => `• ${field}: ${error}`).join('\n')}`);
         await conversation.rewind(preEmailCheckpoint);
       } else if (typeof result.databaseError === 'string') {
-        console.error('[signup] Database error:', result.databaseError);
+        logger.error('Database error:', result.databaseError);
         await ctx.reply('❗️ Something went wrong, please try again later');
         return;
       }
     } else {
       await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
-      console.log('[signup] Saved user:', telegramId, name, email);
+      logger.debug('Saved user:', telegramId, name, email);
     }
     const parsingResult = userValidation.safeParse(newUser);
     if (!parsingResult.success) {
-      console.error('[signup] Validation error:', parsingResult.error);
+      logger.error('Validation error:', parsingResult.error);
       await ctx.reply(`❗️ Something went wrong:\n${Object.entries(parsingResult.error.flatten().fieldErrors)
         .map(([field, errors]) => `• ${field}: ${errors.join(', ')}`)
         .join('\n')}`);
@@ -744,7 +759,7 @@ export function createSignupConversation(bot: Bot) {
   }));
 
   bot.command('start', async (ctx) => {
-    console.log('[signup] Received start command');
+    logger.debug('Received start command');
     await ctx.conversation.enter(signupConversationId);
   });
 }
@@ -766,17 +781,20 @@ import { InlineKeyboard } from 'grammy';
 import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
 import { trackManga } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
+import { logger as originalLogger } from '@/lib/logger';
 import { getManga, searchMangas } from '@/lib/manga';
+
+const logger = originalLogger.child({ name: 'bot:command:track' });
 
 export function createTrackConversation(bot: Bot) {
   async function track(conversation: Conversation, ctx: Context) {
-    console.log('[track] Entered track conversation');
+    logger.debug('Entered track conversation');
     await ctx.reply('Hi there! What is the name of the manga you want to track?');
 
     const ctxName = await conversation.waitFor('message:text');
     const telegramId = ctxName.chat.id;
     const title = ctxName.message.text;
-    console.log('[track] Received title', title);
+    logger.debug('Received title', title);
     await ctx.reply(`Cool, I'm searching for "${title}"...`);
     const mangas = await conversation.external(async () => searchMangas(title));
 
@@ -819,7 +837,7 @@ export function createTrackConversation(bot: Bot) {
     } else if (result.alreadyTracked) {
       await ctx.reply('❗️ It seems you\'re already tracking this manga!');
     } else {
-      console.error('[track] Database error:', result.databaseError);
+      logger.error('Database error:', result.databaseError);
       await ctx.reply('❗️ Something went wrong, please try again later');
     }
   }
@@ -829,7 +847,7 @@ export function createTrackConversation(bot: Bot) {
 
   bot.command('track', async (ctx) => {
     const telegramId = ctx.chat.id;
-    console.log('[track] Received track command', telegramId);
+    logger.debug('Received track command', telegramId);
     const user = await findUserByTelegramId(telegramId);
 
     if (user) {
@@ -876,6 +894,9 @@ import { createHelpMessage } from '@/lib/bot/commands/help';
 import { createListConversation } from '@/lib/bot/commands/list';
 import { createSignupConversation } from '@/lib/bot/commands/signup';
 import { createTrackConversation } from '@/lib/bot/commands/track';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'bot' });
 
 declare global {
 
@@ -901,7 +922,7 @@ export function createBot(doInit = true) {
   }
 
   bot.on('message', async (ctx) => {
-    console.log('Received message', ctx.message);
+    logger.debug('Received message', ctx.message);
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
 
@@ -1123,6 +1144,9 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { findUserByTelegramId } from '@/lib/db/action/user';
 import { mangaTable, userMangaTable } from '@/lib/db/model';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'db:action:manga' });
 
 type TrackMangaOutput = {
   success: true;
@@ -1182,7 +1206,7 @@ export async function trackManga(
 
     return { success: true };
   } catch (error) {
-    console.error('[action:manga:trackManga] Database error:', error);
+    logger.error('[trackManga] Database error:', error);
 
     return {
       success: false,
@@ -1353,7 +1377,10 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
+import { logger as originalLogger } from '@/lib/logger';
 import { userValidation } from '@/lib/validation/user';
+
+const logger = originalLogger.child({ name: 'db:action:user' });
 
 interface UpsertInput {
   telegramId: number;
@@ -1372,7 +1399,7 @@ type UpsertOutput = {
 export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
   const parsingResult = userValidation.safeParse(newUser);
   if (!parsingResult.success) {
-    console.error('[action:user:upsertUser] Validation error:', parsingResult.error);
+    logger.error('[upsertUser] Validation error:', parsingResult.error);
 
     return {
       success: false,
@@ -1391,7 +1418,7 @@ export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
       await db.insert(userTable).values(newUser);
     }
   } catch (error) {
-    console.error('[action:user:upsertUser] Database error:', error);
+    logger.error('[upsertUser] Database error:', error);
 
     return { success: false, databaseError: (error as Error).message };
   }
@@ -1565,6 +1592,47 @@ export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
   user: one(userTable),
   manga: one(mangaTable),
 }));
+```
+
+---
+
+lib/logger.ts:
+
+```ts
+import pino from 'pino';
+
+let level = process.env.LOG_LEVEL;
+if (typeof level === 'undefined') {
+  switch (process.env.NODE_ENV) {
+    case 'production':
+      level = 'info';
+      break;
+
+    case 'test':
+      level = 'silent';
+      break;
+
+    case 'development':
+    default:
+      level = 'debug';
+      break;
+  }
+}
+
+const pinoOptions: pino.LoggerOptions = { level };
+
+if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') {
+  pinoOptions.transport = {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname',
+    },
+  };
+}
+
+export const logger = pino(pinoOptions);
 ```
 
 ---
@@ -1744,6 +1812,10 @@ import type { MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'lib:manga' });
+
 interface MangaAutocomplete {
   connectorName: string;
   id: string;
@@ -1752,12 +1824,12 @@ interface MangaAutocomplete {
 }
 
 export async function searchMangas(title: string): Promise<MangaAutocomplete[]> {
-  console.log('[manga] search:', title);
+  logger.debug('[manga] search:', title);
 
   const mangasArr: MangaAutocomplete[][] = await Promise.all(
     Object.entries(connectors).map(async ([connectorName, connector]) => {
       try {
-        console.log(`[manga] Searching with connector: ${connectorName}`);
+        logger.info(`[manga] Searching "${title}" with connector: ${connectorName}`);
         const newMangas = await connector.getMangas(title);
 
         return newMangas.map(manga => ({
@@ -1767,7 +1839,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
           chaptersCount: manga.chaptersCount,
         }));
       } catch (error) {
-        console.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
+        logger.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
         return [];
       }
     }),
@@ -1782,7 +1854,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
       return mangaA.title.localeCompare(mangaB.title);
     });
 
-  console.log('[manga] mangas found:', mangas.length);
+  logger.info('[manga] mangas found:', mangas.length);
 
   return mangas;
 }
@@ -1997,6 +2069,7 @@ package.json:
     "bufferutil": "^4.0.9",
     "grammy": "^1.36.1",
     "next": "15.3.2",
+    "pino": "^9.6.0",
     "ws": "^8.18.2",
     "zod": "^3.24.4"
   },
@@ -2018,6 +2091,7 @@ package.json:
     "husky": "^9.1.7",
     "ignore": "^7.0.4",
     "jest": "^29.7.0",
+    "pino-pretty": "^13.0.0",
     "ts-jest": "^29.3.2",
     "typescript": "^5"
   },
@@ -2068,14 +2142,12 @@ const ignoreFile = `${readFileSync(ignoreFilename).toString()}
 docs/EXPORT.md
 drizzle
 package-lock.json`;
-// console.log('Ignore file:', ignoreFile);
 const files = readdirSync(rootFolder, { recursive: true, encoding: 'utf-8' });
 
 const files2export = ignore()
   .add(ignoreFile)
   .filter(files)
   .sort();
-// console.log('Files to export:', files2export);
 
 const docFolder = join(rootFolder, 'docs');
 if (!existsSync(docFolder)) {

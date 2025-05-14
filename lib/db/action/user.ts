@@ -4,7 +4,10 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
+import { logger as originalLogger } from '@/lib/logger';
 import { userValidation } from '@/lib/validation/user';
+
+const logger = originalLogger.child({ name: 'db:action:user' });
 
 interface UpsertInput {
   telegramId: number;
@@ -23,7 +26,7 @@ type UpsertOutput = {
 export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
   const parsingResult = userValidation.safeParse(newUser);
   if (!parsingResult.success) {
-    console.error('[action:user:upsertUser] Validation error:', parsingResult.error);
+    logger.error('[upsertUser] Validation error:', parsingResult.error);
 
     return {
       success: false,
@@ -42,7 +45,7 @@ export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
       await db.insert(userTable).values(newUser);
     }
   } catch (error) {
-    console.error('[action:user:upsertUser] Database error:', error);
+    logger.error('[upsertUser] Database error:', error);
 
     return { success: false, databaseError: (error as Error).message };
   }

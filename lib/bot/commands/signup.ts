@@ -7,17 +7,20 @@ import { createConversation } from '@grammyjs/conversations';
 
 import { signupConversationId } from '@/lib/bot/constants';
 import { upsertUser } from '@/lib/db/action/user';
+import { logger as originalLogger } from '@/lib/logger';
 import { userValidation } from '@/lib/validation/user';
+
+const logger = originalLogger.child({ name: 'bot:command:signup' });
 
 export function createSignupConversation(bot: Bot) {
   async function signup(conversation: Conversation, ctx: Context) {
-    console.log('[signup] Entered signup conversation');
+    logger.debug('Entered signup conversation');
     await ctx.reply('Hi there! What is your name?');
 
     const ctxName = await conversation.waitFor('message:text');
     const telegramId = ctxName.chat.id;
     const name = ctxName.message.text;
-    console.log('[signup] Received name:', name);
+    logger.debug('Received name:', name);
     const preEmailCheckpoint = conversation.checkpoint();
     await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
     await ctx.reply(`Where do you want us to mail you updates?`);
@@ -27,7 +30,7 @@ export function createSignupConversation(bot: Bot) {
     if (email === '/cancel') {
       return;
     }
-    console.log('[signup] Received email:', email);
+    logger.debug('Received email:', email);
 
     const newUser = {
       telegramId,
@@ -39,21 +42,21 @@ export function createSignupConversation(bot: Bot) {
 
     if (!result.success) {
       if (result.validationError) {
-        console.error('[signup] Validation error:', result.validationError);
+        logger.error('Validation error:', result.validationError);
         await ctx.reply(`❗️ Something went wrong:\n\n${result.validationError.map(({ field, error }) => `• ${field}: ${error}`).join('\n')}`);
         await conversation.rewind(preEmailCheckpoint);
       } else if (typeof result.databaseError === 'string') {
-        console.error('[signup] Database error:', result.databaseError);
+        logger.error('Database error:', result.databaseError);
         await ctx.reply('❗️ Something went wrong, please try again later');
         return;
       }
     } else {
       await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
-      console.log('[signup] Saved user:', telegramId, name, email);
+      logger.debug('Saved user:', telegramId, name, email);
     }
     const parsingResult = userValidation.safeParse(newUser);
     if (!parsingResult.success) {
-      console.error('[signup] Validation error:', parsingResult.error);
+      logger.error('Validation error:', parsingResult.error);
       await ctx.reply(`❗️ Something went wrong:\n${Object.entries(parsingResult.error.flatten().fieldErrors)
         .map(([field, errors]) => `• ${field}: ${errors.join(', ')}`)
         .join('\n')}`);
@@ -65,7 +68,7 @@ export function createSignupConversation(bot: Bot) {
   }));
 
   bot.command('start', async (ctx) => {
-    console.log('[signup] Received start command');
+    logger.debug('Received start command');
     await ctx.conversation.enter(signupConversationId);
   });
 }

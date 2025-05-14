@@ -3,11 +3,14 @@ import type { Bot } from '@/lib/bot';
 import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'bot:command:list' });
 
 export function createListConversation(bot: Bot) {
   bot.command('list', async (ctx) => {
     const telegramId = ctx.chat.id;
-    console.log('[track] Received list command', telegramId);
+    logger.debug('Received list command', telegramId);
     const user = await findUserByTelegramId(telegramId);
     if (!user) {
       await ctx.conversation.enter(signupConversationId);

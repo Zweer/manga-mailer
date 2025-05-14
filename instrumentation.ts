@@ -1,4 +1,7 @@
 import { createBot } from '@/lib/bot';
+import { logger as originalLogger } from '@/lib/logger';
+
+const logger = originalLogger.child({ name: 'instrumentation' });
 
 declare global {
   // eslint-disable-next-line ts/no-namespace
@@ -15,14 +18,14 @@ async function registerTelegramWebhook() {
   const bot = createBot(false);
 
   const endpoint = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  console.log('[setTelegramWebhook] setting new endpoint:', endpoint);
+  logger.debug('[setTelegramWebhook] setting new endpoint:', endpoint);
 
   try {
     await bot.api.setWebhook(endpoint);
-    console.log('[setTelegramWebhook] ✅ endpoint set successfully!');
+    logger.debug('[setTelegramWebhook] ✅ endpoint set successfully!');
   } catch (error) {
-    console.error('[setTelegramWebhook] ❌ endpoint set error!');
-    console.log(error);
+    logger.error('[setTelegramWebhook] ❌ endpoint set error!');
+    logger.debug(error);
   }
 }
 
