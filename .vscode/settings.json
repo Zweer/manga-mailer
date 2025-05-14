@@ -7,7 +7,7 @@
     {
       "icon": "db",
       "extensions": ["db", "database", "drizzle", "sql", "data", "repo", "repository", "repositories"],
-      "format": "svg",
+      "format": "svg"
     }
   ]
 }
