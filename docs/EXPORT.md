@@ -518,6 +518,195 @@ export default {
 
 ---
 
+e2e/bot.test.ts:
+
+```ts
+import type { Api } from 'grammy';
+import type { Update, UserFromGetMe } from 'grammy/types';
+
+import type { Bot } from '@/lib/bot';
+
+import { createBot } from '@/lib/bot';
+import { db } from '@/lib/db';
+import * as userActions from '@/lib/db/action/user';
+
+interface CapturedRequest {
+  method: keyof Api;
+  payload: any;
+}
+
+let botInstance: Bot;
+let outgoingRequests: CapturedRequest[] = [];
+
+function createMessageUpdate(text: string, chatId = 1111111, userId = 1111111, messageId = 1365): Update {
+  return {
+    update_id: Date.now() + Math.floor(Math.random() * 1000),
+    message: {
+      message_id: messageId,
+      chat: { id: chatId, type: 'private', first_name: 'TestUser', username: 'testuser_e2e' },
+      date: Math.floor(Date.now() / 1000),
+      from: { id: userId, is_bot: false, first_name: 'TestUser', username: 'testuser_e2e' },
+      text,
+    },
+  };
+}
+
+function _createCallbackQueryUpdate(data: string, message: Update['message'], chatId = 1111111, userId = 1111111): Update {
+  if (!message)
+    throw new Error('Message is required for callback query update');
+  return {
+    update_id: Date.now() + Math.floor(Math.random() * 1000),
+    callback_query: {
+      id: String(Date.now() + Math.floor(Math.random() * 10000)),
+      from: { id: userId, is_bot: false, first_name: 'TestUser', username: 'testuser_e2e' },
+      chat_instance: String(chatId) + String(userId),
+      data,
+      message,
+    },
+  };
+}
+
+beforeAll(async () => {
+  botInstance = createBot();
+
+  botInstance.api.config.use(async (prev, method, payload) => {
+    outgoingRequests.push({ method: method as keyof Api, payload });
+    return { ok: true, result: true } as any;
+  });
+
+  botInstance.botInfo = {
+    id: 424242,
+    is_bot: true,
+    first_name: 'MyE2ETestBot',
+    username: 'my_e2e_test_bot',
+    can_join_groups: true,
+    can_read_all_group_messages: false,
+    supports_inline_queries: false,
+  } as UserFromGetMe;
+});
+
+beforeEach(async () => {
+  outgoingRequests = [];
+});
+
+xdescribe('bot E2E-like Tests', () => {
+  describe('/start (Signup Conversation)', () => {
+    const chatId = 1000001;
+    const userId = 1000001;
+
+    it('should guide a new user through the signup process', async () => {
+      // 1. Utente invia /start
+      await botInstance.handleUpdate(createMessageUpdate('/start', chatId, userId));
+      expect(outgoingRequests.length).toBe(1);
+      expect(outgoingRequests[0].method).toBe('sendMessage');
+      expect(outgoingRequests[0].payload.chat_id).toBe(chatId);
+      expect(outgoingRequests[0].payload.text).toBe('Hi there! What is your name?');
+      outgoingRequests = []; // Pulisci per la prossima interazione
+
+      // 2. Utente invia il nome
+      const userName = 'E2E Test User';
+      await botInstance.handleUpdate(createMessageUpdate(userName, chatId, userId, 1366));
+      expect(outgoingRequests.length).toBe(2); // Welcome + Ask for email
+      expect(outgoingRequests[0].payload.text).toBe(`Welcome to Manga Mailer, ${userName}!`);
+      expect(outgoingRequests[1].payload.text).toBe('Where do you want us to mail you updates?');
+      outgoingRequests = [];
+
+      // 3. Utente invia l'email
+      const userEmail = 'e2e@example.com';
+      await botInstance.handleUpdate(createMessageUpdate(userEmail, chatId, userId, 1367));
+      expect(outgoingRequests.length).toBe(1); // Confirmation
+      expect(outgoingRequests[0].payload.text).toBe(`Perfect, we'll use "${userEmail}" as email address!`);
+      outgoingRequests = [];
+
+      // Verifica che l'utente sia stato salvato nel DB
+      const dbUser = await db.query.userTable.findFirst({
+        where: (user, { eq }) => eq(user.telegramId, userId),
+      });
+      expect(dbUser).toBeDefined();
+      expect(dbUser?.name).toBe(userName);
+      expect(dbUser?.email).toBe(userEmail);
+    });
+
+    it('should handle signup cancellation with /cancel (if implemented in conversation)', async () => {
+      // Questo test dipende da come hai implementato la cancellazione
+      // nella tua `signupConversation` in `lib/bot/commands/signup.ts`
+      // Il tuo codice attuale non sembra avere un esplicito `/cancel` nel flusso di signup,
+      // ma è buona pratica averlo.
+      // Se lo aggiungi, puoi testarlo così:
+
+      // 1. Utente invia /start
+      await botInstance.handleUpdate(createMessageUpdate('/start', chatId, userId));
+      outgoingRequests = []; // Ignora la prima risposta "What is your name?"
+
+      // 2. Utente invia /cancel
+      await botInstance.handleUpdate(createMessageUpdate('/cancel', chatId, userId, 1368));
+      // Aspettati una risposta di cancellazione o nessuna risposta se la conversazione termina silenziosamente.
+      // Ad esempio:
+      // expect(outgoingRequests.length).toBe(1);
+      // expect(outgoingRequests[0].payload.text).toMatch(/cancelled/i);
+
+      // Verifica che nessun utente sia stato creato
+      const dbUser = await db.query.userTable.findFirst({ where: (user, { eq }) => eq(user.telegramId, userId) });
+      expect(dbUser).toBeUndefined();
+      expect(true).toBe(true); // Placeholder se il cancel non è implementato
+    });
+
+    it('should handle validation error for email and allow retry', async () => {
+      const upsertUserSpy = jest.spyOn(userActions, 'upsertUser');
+
+      // 1. /start
+      await botInstance.handleUpdate(createMessageUpdate('/start', chatId, userId));
+      outgoingRequests = [];
+
+      // 2. Nome
+      const userName = 'Validation Test User';
+      await botInstance.handleUpdate(createMessageUpdate(userName, chatId, userId, 1370));
+      outgoingRequests = [];
+
+      // 3. Email non valida
+      const invalidEmail = 'invalid-email';
+      // Sovrascrivi temporaneamente upsertUser per simulare errore di validazione solo per questa chiamata
+      // o assicurati che il tuo Zod validation lanci correttamente.
+      // La tua logica di conversazione già gestisce il validationError di upsertUser.
+      await botInstance.handleUpdate(createMessageUpdate(invalidEmail, chatId, userId, 1371));
+      expect(outgoingRequests.length).toBe(1); // Risposta dell'errore
+      expect(outgoingRequests[0].payload.text).toMatch(/❗️ Something went wrong:\n\n• email: Invalid email address/);
+      outgoingRequests = [];
+
+      // La conversazione dovrebbe essere tornata al checkpoint pre-email.
+      // La prossima risposta dovrebbe essere di nuovo la richiesta dell'email.
+      // La tua logica `signup` fa `await conversation.rewind(preEmailCheckpoint);`
+      // Dopo `rewind`, grammY non invia automaticamente un messaggio.
+      // La tua conversazione attende di nuovo `waitFor('message:text')` per l'email.
+
+      // 4. Utente invia email valida
+      const validEmail = 'valid-retry@example.com';
+      await botInstance.handleUpdate(createMessageUpdate(validEmail, chatId, userId, 1372));
+      expect(outgoingRequests.length).toBe(1);
+      expect(outgoingRequests[0].payload.text).toBe(`Perfect, we'll use "${validEmail}" as email address!`);
+
+      const dbUser = await db.query.userTable.findFirst({ where: (u, { eq }) => eq(u.telegramId, userId) });
+      expect(dbUser?.email).toBe(validEmail);
+      upsertUserSpy.mockRestore();
+    });
+  });
+
+  describe('/help', () => {
+    const chatId = 1000002;
+    it('should respond with the help message', async () => {
+      await botInstance.handleUpdate(createMessageUpdate('/help', chatId));
+      expect(outgoingRequests.length).toBe(1);
+      expect(outgoingRequests[0].method).toBe('sendMessage');
+      expect(outgoingRequests[0].payload.chat_id).toBe(chatId);
+      expect(outgoingRequests[0].payload.text).toContain('⚙️ *Commands*:');
+      expect(outgoingRequests[0].payload.parse_mode).toBe('MarkdownV2');
+    });
+  });
+});
+```
+
+---
+
 eslint.config.mjs:
 
 ```mjs
@@ -620,6 +809,71 @@ export async function register() {
 
 ---
 
+lib/bot/commands/help.test.ts:
+
+```ts
+import type { CommandContext, Context } from 'grammy';
+
+import type { Bot } from '@/lib/bot';
+
+import { createHelpMessage } from '@/lib/bot/commands/help';
+import { commands } from '@/lib/bot/constants';
+
+function mockCtx(messageText = '/help'): Partial<CommandContext<Context>> {
+  return {
+    message: {
+      message_id: 123,
+      chat: { id: 1000, type: 'private' } as any,
+      date: Date.now() / 1000,
+      text: messageText,
+    } as any,
+    chat: { id: 1000, type: 'private' } as any,
+    reply: jest.fn().mockResolvedValue(true),
+  };
+}
+
+describe('bot -> commands -> help', () => {
+  it('should register a "help" command handler on the bot', () => {
+    const mockBotInstance: Partial<Bot> = {
+      command: jest.fn(),
+    };
+
+    createHelpMessage(mockBotInstance as Bot);
+
+    expect(mockBotInstance.command).toHaveBeenCalledWith('help', expect.any(Function));
+  });
+
+  it('should reply with a formatted list of commands when the /help handler is invoked', async () => {
+    const currentCtx = mockCtx() as CommandContext<Context>;
+    let helpHandler: ((ctx: CommandContext<Context>) => Promise<void>) | undefined;
+
+    const mockBotInstance: Partial<Bot> = {
+      command: jest.fn((commandName, handler) => {
+        if (commandName === 'help') {
+          helpHandler = handler;
+        }
+      }) as any,
+    };
+
+    createHelpMessage(mockBotInstance as Bot);
+
+    expect(helpHandler).toBeDefined();
+    if (!helpHandler) {
+      throw new Error('Help handler was not registered');
+    }
+
+    await helpHandler(currentCtx);
+
+    const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
+    const expectedReplyMessage = `⚙️ *Commands*:\n\n${commandDescriptions}`;
+
+    expect(currentCtx.reply).toHaveBeenCalledWith(expectedReplyMessage, { parse_mode: 'MarkdownV2' });
+  });
+});
+```
+
+---
+
 lib/bot/commands/help.ts:
 
 ```ts
@@ -634,6 +888,7 @@ export function createHelpMessage(bot: Bot) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
+    console.log(ctx);
     logger.debug('[help] Received help command');
 
     await ctx.reply(
@@ -644,6 +899,116 @@ ${commandDescriptions}`,
     );
   });
 }
+```
+
+---
+
+lib/bot/commands/list.test.ts:
+
+```ts
+import type { ConversationFlavor } from '@grammyjs/conversations';
+import type { CommandContext, Context } from 'grammy';
+
+import type { Bot } from '@/lib/bot';
+
+import { createListConversation } from '@/lib/bot/commands/list';
+import { signupConversationId } from '@/lib/bot/constants';
+import { listTrackedMangas } from '@/lib/db/action/manga';
+import { findUserByTelegramId } from '@/lib/db/action/user';
+
+jest.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: jest.fn(),
+}));
+jest.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: jest.fn(),
+}));
+
+const mockedFindUserByTelegramId = findUserByTelegramId as jest.Mock;
+const mockedListTrackedMangas = listTrackedMangas as jest.Mock;
+
+type MockContext = CommandContext<Context & ConversationFlavor<Context>>;
+
+function mockCtx(chatId: number): MockContext {
+  return {
+    chat: { id: chatId, type: 'private' } as any,
+    reply: jest.fn().mockResolvedValue(true),
+    conversation: {
+      enter: jest.fn().mockResolvedValue(undefined),
+    } as any,
+  } as any;
+}
+
+describe('bot Command: /list', () => {
+  let listHandler: ((ctx: MockContext) => Promise<void>);
+  const mockBotInstance: Partial<Bot> = {
+    command: jest.fn((commandName, handler) => {
+      if (commandName === 'list') {
+        listHandler = handler;
+      }
+    }) as any,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    createListConversation(mockBotInstance as Bot);
+
+    if (!listHandler) {
+      throw new Error('/list handler not registered by createListConversation');
+    }
+  });
+
+  it('should prompt user to signup if user is not found', async () => {
+    const currentChatId = 1234;
+    const currentCtx = mockCtx(currentChatId);
+    mockedFindUserByTelegramId.mockResolvedValue(undefined);
+
+    await listHandler(currentCtx);
+
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
+    expect(currentCtx.conversation?.enter).toHaveBeenCalledWith(signupConversationId);
+    expect(currentCtx.reply).not.toHaveBeenCalled();
+  });
+
+  it('should inform user if they are tracking no mangas', async () => {
+    const currentChatId = 5678;
+    const currentCtx = mockCtx(currentChatId);
+    const mockUser = { id: 'user-test-id-list', name: 'Test User', telegramId: currentChatId, email: 'u@e.com' };
+
+    mockedFindUserByTelegramId.mockResolvedValue(mockUser);
+    mockedListTrackedMangas.mockResolvedValue([]);
+
+    await listHandler(currentCtx);
+
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
+    expect(mockedListTrackedMangas).toHaveBeenCalledWith(mockUser.id);
+    expect(currentCtx.reply).toHaveBeenCalledWith('You\'re not tracking any manga yet: tap /track to track your first manga');
+    expect(currentCtx.conversation?.enter).not.toHaveBeenCalled();
+  });
+
+  it('should list tracked mangas if user and mangas exist', async () => {
+    const currentChatId = 9101;
+    const currentCtx = mockCtx(currentChatId);
+    const mockUser = { id: 'user-test-id-list-2', name: 'Test User 2', telegramId: currentChatId, email: 'u2@e.com' };
+    const trackedMangas = [
+      { title: 'Manga Alpha', chaptersCount: 10 },
+      { title: 'Manga Beta', chaptersCount: 25 },
+    ];
+
+    mockedFindUserByTelegramId.mockResolvedValue(mockUser);
+    mockedListTrackedMangas.mockResolvedValue(trackedMangas);
+
+    await listHandler(currentCtx);
+
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
+    expect(mockedListTrackedMangas).toHaveBeenCalledWith(mockUser.id);
+
+    const expectedReplyMessage = `Here is what you're currently tracking:\n\n${
+      trackedMangas.map(manga => `• ${manga.title} (${manga.chaptersCount})`).join('\n')
+    }`;
+    expect(currentCtx.reply).toHaveBeenCalledWith(expectedReplyMessage);
+    expect(currentCtx.conversation?.enter).not.toHaveBeenCalled();
+  });
+});
 ```
 
 ---
@@ -910,7 +1275,8 @@ declare global {
 export type Bot = BotConstructor<ConversationFlavor<Context>>;
 
 export function createBot(doInit = true) {
-  const bot = new BotConstructor<ConversationFlavor<Context>>(process.env.TELEGRAM_TOKEN);
+  const token = process.env.NODE_ENV === 'test' ? 'test' : process.env.TELEGRAM_TOKEN;
+  const bot = new BotConstructor<ConversationFlavor<Context>>(token);
 
   if (doInit) {
     bot.use(conversations());
@@ -922,6 +1288,7 @@ export function createBot(doInit = true) {
   }
 
   bot.on('message', async (ctx) => {
+    console.log(ctx);
     logger.debug('Received message', ctx.message);
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });

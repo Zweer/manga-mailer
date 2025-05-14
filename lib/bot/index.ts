@@ -26,7 +26,8 @@ declare global {
 export type Bot = BotConstructor<ConversationFlavor<Context>>;
 
 export function createBot(doInit = true) {
-  const bot = new BotConstructor<ConversationFlavor<Context>>(process.env.TELEGRAM_TOKEN);
+  const token = process.env.NODE_ENV === 'test' ? 'test' : process.env.TELEGRAM_TOKEN;
+  const bot = new BotConstructor<ConversationFlavor<Context>>(token);
 
   if (doInit) {
     bot.use(conversations());
@@ -38,6 +39,7 @@ export function createBot(doInit = true) {
   }
 
   bot.on('message', async (ctx) => {
+    console.log(ctx);
     logger.debug('Received message', ctx.message);
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
