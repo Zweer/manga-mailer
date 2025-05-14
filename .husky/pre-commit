@@ -2,4 +2,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
 npm test
-npm run lint
+npm run export:code
+npm run lint:fix
+
+git update-index --again

@@ -10,9 +10,10 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "lint": "eslint .",
+    "lint:fix": "npm run lint -- --fix",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "export-code": "node -r esbuild-register script/export.ts"
+    "export:code": "node -r esbuild-register script/export.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.1",

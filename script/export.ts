@@ -14,10 +14,12 @@ const rootFolder = join(__dirname, '..');
 const ignoreFilename = join(rootFolder, '.gitignore');
 const ignoreFile = `${readFileSync(ignoreFilename).toString()}
 .git
-*.md
+.husky
 *.svg
 *.ico
-docs
+*.png
+*.jpg
+docs/EXPORT.md
 drizzle
 package-lock.json`;
 // console.log('Ignore file:', ignoreFile);
