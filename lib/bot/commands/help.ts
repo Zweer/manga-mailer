@@ -9,7 +9,7 @@ export function createHelpMessage(bot: Bot) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
-    console.log(ctx);
+    console.log('command', JSON.stringify(ctx));
     logger.debug('[help] Received help command');
 
     await ctx.reply(

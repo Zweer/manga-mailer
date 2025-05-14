@@ -39,7 +39,7 @@ export function createBot(doInit = true) {
   }
 
   bot.on('message', async (ctx) => {
-    console.log(ctx);
+    console.log('message', JSON.stringify(ctx));
     logger.debug('Received message', ctx.message);
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });

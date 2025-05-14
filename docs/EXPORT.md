@@ -888,7 +888,7 @@ export function createHelpMessage(bot: Bot) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
-    console.log(ctx);
+    console.log('command', JSON.stringify(ctx));
     logger.debug('[help] Received help command');
 
     await ctx.reply(
@@ -1288,7 +1288,7 @@ export function createBot(doInit = true) {
   }
 
   bot.on('message', async (ctx) => {
-    console.log(ctx);
+    console.log('message', JSON.stringify(ctx));
     logger.debug('Received message', ctx.message);
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
