@@ -1569,6 +1569,172 @@ export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
 
 ---
 
+lib/manga.test.ts:
+
+```ts
+import type { mangaTable } from '@/lib/db/model/manga';
+
+import * as mangaScraper from '@zweer/manga-scraper';
+
+import { getManga, searchMangas } from '@/lib/manga';
+
+jest.mock('@zweer/manga-scraper', () => ({
+  __esModule: true,
+  connectors: {
+    TestConnectorA: {
+      getMangas: jest.fn(),
+      getManga: jest.fn(),
+      getChapters: jest.fn(),
+      getChapter: jest.fn(),
+    },
+    TestConnectorB: {
+      getMangas: jest.fn(),
+      getManga: jest.fn(),
+      getChapters: jest.fn(),
+      getChapter: jest.fn(),
+    },
+  },
+}));
+
+const mockedConnectors = mangaScraper.connectors as unknown as {
+  TestConnectorA: { getMangas: jest.Mock; getManga: jest.Mock; getChapters: jest.Mock; getChapter: jest.Mock };
+  TestConnectorB: { getMangas: jest.Mock; getManga: jest.Mock; getChapters: jest.Mock; getChapter: jest.Mock };
+};
+
+describe('manga Library Functions (lib/manga.ts)', () => {
+  beforeEach(() => {
+    Object.values(mockedConnectors).forEach((connector) => {
+      connector.getMangas.mockReset();
+      connector.getManga.mockReset();
+      connector.getChapters.mockReset();
+      connector.getChapter.mockReset();
+    });
+  });
+
+  describe('searchMangas', () => {
+    it('should call getMangas on all configured connectors and aggregate results', async () => {
+      const searchTerm = 'Test Search';
+      const mangasA = [{ id: 'a1', title: 'Manga A1 from TestConnectorA', chaptersCount: 10 }];
+      const mangasB = [{ id: 'b1', title: 'Manga B1 from TestConnectorB', chaptersCount: 5 }];
+
+      mockedConnectors.TestConnectorA.getMangas.mockResolvedValue(mangasA);
+      mockedConnectors.TestConnectorB.getMangas.mockResolvedValue(mangasB);
+
+      const results = await searchMangas(searchTerm);
+
+      expect(mockedConnectors.TestConnectorA.getMangas).toHaveBeenCalledWith(searchTerm);
+      expect(mockedConnectors.TestConnectorB.getMangas).toHaveBeenCalledWith(searchTerm);
+
+      expect(results).toEqual(expect.arrayContaining([
+        { connectorName: 'TestConnectorA', id: 'a1', title: 'Manga A1 from TestConnectorA', chaptersCount: 10 },
+        { connectorName: 'TestConnectorB', id: 'b1', title: 'Manga B1 from TestConnectorB', chaptersCount: 5 },
+      ]));
+      expect(results.length).toBe(2);
+    });
+
+    it('should correctly sort mangas by title, then by chaptersCount', async () => {
+      const mangasA = [
+        { id: 'a2', title: 'Beta Manga', chaptersCount: 20 },
+        { id: 'a1', title: 'Alpha Manga', chaptersCount: 10 },
+      ];
+      const mangasB = [
+        { id: 'b1', title: 'Alpha Manga', chaptersCount: 5 },
+      ];
+
+      mockedConnectors.TestConnectorA.getMangas.mockResolvedValue(mangasA);
+      mockedConnectors.TestConnectorB.getMangas.mockResolvedValue(mangasB);
+
+      const results = await searchMangas('any');
+
+      expect(results.length).toBe(3);
+      expect(results[0]).toEqual({ connectorName: 'TestConnectorB', id: 'b1', title: 'Alpha Manga', chaptersCount: 5 });
+      expect(results[1]).toEqual({ connectorName: 'TestConnectorA', id: 'a1', title: 'Alpha Manga', chaptersCount: 10 });
+      expect(results[2]).toEqual({ connectorName: 'TestConnectorA', id: 'a2', title: 'Beta Manga', chaptersCount: 20 });
+    });
+
+    it('should return an empty array if no mangas are found', async () => {
+      mockedConnectors.TestConnectorA.getMangas.mockResolvedValue([]);
+      mockedConnectors.TestConnectorB.getMangas.mockResolvedValue([]);
+
+      const results = await searchMangas('nonexistent');
+      expect(results).toEqual([]);
+    });
+
+    it('should handle errors from one connector gracefully and still return results from others', async () => {
+      const mangasB = [{ id: 'b1', title: 'Manga B1', chaptersCount: 5 }];
+      mockedConnectors.TestConnectorA.getMangas.mockRejectedValue(new Error('Connector A failed'));
+      mockedConnectors.TestConnectorB.getMangas.mockResolvedValue(mangasB);
+
+      const results = await searchMangas('any');
+      expect(results.length).toBe(1);
+      expect(results[0].id).toBe('b1');
+    });
+  });
+
+  describe('getManga', () => {
+    it('should call getManga on the specified connector and return mapped data', async () => {
+      const connectorName = 'TestConnectorA';
+      const mangaId = 'test-id-a1';
+      const rawMangaDataFromScraper = {
+        id: mangaId,
+        slug: 'test-slug',
+        title: 'Detailed Manga Title',
+        author: 'Scraper Author',
+        artist: 'Scraper Artist',
+        excerpt: 'Full excerpt from scraper.',
+        image: 'http://scraper.dev/image.png',
+        url: 'http://scraper.dev/manga/test-id-a1',
+        releasedAt: new Date('2023-01-01T00:00:00.000Z'),
+        status: 'Ongoing',
+        genres: ['action', 'adventure'],
+        score: 9.0,
+        chaptersCount: 150,
+      };
+
+      mockedConnectors.TestConnectorA.getManga.mockResolvedValue(rawMangaDataFromScraper);
+
+      const result = await getManga(connectorName, mangaId);
+
+      expect(mockedConnectors.TestConnectorA.getManga).toHaveBeenCalledWith(mangaId);
+      const expectedResult: typeof mangaTable.$inferInsert = {
+        sourceName: connectorName,
+        sourceId: mangaId,
+        slug: 'test-slug',
+        title: 'Detailed Manga Title',
+        author: 'Scraper Author',
+        artist: 'Scraper Artist',
+        excerpt: 'Full excerpt from scraper.',
+        image: 'http://scraper.dev/image.png',
+        url: 'http://scraper.dev/manga/test-id-a1',
+        releasedAt: new Date('2023-01-01T00:00:00.000Z'),
+        status: 'Ongoing',
+        genres: ['action', 'adventure'],
+        score: 9.0,
+        chaptersCount: 150,
+      };
+      expect(result).toEqual(expectedResult);
+    });
+
+    it('should throw an error if an invalid connector name is provided', async () => {
+      const invalidConnectorName = 'NonExistentConnector';
+      const mangaId = 'any-id';
+
+      await expect(getManga(invalidConnectorName, mangaId)).rejects.toThrow('Invalid connector name');
+    });
+
+    it('should throw an error if the connector fails to get manga details', async () => {
+      const connectorName = 'TestConnectorB';
+      const mangaId = 'fail-id-b1';
+      mockedConnectors.TestConnectorB.getManga.mockRejectedValue(new Error('Scraping failed'));
+
+      await expect(getManga(connectorName, mangaId)).rejects.toThrow('Scraping failed');
+    });
+  });
+});
+```
+
+---
+
 lib/manga.ts:
 
 ```ts
@@ -1588,29 +1754,33 @@ interface MangaAutocomplete {
 export async function searchMangas(title: string): Promise<MangaAutocomplete[]> {
   console.log('[manga] search:', title);
 
-  const mangas: MangaAutocomplete[] = [];
+  const mangasArr: MangaAutocomplete[][] = await Promise.all(
+    Object.entries(connectors).map(async ([connectorName, connector]) => {
+      try {
+        console.log(`[manga] Searching with connector: ${connectorName}`);
+        const newMangas = await connector.getMangas(title);
 
-  await Object.entries(connectors).reduce(async (promise, [connectorName, connector]) => {
-    await promise;
+        return newMangas.map(manga => ({
+          connectorName,
+          id: manga.id,
+          title: manga.title,
+          chaptersCount: manga.chaptersCount,
+        }));
+      } catch (error) {
+        console.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
+        return [];
+      }
+    }),
+  );
 
-    const newMangas = await connector.getMangas(title);
-
-    mangas.push(
-      ...newMangas.map(manga => ({
-        connectorName,
-        id: manga.id,
-        title: manga.title,
-        chaptersCount: manga.chaptersCount,
-      })),
-    );
-  }, Promise.resolve());
-
-  mangas.sort((mangaA, mangaB) => {
-    if (mangaA.title.localeCompare(mangaB.title) === 0) {
-      return mangaA.chaptersCount - mangaB.chaptersCount;
-    }
-    return mangaA.title.localeCompare(mangaB.title);
-  });
+  const mangas = mangasArr
+    .flat()
+    .sort((mangaA, mangaB) => {
+      if (mangaA.title.localeCompare(mangaB.title) === 0) {
+        return mangaA.chaptersCount - mangaB.chaptersCount;
+      }
+      return mangaA.title.localeCompare(mangaB.title);
+    });
 
   console.log('[manga] mangas found:', mangas.length);
 
