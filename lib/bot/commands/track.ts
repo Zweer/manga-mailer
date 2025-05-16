@@ -1,7 +1,7 @@
 import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
@@ -14,7 +14,7 @@ import { getManga, searchMangas } from '@/lib/manga';
 
 const logger = originalLogger.child({ name: 'bot:command:track' });
 
-export function createTrackConversation(bot: Bot) {
+export function createTrackConversation(bot: BotType) {
   async function track(conversation: Conversation, ctx: Context) {
     logger.debug('Entered track conversation');
     await ctx.reply('Hi there! What is the name of the manga you want to track?');

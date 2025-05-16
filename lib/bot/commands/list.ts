@@ -1,4 +1,4 @@
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
@@ -7,7 +7,7 @@ import { logger as originalLogger } from '@/lib/logger';
 
 const logger = originalLogger.child({ name: 'bot:command:list' });
 
-export function createListConversation(bot: Bot) {
+export function createListConversation(bot: BotType) {
   bot.command('list', async (ctx) => {
     const telegramId = ctx.chat.id;
     logger.debug('Received list command', telegramId);

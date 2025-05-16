@@ -812,62 +812,50 @@ export async function register() {
 lib/bot/commands/help.test.ts:
 
 ```ts
-import type { CommandContext, Context } from 'grammy';
+import type { CommandContext } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
-import { commands } from '@/lib/bot/constants';
-
-function mockCtx(messageText = '/help'): Partial<CommandContext<Context>> {
-  return {
-    message: {
-      message_id: 123,
-      chat: { id: 1000, type: 'private' } as any,
-      date: Date.now() / 1000,
-      text: messageText,
-    } as any,
-    chat: { id: 1000, type: 'private' } as any,
-    reply: jest.fn().mockResolvedValue(true),
-  };
-}
+import { createMockCommandContext } from '@/test/utils/contextMock';
 
 describe('bot -> commands -> help', () => {
+  let helpHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
+
+  const mockBotInstance: Partial<BotType> = {
+    command: jest.fn((commandName, handler) => {
+      if (commandName === 'help') {
+        helpHandler = handler;
+      }
+    }) as any,
+  };
+
+  beforeEach(() => {
+    createHelpMessage(mockBotInstance as BotType);
+
+    if (!helpHandler) {
+      throw new Error('Help handler was not registered');
+    }
+  });
+
   it('should register a "help" command handler on the bot', () => {
-    const mockBotInstance: Partial<Bot> = {
-      command: jest.fn(),
-    };
-
-    createHelpMessage(mockBotInstance as Bot);
-
     expect(mockBotInstance.command).toHaveBeenCalledWith('help', expect.any(Function));
   });
 
   it('should reply with a formatted list of commands when the /help handler is invoked', async () => {
-    const currentCtx = mockCtx() as CommandContext<Context>;
-    let helpHandler: ((ctx: CommandContext<Context>) => Promise<void>) | undefined;
-
-    const mockBotInstance: Partial<Bot> = {
-      command: jest.fn((commandName, handler) => {
-        if (commandName === 'help') {
-          helpHandler = handler;
-        }
-      }) as any,
-    };
-
-    createHelpMessage(mockBotInstance as Bot);
+    const currentCtx = createMockCommandContext('/help', 1000);
 
     expect(helpHandler).toBeDefined();
-    if (!helpHandler) {
-      throw new Error('Help handler was not registered');
-    }
 
     await helpHandler(currentCtx);
 
-    const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
-    const expectedReplyMessage = `⚙️ *Commands*:\n\n${commandDescriptions}`;
+    const exppectedHelpMessage = `⚙️ *Commands*:
 
-    expect(currentCtx.reply).toHaveBeenCalledWith(expectedReplyMessage, { parse_mode: 'MarkdownV2' });
+• /start \\- Signup to the bot, providing name and email address
+• /track \\- Track a new manga
+• /list \\- List all the manga you are tracking
+• /remove \\- Remove a tracked manga`;
+    expect(currentCtx.reply).toHaveBeenCalledWith(exppectedHelpMessage, { parse_mode: 'MarkdownV2' });
   });
 });
 ```
@@ -877,18 +865,17 @@ describe('bot -> commands -> help', () => {
 lib/bot/commands/help.ts:
 
 ```ts
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { commands } from '@/lib/bot/constants';
 import { logger as originalLogger } from '@/lib/logger';
 
 const logger = originalLogger.child({ name: 'instrumentation' });
 
-export function createHelpMessage(bot: Bot) {
+export function createHelpMessage(bot: BotType) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
-    console.log('command', JSON.stringify(ctx));
     logger.debug('[help] Received help command');
 
     await ctx.reply(
@@ -906,15 +893,15 @@ ${commandDescriptions}`,
 lib/bot/commands/list.test.ts:
 
 ```ts
-import type { ConversationFlavor } from '@grammyjs/conversations';
-import type { CommandContext, Context } from 'grammy';
+import type { CommandContext } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createListConversation } from '@/lib/bot/commands/list';
 import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
+import { createMockCommandContext } from '@/test/utils/contextMock';
 
 jest.mock('@/lib/db/action/user', () => ({
   findUserByTelegramId: jest.fn(),
@@ -926,21 +913,9 @@ jest.mock('@/lib/db/action/manga', () => ({
 const mockedFindUserByTelegramId = findUserByTelegramId as jest.Mock;
 const mockedListTrackedMangas = listTrackedMangas as jest.Mock;
 
-type MockContext = CommandContext<Context & ConversationFlavor<Context>>;
-
-function mockCtx(chatId: number): MockContext {
-  return {
-    chat: { id: chatId, type: 'private' } as any,
-    reply: jest.fn().mockResolvedValue(true),
-    conversation: {
-      enter: jest.fn().mockResolvedValue(undefined),
-    } as any,
-  } as any;
-}
-
-describe('bot Command: /list', () => {
-  let listHandler: ((ctx: MockContext) => Promise<void>);
-  const mockBotInstance: Partial<Bot> = {
+describe('bot -> commands -> list', () => {
+  let listHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
+  const mockBotInstance: Partial<BotType> = {
     command: jest.fn((commandName, handler) => {
       if (commandName === 'list') {
         listHandler = handler;
@@ -950,28 +925,32 @@ describe('bot Command: /list', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    createListConversation(mockBotInstance as Bot);
+    createListConversation(mockBotInstance as BotType);
 
     if (!listHandler) {
-      throw new Error('/list handler not registered by createListConversation');
+      throw new Error('List handler was not registered');
     }
+  });
+
+  it('should register a "list" command handler on the bot', () => {
+    expect(mockBotInstance.command).toHaveBeenCalledWith('list', expect.any(Function));
   });
 
   it('should prompt user to signup if user is not found', async () => {
     const currentChatId = 1234;
-    const currentCtx = mockCtx(currentChatId);
+    const currentCtx = createMockCommandContext('/list', currentChatId);
     mockedFindUserByTelegramId.mockResolvedValue(undefined);
 
     await listHandler(currentCtx);
 
     expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(currentCtx.conversation?.enter).toHaveBeenCalledWith(signupConversationId);
+    expect(currentCtx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
     expect(currentCtx.reply).not.toHaveBeenCalled();
   });
 
   it('should inform user if they are tracking no mangas', async () => {
     const currentChatId = 5678;
-    const currentCtx = mockCtx(currentChatId);
+    const currentCtx = createMockCommandContext('/list', currentChatId);
     const mockUser = { id: 'user-test-id-list', name: 'Test User', telegramId: currentChatId, email: 'u@e.com' };
 
     mockedFindUserByTelegramId.mockResolvedValue(mockUser);
@@ -987,7 +966,7 @@ describe('bot Command: /list', () => {
 
   it('should list tracked mangas if user and mangas exist', async () => {
     const currentChatId = 9101;
-    const currentCtx = mockCtx(currentChatId);
+    const currentCtx = createMockCommandContext('/list', currentChatId);
     const mockUser = { id: 'user-test-id-list-2', name: 'Test User 2', telegramId: currentChatId, email: 'u2@e.com' };
     const trackedMangas = [
       { title: 'Manga Alpha', chaptersCount: 10 },
@@ -1016,7 +995,7 @@ describe('bot Command: /list', () => {
 lib/bot/commands/list.ts:
 
 ```ts
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
@@ -1025,7 +1004,7 @@ import { logger as originalLogger } from '@/lib/logger';
 
 const logger = originalLogger.child({ name: 'bot:command:list' });
 
-export function createListConversation(bot: Bot) {
+export function createListConversation(bot: BotType) {
   bot.command('list', async (ctx) => {
     const telegramId = ctx.chat.id;
     logger.debug('Received list command', telegramId);
@@ -1057,7 +1036,7 @@ lib/bot/commands/signup.ts:
 import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { createConversation } from '@grammyjs/conversations';
 
@@ -1068,7 +1047,7 @@ import { userValidation } from '@/lib/validation/user';
 
 const logger = originalLogger.child({ name: 'bot:command:signup' });
 
-export function createSignupConversation(bot: Bot) {
+export function createSignupConversation(bot: BotType) {
   async function signup(conversation: Conversation, ctx: Context) {
     logger.debug('Entered signup conversation');
     await ctx.reply('Hi there! What is your name?');
@@ -1138,7 +1117,7 @@ lib/bot/commands/track.ts:
 import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
@@ -1151,7 +1130,7 @@ import { getManga, searchMangas } from '@/lib/manga';
 
 const logger = originalLogger.child({ name: 'bot:command:track' });
 
-export function createTrackConversation(bot: Bot) {
+export function createTrackConversation(bot: BotType) {
   async function track(conversation: Conversation, ctx: Context) {
     logger.debug('Entered track conversation');
     await ctx.reply('Hi there! What is the name of the manga you want to track?');
@@ -1247,18 +1226,15 @@ export const trackConversationId = 'track';
 lib/bot/index.ts:
 
 ```ts
-import type { ConversationFlavor } from '@grammyjs/conversations';
-import type { Context } from 'grammy';
-
 import {
   conversations,
 } from '@grammyjs/conversations';
-import { Bot as BotConstructor } from 'grammy';
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
 import { createListConversation } from '@/lib/bot/commands/list';
 import { createSignupConversation } from '@/lib/bot/commands/signup';
 import { createTrackConversation } from '@/lib/bot/commands/track';
+import { Bot } from '@/lib/bot/types';
 import { logger as originalLogger } from '@/lib/logger';
 
 const logger = originalLogger.child({ name: 'bot' });
@@ -1272,11 +1248,9 @@ declare global {
   }
 }
 
-export type Bot = BotConstructor<ConversationFlavor<Context>>;
-
 export function createBot(doInit = true) {
   const token = process.env.NODE_ENV === 'test' ? 'test' : process.env.TELEGRAM_TOKEN;
-  const bot = new BotConstructor<ConversationFlavor<Context>>(token);
+  const bot = new Bot(token);
 
   if (doInit) {
     bot.use(conversations());
@@ -1295,6 +1269,21 @@ export function createBot(doInit = true) {
 
   return bot;
 }
+```
+
+---
+
+lib/bot/types.ts:
+
+```ts
+import type { ConversationFlavor } from '@grammyjs/conversations';
+import type { Context } from 'grammy';
+
+import { Bot as BotConstructor } from 'grammy';
+
+export type BotContext = ConversationFlavor<Context>;
+export const Bot = BotConstructor<BotContext>;
+export type BotType = BotConstructor<BotContext>;
 ```
 
 ---
@@ -2581,6 +2570,122 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetDatabase();
 });
+```
+
+---
+
+test/utils/contextMock.ts:
+
+```ts
+import type { ConversationControls } from '@grammyjs/conversations';
+import type { Api, CallbackQueryContext, CommandContext, RawApi } from 'grammy';
+import type { Message } from 'grammy/types';
+
+import type { BotContext } from '@/lib/bot/types';
+
+export type MockMessageContext = BotContext;
+export type MockCommandContext = CommandContext<BotContext>;
+export type MockCallbackQueryContext = CallbackQueryContext<BotContext>;
+
+function createBaseMockContext(chatId: number, userId?: number): Partial<BotContext> {
+  const effectiveUserId = userId ?? chatId;
+
+  return {
+    chat: { id: chatId, type: 'private', first_name: 'Test', username: 'testuser' },
+    from: { id: effectiveUserId, is_bot: false, first_name: 'Test', username: 'testuser' },
+    reply: jest.fn().mockResolvedValue(true),
+    conversation: {
+      enter: jest.fn().mockResolvedValue(undefined),
+      exit: jest.fn().mockResolvedValue(undefined),
+      active: jest.fn().mockReturnValue({}),
+      waitFor: jest.fn(), // Sarà mockato specificamente nei test
+      external: jest.fn(async callback => callback()), // Esegue il callback esterno
+      checkpoint: jest.fn(),
+      rewind: jest.fn().mockResolvedValue(undefined),
+    } as unknown as ConversationControls,
+    api: {
+      raw: jest.fn().mockResolvedValue({ ok: true, result: true }),
+      call: jest.fn().mockResolvedValue({ ok: true, result: true }),
+    } as unknown as Api<RawApi>,
+  };
+}
+
+export function createMockCommandContext(
+  command: string,
+  chatId: number,
+  userId?: number,
+  messageId = Date.now(),
+): MockCommandContext {
+  const baseCtx = createBaseMockContext(chatId, userId);
+  return {
+    ...baseCtx,
+    message: {
+      message_id: messageId,
+      chat: baseCtx.chat,
+      date: Math.floor(Date.now() / 1000),
+      from: baseCtx.from,
+      text: command,
+      entities: [{ type: 'bot_command', offset: 0, length: command.length }],
+    },
+    match: '',
+    from: baseCtx.from,
+    chat: baseCtx.chat,
+  } as MockCommandContext;
+}
+
+export function createMockMessageContext(
+  text: string,
+  chatId: number,
+  userId?: number,
+  messageId = Date.now(),
+): MockMessageContext {
+  const baseCtx = createBaseMockContext(chatId, userId);
+  return {
+    ...baseCtx,
+    message: {
+      message_id: messageId,
+      chat: baseCtx.chat,
+      date: Math.floor(Date.now() / 1000),
+      from: baseCtx.from,
+      text,
+    },
+    from: baseCtx.from,
+    chat: baseCtx.chat,
+  } as MockMessageContext;
+}
+
+export function createMockCallbackQueryContext(
+  data: string,
+  chatId: number,
+  userId?: number,
+  message?: Message,
+): MockCallbackQueryContext {
+  const baseCtx = createBaseMockContext(chatId, userId);
+  const effectiveUserId = userId ?? chatId;
+
+  const originalMessage = message ?? {
+    message_id: Date.now() - 1000,
+    chat: baseCtx.chat,
+    date: Math.floor(Date.now() / 1000) - 10,
+    text: 'Message with inline keyboard',
+    from: { id: 12345678, is_bot: true, first_name: 'TestBot' },
+  };
+
+  return {
+    ...baseCtx,
+    callbackQuery: {
+      id: String(Date.now()),
+      from: baseCtx.from,
+      chat_instance: String(chatId) + String(effectiveUserId),
+      data,
+      message: originalMessage,
+    },
+    from: baseCtx.from,
+    chat: baseCtx.chat,
+    answerCallbackQuery: jest.fn().mockResolvedValue(true),
+    editMessageText: jest.fn().mockResolvedValue(true),
+  } as MockCallbackQueryContext;
+}
 ```
 
 ---

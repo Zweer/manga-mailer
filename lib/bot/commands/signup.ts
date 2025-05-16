@@ -1,7 +1,7 @@
 import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { createConversation } from '@grammyjs/conversations';
 
@@ -12,7 +12,7 @@ import { userValidation } from '@/lib/validation/user';
 
 const logger = originalLogger.child({ name: 'bot:command:signup' });
 
-export function createSignupConversation(bot: Bot) {
+export function createSignupConversation(bot: BotType) {
   async function signup(conversation: Conversation, ctx: Context) {
     logger.debug('Entered signup conversation');
     await ctx.reply('Hi there! What is your name?');

@@ -1,15 +1,12 @@
-import type { ConversationFlavor } from '@grammyjs/conversations';
-import type { Context } from 'grammy';
-
 import {
   conversations,
 } from '@grammyjs/conversations';
-import { Bot as BotConstructor } from 'grammy';
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
 import { createListConversation } from '@/lib/bot/commands/list';
 import { createSignupConversation } from '@/lib/bot/commands/signup';
 import { createTrackConversation } from '@/lib/bot/commands/track';
+import { Bot } from '@/lib/bot/types';
 import { logger as originalLogger } from '@/lib/logger';
 
 const logger = originalLogger.child({ name: 'bot' });
@@ -23,11 +20,9 @@ declare global {
   }
 }
 
-export type Bot = BotConstructor<ConversationFlavor<Context>>;
-
 export function createBot(doInit = true) {
   const token = process.env.NODE_ENV === 'test' ? 'test' : process.env.TELEGRAM_TOKEN;
-  const bot = new BotConstructor<ConversationFlavor<Context>>(token);
+  const bot = new Bot(token);
 
   if (doInit) {
     bot.use(conversations());

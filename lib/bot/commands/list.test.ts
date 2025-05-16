@@ -1,13 +1,13 @@
 /* eslint-disable ts/unbound-method */
-import type { ConversationFlavor } from '@grammyjs/conversations';
-import type { CommandContext, Context } from 'grammy';
+import type { CommandContext } from 'grammy';
 
-import type { Bot } from '@/lib/bot';
+import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createListConversation } from '@/lib/bot/commands/list';
 import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
+import { createMockCommandContext } from '@/test/utils/contextMock';
 
 jest.mock('@/lib/db/action/user', () => ({
   findUserByTelegramId: jest.fn(),
@@ -19,21 +19,9 @@ jest.mock('@/lib/db/action/manga', () => ({
 const mockedFindUserByTelegramId = findUserByTelegramId as jest.Mock;
 const mockedListTrackedMangas = listTrackedMangas as jest.Mock;
 
-type MockContext = CommandContext<Context & ConversationFlavor<Context>>;
-
-function mockCtx(chatId: number): MockContext {
-  return {
-    chat: { id: chatId, type: 'private' } as any,
-    reply: jest.fn().mockResolvedValue(true),
-    conversation: {
-      enter: jest.fn().mockResolvedValue(undefined),
-    } as any,
-  } as any;
-}
-
-describe('bot Command: /list', () => {
-  let listHandler: ((ctx: MockContext) => Promise<void>);
-  const mockBotInstance: Partial<Bot> = {
+describe('bot -> commands -> list', () => {
+  let listHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
+  const mockBotInstance: Partial<BotType> = {
     command: jest.fn((commandName, handler) => {
       if (commandName === 'list') {
         listHandler = handler;
@@ -43,28 +31,32 @@ describe('bot Command: /list', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    createListConversation(mockBotInstance as Bot);
+    createListConversation(mockBotInstance as BotType);
     // eslint-disable-next-line ts/strict-boolean-expressions
     if (!listHandler) {
-      throw new Error('/list handler not registered by createListConversation');
+      throw new Error('List handler was not registered');
     }
+  });
+
+  it('should register a "list" command handler on the bot', () => {
+    expect(mockBotInstance.command).toHaveBeenCalledWith('list', expect.any(Function));
   });
 
   it('should prompt user to signup if user is not found', async () => {
     const currentChatId = 1234;
-    const currentCtx = mockCtx(currentChatId);
+    const currentCtx = createMockCommandContext('/list', currentChatId);
     mockedFindUserByTelegramId.mockResolvedValue(undefined);
 
     await listHandler(currentCtx);
 
     expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(currentCtx.conversation?.enter).toHaveBeenCalledWith(signupConversationId);
+    expect(currentCtx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
     expect(currentCtx.reply).not.toHaveBeenCalled();
   });
 
   it('should inform user if they are tracking no mangas', async () => {
     const currentChatId = 5678;
-    const currentCtx = mockCtx(currentChatId);
+    const currentCtx = createMockCommandContext('/list', currentChatId);
     const mockUser = { id: 'user-test-id-list', name: 'Test User', telegramId: currentChatId, email: 'u@e.com' };
 
     mockedFindUserByTelegramId.mockResolvedValue(mockUser);
@@ -80,7 +72,7 @@ describe('bot Command: /list', () => {
 
   it('should list tracked mangas if user and mangas exist', async () => {
     const currentChatId = 9101;
-    const currentCtx = mockCtx(currentChatId);
+    const currentCtx = createMockCommandContext('/list', currentChatId);
     const mockUser = { id: 'user-test-id-list-2', name: 'Test User 2', telegramId: currentChatId, email: 'u2@e.com' };
     const trackedMangas = [
       { title: 'Manga Alpha', chaptersCount: 10 },
