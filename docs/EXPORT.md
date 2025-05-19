@@ -77,7 +77,8 @@ next-env.d.ts
 {
   "conventionalCommits.scopes": [
     "bot",
-    "database"
+    "database",
+    "email"
   ],
   "vsicons.associations.folders": [
     {
@@ -2500,6 +2501,259 @@ export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
 
 ---
 
+lib/email.test.ts:
+
+```ts
+import { logger } from '@/lib/logger';
+
+import { sendEmail } from './email';
+
+jest.mock('nodemailer', () => {
+  const _internalMockSendMail = jest.fn();
+  const _internalMockVerify = jest.fn(callback => callback(null, true));
+  const _internalTransporterInstance = {
+    sendMail: _internalMockSendMail,
+    verify: _internalMockVerify,
+  };
+  const _internalMockCreateTransport = jest.fn(() => _internalTransporterInstance);
+
+  return {
+    __esModule: true,
+    createTransport: _internalMockCreateTransport,
+    _mockSendMail: _internalMockSendMail,
+    _mockVerify: _internalMockVerify,
+  };
+});
+
+jest.mock('@/lib/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    child: jest.fn().mockReturnThis(),
+  },
+}));
+const mockedLoggerInfo = logger.info as jest.Mock;
+const mockedLoggerError = logger.error as jest.Mock;
+
+describe('lib -> email', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+  const originalActuallySendMailFlag = process.env.ACTUALLY_SEND_MAIL_IN_TEST;
+
+  let nodemailerMockModule: {
+    createTransport: jest.Mock;
+    _mockSendMail: jest.Mock;
+    _mockVerify: jest.Mock;
+  };
+
+  beforeAll(() => {
+    nodemailerMockModule = jest.requireMock('nodemailer');
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    const nodemailerMock = jest.requireMock('nodemailer');
+    nodemailerMock.createTransport.mockClear();
+
+    // @ts-expect-error node env is not readonly
+    process.env.NODE_ENV = 'development';
+    process.env.MAIL_HOST = 'test.mailtrap.io';
+    process.env.MAIL_PORT = '2525';
+    process.env.MAIL_USER = 'testuser';
+    process.env.MAIL_PASS = 'testpass';
+    process.env.EMAIL_SENDER = '"Manga Mailer" <noreply@example.com>';
+    delete process.env.ACTUALLY_SEND_MAIL_IN_TEST;
+  });
+
+  afterAll(() => {
+    // @ts-expect-error node env is not readonly
+    process.env.NODE_ENV = originalNodeEnv;
+    process.env.ACTUALLY_SEND_MAIL_IN_TEST = originalActuallySendMailFlag;
+  });
+
+  const emailOptions = {
+    to: 'recipient@example.com',
+    subject: 'Test Subject',
+    html: '<p>Test HTML</p>',
+    text: 'Test Text',
+  };
+
+  it('should call transporter.sendMail with correct parameters on successful send', async () => {
+    nodemailerMockModule._mockSendMail.mockResolvedValueOnce({
+      messageId: 'test-message-id',
+      accepted: [emailOptions.to],
+      response: '250 OK',
+    });
+
+    const success = await sendEmail(emailOptions);
+
+    expect(success).toBe(true);
+
+    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledWith({
+      from: process.env.EMAIL_SENDER,
+      to: emailOptions.to,
+      subject: emailOptions.subject,
+      html: emailOptions.html,
+      text: emailOptions.text,
+    });
+
+    expect(mockedLoggerInfo).toHaveBeenCalledWith(
+      '[Email] Attempting to send email...',
+      { to: emailOptions.to, subject: emailOptions.subject },
+    );
+    expect(mockedLoggerInfo).toHaveBeenCalledWith(
+      '[Email] Email sent successfully',
+      { messageId: 'test-message-id', accepted: [emailOptions.to], response: '250 OK' },
+    );
+    expect(mockedLoggerError).not.toHaveBeenCalled();
+  });
+
+  it('should return false and log error if sendMail fails', async () => {
+    const error = new Error('SMTP Connection Error');
+    nodemailerMockModule._mockSendMail.mockRejectedValueOnce(error);
+
+    const success = await sendEmail(emailOptions);
+
+    expect(success).toBe(false);
+    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+    expect(mockedLoggerError).toHaveBeenCalledWith(
+      '[Email] Error sending email',
+      { error, to: emailOptions.to, subject: emailOptions.subject },
+    );
+  });
+
+  describe('test Environment Behavior', () => {
+    beforeEach(() => {
+      // @ts-expect-error node env is not readonly
+      process.env.NODE_ENV = 'test';
+    });
+
+    it('should skip sending email and return true in test environment by default', async () => {
+      delete process.env.ACTUALLY_SEND_MAIL_IN_TEST;
+      const success = await sendEmail(emailOptions);
+
+      expect(success).toBe(true);
+      expect(nodemailerMockModule._mockSendMail).not.toHaveBeenCalled();
+      expect(mockedLoggerInfo).toHaveBeenCalledWith(
+        '[Email] Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).',
+        { options: emailOptions },
+      );
+    });
+
+    it('should attempt to send email in test environment if ACTUALLY_SEND_MAIL_IN_TEST is "true"', async () => {
+      process.env.ACTUALLY_SEND_MAIL_IN_TEST = 'true';
+      nodemailerMockModule._mockSendMail.mockResolvedValueOnce({ messageId: 'test-e2e-send', accepted: [emailOptions.to] });
+
+      const success = await sendEmail(emailOptions);
+
+      expect(success).toBe(true);
+      expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+      expect(mockedLoggerInfo).not.toHaveBeenCalledWith(
+        expect.objectContaining({}),
+        expect.stringContaining('skipped in test environment'),
+      );
+      expect(mockedLoggerInfo).toHaveBeenCalledWith(
+        '[Email] Attempting to send email...',
+        { to: emailOptions.to, subject: emailOptions.subject },
+      );
+    });
+  });
+});
+```
+
+---
+
+lib/email.ts:
+
+```ts
+import { createTransport } from 'nodemailer';
+
+import { logger } from '@/lib/logger';
+
+declare global {
+
+  namespace NodeJS {
+    interface ProcessEnv {
+      MAIL_HOST: string;
+      MAIL_PORT: string;
+      MAIL_USER: string;
+      MAIL_PASS: string;
+      EMAIL_SENDER: string;
+    }
+  }
+}
+
+interface MailOptions {
+  to: string;
+  subject: string;
+  text?: string;
+  html: string;
+}
+
+const transporter = createTransport({
+  host: process.env.MAIL_HOST,
+  port: Number.parseInt(process.env.MAIL_PORT ?? '2525', 10),
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
+
+if (process.env.NODE_ENV !== 'test') {
+  transporter.verify((error) => {
+    if (error) {
+      logger.error('[Email] Error configuring mail transporter', { error });
+    } else {
+      logger.info('[Email] Mail transporter configured successfully. Ready to send emails (to Mailtrap).');
+    }
+  });
+}
+
+export async function sendEmail(options: MailOptions): Promise<boolean> {
+  if (process.env.NODE_ENV === 'test' && process.env.ACTUALLY_SEND_MAIL_IN_TEST !== 'true') {
+    logger.info('[Email] Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).', { options });
+    return true;
+  }
+
+  const mailData = {
+    from: process.env.EMAIL_SENDER,
+    to: options.to,
+    subject: options.subject,
+    text: options.text,
+    html: options.html,
+  };
+
+  try {
+    logger.info('[Email] Attempting to send email...', { to: options.to, subject: options.subject });
+    const info = await transporter.sendMail(mailData);
+    logger.info('[Email] Email sent successfully', { messageId: info.messageId, accepted: info.accepted, response: info.response });
+    return info.accepted.length > 0;
+  } catch (error) {
+    logger.error('[Email] Error sending email', { error, to: options.to, subject: options.subject });
+    return false;
+  }
+}
+
+// Esempio di utilizzo (puoi metterlo in una funzione di test temporanea o in un endpoint API)
+export async function sendTestEmail() {
+  const success = await sendEmail({
+    to: 'test-recipient@example.com', // Questo andrà alla tua inbox Mailtrap
+    subject: 'Manga Mailer - Test Email via Mailtrap',
+    html: '<h1>Ciao!</h1><p>Questa è un\'email di test da Manga Mailer inviata tramite Mailtrap.</p>',
+    text: 'Ciao! Questa è un\'email di test da Manga Mailer inviata tramite Mailtrap.',
+  });
+
+  if (success) {
+    logger.info('[Email Test] Test email inviata (controlla Mailtrap).');
+  } else {
+    logger.error('[Email Test] Fallimento invio test email.');
+  }
+}
+```
+
+---
+
 lib/logger.ts:
 
 ```ts
@@ -2973,6 +3227,7 @@ package.json:
     "bufferutil": "^4.0.9",
     "grammy": "^1.36.1",
     "next": "15.3.2",
+    "nodemailer": "^7.0.3",
     "pino": "^9.6.0",
     "ws": "^8.18.2",
     "zod": "^3.24.4"
@@ -2983,6 +3238,7 @@ package.json:
     "@next/eslint-plugin-next": "^15.3.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^20",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^19",
     "@types/ws": "^8.18.1",
     "cross-env": "^7.0.3",
