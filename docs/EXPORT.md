@@ -1,4 +1,92 @@
-# File export
+# EXPORT
+
+## File structure
+
+```
+manga-mailer
+ ├── .editorconfig
+ ├── .env
+ ├─> .husky
+ │   └── pre-commit
+ ├─> .vscode
+ │   └── settings.json
+ ├── README.md
+ ├─> app
+ │   └── route.ts
+ ├─> docs
+ │   ├── CONTRIBUTING.md
+ │   ├── EXPORT.md
+ │   ├── PROJECT_DETAILS.md
+ │   └── TODO.md
+ ├─> drizzle
+ │   ├── 0000_vengeful_vision.sql
+ │   ├── 0001_dear_lucky_pierre.sql
+ │   ├── 0002_freezing_annihilus.sql
+ │   ├── 0003_brave_lily_hollister.sql
+ │   ├── 0004_graceful_speedball.sql
+ │   └─> meta
+ │       ├── 0000_snapshot.json
+ │       ├── 0001_snapshot.json
+ │       ├── 0002_snapshot.json
+ │       ├── 0003_snapshot.json
+ │       ├── 0004_snapshot.json
+ │       └── _journal.json
+ ├── drizzle.config.ts
+ ├─> e2e
+ │   └── bot.test.ts
+ ├── eslint.config.mjs
+ ├── instrumentation.ts
+ ├─> lib
+ │   ├─> bot
+ │   │   ├─> commands
+ │   │   │   ├── help.test.ts
+ │   │   │   ├── help.ts
+ │   │   │   ├── list.test.ts
+ │   │   │   ├── list.ts
+ │   │   │   ├── signup.test.ts
+ │   │   │   ├── signup.ts
+ │   │   │   ├── track.test.ts
+ │   │   │   └── track.ts
+ │   │   ├── constants.ts
+ │   │   ├── index.test.ts
+ │   │   ├── index.ts
+ │   │   └── types.ts
+ │   ├─> db
+ │   │   ├─> action
+ │   │   │   ├── manga.test.ts
+ │   │   │   ├── manga.ts
+ │   │   │   ├── user.test.ts
+ │   │   │   └── user.ts
+ │   │   ├── index.ts
+ │   │   └─> model
+ │   │       ├── helpers.ts
+ │   │       ├── index.ts
+ │   │       ├── manga.ts
+ │   │       └── user.ts
+ │   ├── email.test.ts
+ │   ├── email.ts
+ │   ├── logger.ts
+ │   ├── manga.test.ts
+ │   ├── manga.ts
+ │   └─> validation
+ │       ├── user.test.ts
+ │       └── user.ts
+ ├── next-env.d.ts
+ ├── next.config.ts
+ ├── package-lock.json
+ ├── package.json
+ ├─> public
+ │   └── manga-mailer.png
+ ├─> script
+ │   └── export.ts
+ ├─> test
+ │   ├── setup.ts
+ │   └─> utils
+ │       └── contextMock.ts
+ └── tsconfig.json
+```
+
+## File export
 
 .editorconfig:
 
@@ -3243,6 +3331,7 @@ package.json:
     "@types/ws": "^8.18.1",
     "cross-env": "^7.0.3",
     "dotenv": "^16.5.0",
+    "dree": "^5.1.5",
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.43.1",
     "esbuild-register": "^3.6.0",
@@ -3293,6 +3382,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
+import { parse } from 'dree';
 import ignore from 'ignore';
 
 const rootFolder = join(__dirname, '..');
@@ -3332,7 +3422,29 @@ const filesExport = files2export.map((file) => {
 
   return `${file}:\n\n\`\`\`${extension}\n${fileContent}\n\`\`\``;
 }).filter(fileString => fileString != null).join('\n\n---\n\n');
-const exportString = `# File export\n\n${filesExport}`;
+
+const tree = parse(rootFolder, {
+  exclude: [
+    /\.git/,
+    /\.husky\/_/,
+    /\.next/,
+    /\.vercel/,
+    /coverage/,
+    /node_modules/,
+  ],
+});
+
+const exportString = `# EXPORT
+
+## File structure
+
+\`\`\`
+${tree}
+\`\`\`
+
+## File export
+
+${filesExport}`;
 
 writeFileSync(exportFilename, exportString, { encoding: 'utf-8' });
 ```

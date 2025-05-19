@@ -8,6 +8,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
+import { parse } from 'dree';
 import ignore from 'ignore';
 
 const rootFolder = join(__dirname, '..');
@@ -47,6 +48,28 @@ const filesExport = files2export.map((file) => {
 
   return `${file}:\n\n\`\`\`${extension}\n${fileContent}\n\`\`\``;
 }).filter(fileString => fileString != null).join('\n\n---\n\n');
-const exportString = `# File export\n\n${filesExport}`;
+
+const tree = parse(rootFolder, {
+  exclude: [
+    /\.git/,
+    /\.husky\/_/,
+    /\.next/,
+    /\.vercel/,
+    /coverage/,
+    /node_modules/,
+  ],
+});
+
+const exportString = `# EXPORT
+
+## File structure
+
+\`\`\`
+${tree}
+\`\`\`
+
+## File export
+
+${filesExport}`;
 
 writeFileSync(exportFilename, exportString, { encoding: 'utf-8' });
