@@ -43,6 +43,8 @@ manga-mailer
  │   │   │   ├── help.ts
  │   │   │   ├── list.test.ts
  │   │   │   ├── list.ts
+ │   │   │   ├── remove.test.ts
+ │   │   │   ├── remove.ts
  │   │   │   ├── signup.test.ts
  │   │   │   ├── signup.ts
  │   │   │   ├── track.test.ts
@@ -65,7 +67,11 @@ manga-mailer
  │   │       └── user.ts
  │   ├── email.test.ts
  │   ├── email.ts
- │   ├── logger.ts
+ │   ├─> log
+ │   │   ├─> __mocks__
+ │   │   │   └── index.ts
+ │   │   ├── config.ts
+ │   │   └── index.ts
  │   ├── manga.test.ts
  │   ├── manga.ts
  │   └─> validation
@@ -80,9 +86,16 @@ manga-mailer
  ├─> script
  │   └── export.ts
  ├─> test
- │   ├── setup.ts
- │   └─> utils
- │       └── contextMock.ts
+ │   ├─> log
+ │   │   └── index.ts
+ │   ├─> mocks
+ │   │   ├─> bot
+ │   │   │   └── context.ts
+ │   │   ├─> db
+ │   │   │   ├── manga.ts
+ │   │   │   └── user.ts
+ │   │   └── manga.ts
+ │   └── setup.ts
  └── tsconfig.json
 ```
 
@@ -257,9 +270,9 @@ import { webhookCallback } from 'grammy';
 import { NextResponse } from 'next/server';
 
 import { createBot } from '@/lib/bot';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'route:/' });
+const logger = createChildLogger('route:/');
 
 const bot = createBot();
 
@@ -613,7 +626,7 @@ e2e/bot.test.ts:
 import type { Api } from 'grammy';
 import type { Update, UserFromGetMe } from 'grammy/types';
 
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { createBot } from '@/lib/bot';
 import { db } from '@/lib/db';
@@ -624,7 +637,7 @@ interface CapturedRequest {
   payload: any;
 }
 
-let botInstance: Bot;
+let botInstance: BotType;
 let outgoingRequests: CapturedRequest[] = [];
 
 function createMessageUpdate(text: string, chatId = 1111111, userId = 1111111, messageId = 1365): Update {
@@ -855,9 +868,9 @@ instrumentation.ts:
 
 ```ts
 import { createBot } from '@/lib/bot';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'instrumentation' });
+const logger = createChildLogger('instrumentation');
 
 declare global {
 
@@ -906,7 +919,8 @@ import type { CommandContext } from 'grammy';
 import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
-import { createMockCommandContext } from '@/test/utils/contextMock';
+import { loggerWriteSpy } from '@/test/log';
+import { createMockCommandContext } from '@/test/mocks/bot/context';
 
 describe('bot -> commands -> help', () => {
   let helpHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
@@ -932,11 +946,11 @@ describe('bot -> commands -> help', () => {
   });
 
   it('should reply with a formatted list of commands when the /help handler is invoked', async () => {
-    const currentCtx = createMockCommandContext('/help', 1000);
+    const context = createMockCommandContext('/help');
 
     expect(helpHandler).toBeDefined();
 
-    await helpHandler(currentCtx);
+    await helpHandler(context);
 
     const exppectedHelpMessage = `⚙️ *Commands*:
 
@@ -944,7 +958,15 @@ describe('bot -> commands -> help', () => {
 • /track \\- Track a new manga
 • /list \\- List all the manga you are tracking
 • /remove \\- Remove a tracked manga`;
-    expect(currentCtx.reply).toHaveBeenCalledWith(exppectedHelpMessage, { parse_mode: 'MarkdownV2' });
+    expect(context.reply).toHaveBeenCalledWith(exppectedHelpMessage, { parse_mode: 'MarkdownV2' });
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:help',
+      msg: 'Received /help command',
+      userId: context.from?.id,
+    });
   });
 });
 ```
@@ -957,15 +979,15 @@ lib/bot/commands/help.ts:
 import type { BotType } from '@/lib/bot/types';
 
 import { commands } from '@/lib/bot/constants';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'instrumentation' });
+const logger = createChildLogger('bot:command:help');
 
 export function createHelpMessage(bot: BotType) {
   const commandDescriptions = commands.map(({ command, description }) => `• /${command} \\- ${description}`).join('\n');
 
   bot.command('help', async (ctx) => {
-    logger.debug('[help] Received help command');
+    logger.debug({ userId: ctx.from?.id }, 'Received /help command');
 
     await ctx.reply(
       `⚙️ *Commands*:
@@ -987,10 +1009,10 @@ import type { CommandContext } from 'grammy';
 import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createListConversation } from '@/lib/bot/commands/list';
-import { signupConversationId } from '@/lib/bot/constants';
-import { listTrackedMangas } from '@/lib/db/action/manga';
-import { findUserByTelegramId } from '@/lib/db/action/user';
-import { createMockCommandContext } from '@/test/utils/contextMock';
+import { loggerWriteSpy } from '@/test/log';
+import { createMockCommandContext } from '@/test/mocks/bot/context';
+import { mockedListTrackedMangas, mockListTrackedMangasSuccess } from '@/test/mocks/db/manga';
+import { mockedFindUserByTelegramId, mockFindUserByTelegramIdNotFound, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
 
 jest.mock('@/lib/db/action/user', () => ({
   findUserByTelegramId: jest.fn(),
@@ -998,9 +1020,6 @@ jest.mock('@/lib/db/action/user', () => ({
 jest.mock('@/lib/db/action/manga', () => ({
   listTrackedMangas: jest.fn(),
 }));
-
-const mockedFindUserByTelegramId = findUserByTelegramId as jest.Mock;
-const mockedListTrackedMangas = listTrackedMangas as jest.Mock;
 
 describe('bot -> commands -> list', () => {
   let listHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
@@ -1013,7 +1032,6 @@ describe('bot -> commands -> list', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
     createListConversation(mockBotInstance as BotType);
 
     if (!listHandler) {
@@ -1026,55 +1044,74 @@ describe('bot -> commands -> list', () => {
   });
 
   it('should prompt user to signup if user is not found', async () => {
-    const currentChatId = 1234;
-    const currentCtx = createMockCommandContext('/list', currentChatId);
-    mockedFindUserByTelegramId.mockResolvedValue(undefined);
+    const context = createMockCommandContext('/list');
+    mockFindUserByTelegramIdNotFound();
 
-    await listHandler(currentCtx);
+    await listHandler(context);
 
-    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(currentCtx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
-    expect(currentCtx.reply).not.toHaveBeenCalled();
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+    expect(context.reply).toHaveBeenCalledTimes(1);
+    expect(context.reply).toHaveBeenLastCalledWith('You need to /start and register before you can remove manga.');
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:list',
+      msg: 'Received /list command',
+      userId: context.from?.id,
+    });
   });
 
   it('should inform user if they are tracking no mangas', async () => {
-    const currentChatId = 5678;
-    const currentCtx = createMockCommandContext('/list', currentChatId);
-    const mockUser = { id: 'user-test-id-list', name: 'Test User', telegramId: currentChatId, email: 'u@e.com' };
+    const context = createMockCommandContext('/list');
 
-    mockedFindUserByTelegramId.mockResolvedValue(mockUser);
-    mockedListTrackedMangas.mockResolvedValue([]);
+    const user = mockFindUserByTelegramIdSuccess();
+    mockListTrackedMangasSuccess([]);
 
-    await listHandler(currentCtx);
+    await listHandler(context);
 
-    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(mockedListTrackedMangas).toHaveBeenCalledWith(mockUser.id);
-    expect(currentCtx.reply).toHaveBeenCalledWith('You\'re not tracking any manga yet: tap /track to track your first manga');
-    expect(currentCtx.conversation?.enter).not.toHaveBeenCalled();
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+    expect(mockedListTrackedMangas).toHaveBeenCalledWith(user.id);
+    expect(context.reply).toHaveBeenCalledWith('You\'re not tracking any manga yet: tap /track to track your first manga');
+    expect(context.conversation.enter).not.toHaveBeenCalled();
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:list',
+      msg: 'Received /list command',
+      userId: context.from?.id,
+    });
   });
 
   it('should list tracked mangas if user and mangas exist', async () => {
-    const currentChatId = 9101;
-    const currentCtx = createMockCommandContext('/list', currentChatId);
-    const mockUser = { id: 'user-test-id-list-2', name: 'Test User 2', telegramId: currentChatId, email: 'u2@e.com' };
+    const context = createMockCommandContext('/list');
     const trackedMangas = [
       { title: 'Manga Alpha', chaptersCount: 10 },
       { title: 'Manga Beta', chaptersCount: 25 },
     ];
 
-    mockedFindUserByTelegramId.mockResolvedValue(mockUser);
-    mockedListTrackedMangas.mockResolvedValue(trackedMangas);
+    const user = mockFindUserByTelegramIdSuccess();
+    mockListTrackedMangasSuccess(trackedMangas);
 
-    await listHandler(currentCtx);
+    await listHandler(context);
 
-    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(mockedListTrackedMangas).toHaveBeenCalledWith(mockUser.id);
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+    expect(mockedListTrackedMangas).toHaveBeenCalledWith(user.id);
 
     const expectedReplyMessage = `Here is what you're currently tracking:\n\n${
       trackedMangas.map(manga => `• ${manga.title} (${manga.chaptersCount})`).join('\n')
     }`;
-    expect(currentCtx.reply).toHaveBeenCalledWith(expectedReplyMessage);
-    expect(currentCtx.conversation?.enter).not.toHaveBeenCalled();
+    expect(context.reply).toHaveBeenCalledWith(expectedReplyMessage);
+    expect(context.conversation.enter).not.toHaveBeenCalled();
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:list',
+      userId: context.from?.id,
+      trackedMangas: 2,
+    });
   });
 });
 ```
@@ -1086,20 +1123,19 @@ lib/bot/commands/list.ts:
 ```ts
 import type { BotType } from '@/lib/bot/types';
 
-import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'bot:command:list' });
+const logger = createChildLogger('bot:command:list');
 
 export function createListConversation(bot: BotType) {
   bot.command('list', async (ctx) => {
-    const telegramId = ctx.chat.id;
-    logger.debug('Received list command', telegramId);
-    const user = await findUserByTelegramId(telegramId);
+    logger.debug({ userId: ctx.from?.id }, 'Received /list command');
+    const user = await findUserByTelegramId(ctx.from!.id);
+
     if (!user) {
-      await ctx.conversation.enter(signupConversationId);
+      await ctx.reply('You need to /start and register before you can remove manga.');
       return;
     }
 
@@ -1110,6 +1146,7 @@ export function createListConversation(bot: BotType) {
       return;
     }
 
+    logger.debug({ userId: ctx.from?.id, trackedMangas: mangas.length });
     await ctx.reply(`Here is what you're currently tracking:\n\n${
       mangas.map(manga => `• ${manga.title} (${manga.chaptersCount})`).join('\n')
     }`);
@@ -1119,27 +1156,446 @@ export function createListConversation(bot: BotType) {
 
 ---
 
-lib/bot/commands/signup.test.ts:
+lib/bot/commands/remove.test.ts:
 
 ```ts
 import type { Conversation } from '@grammyjs/conversations';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
+import type { Manga, User } from '@/lib/db/model';
 import type {
   MockCommandContext,
-} from '@/test/utils/contextMock';
+} from '@/test/mocks/bot/context';
+
+import { InlineKeyboard } from 'grammy';
+
+import { createRemoveConversation, removeConversationLogic } from '@/lib/bot/commands/remove';
+import { removeConversationId } from '@/lib/bot/constants';
+import { loggerWriteSpy } from '@/test/log';
+import {
+  createMockCallbackQueryContext,
+  createMockCommandContext,
+} from '@/test/mocks/bot/context';
+import {
+  mockedListTrackedMangas,
+  mockedRemoveTrackedManga,
+  mockListTrackedMangasSuccess,
+  mockRemoveTrackedMangaDbError,
+  mockRemoveTrackedMangaSuccess,
+} from '@/test/mocks/db/manga';
+import { mockedFindUserByTelegramId, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
+
+jest.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: jest.fn(),
+  removeTrackedManga: jest.fn(),
+}));
+jest.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: jest.fn(),
+}));
+
+describe('bot -> commands -> remove', () => {
+  let removeCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
+
+  const mockBotInstance: Partial<BotType> = {
+    command: jest.fn((commandName, handler) => {
+      if (commandName === 'remove') {
+        removeCommandHandler = handler;
+      }
+    }) as any,
+    use: jest.fn().mockReturnThis(),
+  };
+
+  beforeAll(() => {
+    createRemoveConversation(mockBotInstance as BotType);
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    if (!removeCommandHandler) {
+      throw new Error('/remove command handler not registered');
+    }
+  });
+
+  describe('command Handler: /remove', () => {
+    it('should enter signupConversation if user does not exist', async () => {
+      const context = createMockCommandContext('/remove');
+
+      await removeCommandHandler(context);
+
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(context.reply).toHaveBeenCalledWith('You need to /start and register before you can remove manga.');
+      expect(context.conversation.enter).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:remove',
+        msg: 'Received /remove command',
+        userId: context.from?.id,
+      });
+    });
+
+    it('should enter removeManga conversation if user exists and has no tracked mangas', async () => {
+      const user = mockFindUserByTelegramIdSuccess();
+      const trackedMangas = mockListTrackedMangasSuccess([]);
+      const context = createMockCommandContext('/remove');
+
+      await removeCommandHandler(context);
+
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(mockedListTrackedMangas).toHaveBeenCalledWith(user.id);
+      expect(context.conversation.enter).toHaveBeenCalledWith(removeConversationId, user, trackedMangas);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:remove',
+        msg: 'Received /remove command',
+        userId: context.from?.id,
+      });
+    });
+
+    it('should enter removeManga conversation if user exists and has tracked mangas', async () => {
+      const user = mockFindUserByTelegramIdSuccess();
+      const trackedMangas = mockListTrackedMangasSuccess([{}, {}]);
+      const context = createMockCommandContext('/remove');
+
+      await removeCommandHandler(context);
+
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(mockedListTrackedMangas).toHaveBeenCalledWith(user.id);
+      expect(context.conversation.enter).toHaveBeenCalledWith(removeConversationId, user, trackedMangas);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:remove',
+        msg: 'Received /remove command',
+        userId: context.from?.id,
+      });
+    });
+  });
+
+  describe('conversation Logic: removeConversationLogic', () => {
+    let mockConversationControls: jest.Mocked<Conversation>;
+    let context: BotContext;
+    let user: User;
+
+    beforeEach(() => {
+      mockConversationControls = {
+        waitFor: jest.fn(),
+        external: jest.fn(async (callback: () => any) => callback()),
+        log: jest.fn(),
+        skip: jest.fn(),
+        wait: jest.fn().mockResolvedValue(undefined),
+        session: {} as any,
+        __flavor: undefined as any,
+      } as any;
+
+      user = mockFindUserByTelegramIdSuccess();
+
+      context = createMockCommandContext('/remove') as BotContext;
+    });
+
+    it('should inform user if they are not tracking any manga (inside conversation)', async () => {
+      const trackedMangas = mockListTrackedMangasSuccess([]);
+
+      await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
+
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledWith('You\'re not tracking any manga right now. Nothing to remove!');
+      expect(mockConversationControls.waitFor).not.toHaveBeenCalled();
+    });
+
+    describe('user has trackedMangas', () => {
+      let trackedMangas: Manga[];
+
+      beforeEach(() => {
+        trackedMangas = mockListTrackedMangasSuccess([{}, {}]);
+      });
+
+      it('happy Path: should list mangas, user selects one, confirms, and manga is removed', async () => {
+        mockRemoveTrackedMangaSuccess();
+
+        const mangaToRemove = trackedMangas[0];
+        const callbackDataSelectManga = `remove:${mangaToRemove.id}`;
+        const callbackDataConfirmRemove = `confirm_remove:${mangaToRemove.id}`;
+
+        mockConversationControls.waitFor
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataSelectManga, context.chat?.id, user.telegramId, context.message) as any)
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataConfirmRemove, context.chat?.id, user.telegramId, context.message) as any);
+
+        await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
+
+        const replyMock = context.reply as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+
+        const expectedKeyboard = new InlineKeyboard();
+        trackedMangas.forEach(m => expectedKeyboard.text(`❌ ${m.title} (${m.chaptersCount})`, `remove:${m.id}`).row());
+        expectedKeyboard.text('🚫 Cancel Operation', 'cancel_remove').row();
+        expect(replyMock).toHaveBeenCalledWith('Which manga do you want to stop tracking? Select from the list below:', {
+          reply_markup: expectedKeyboard,
+        });
+
+        const confirmationKeyboard = new InlineKeyboard()
+          .text(`✅ Yes, remove "${mangaToRemove.title}"`, `confirm_remove:${mangaToRemove.id}`)
+          .text('❌ No, keep it', 'cancel_remove_confirm')
+          .row();
+        expect(editMessageTextMock).toHaveBeenNthCalledWith(1, `Are you sure you want to stop tracking "${mangaToRemove.title}"?`, {
+          reply_markup: confirmationKeyboard,
+        });
+
+        expect(mockedRemoveTrackedManga).toHaveBeenCalledWith(user.id, mangaToRemove.id);
+
+        expect(answerCallbackQueryMock).toHaveBeenCalledWith(`"${mangaToRemove.title}" removed!`);
+        expect(editMessageTextMock).toHaveBeenNthCalledWith(2, `Successfully stopped tracking "${mangaToRemove.title}".`, { reply_markup: undefined });
+
+        expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+        expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+          level: 'debug',
+          serviceName: 'bot:command:remove',
+          msg: 'Entered remove conversation',
+        });
+        expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+          level: 'info',
+          serviceName: 'bot:command:remove',
+          msg: 'User removed manga tracking',
+          mangaId: 'manga-id-123',
+          title: 'Epic Adventure Manga',
+          userId: 'test-user-id',
+        });
+      });
+
+      it('should handle user cancelling at manga selection', async () => {
+        const callbackDataCancel = 'cancel_remove';
+        mockConversationControls.waitFor
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataCancel, context.chat?.id, user.telegramId, context.message) as any);
+
+        await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
+
+        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        expect(answerCallbackQueryMock).toHaveBeenCalledWith('Operation cancelled.');
+        expect(editMessageTextMock).toHaveBeenCalledWith('Manga removal cancelled.', { reply_markup: undefined });
+        expect(mockedRemoveTrackedManga).not.toHaveBeenCalled();
+
+        expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+        expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+          level: 'debug',
+          serviceName: 'bot:command:remove',
+          msg: 'Entered remove conversation',
+        });
+      });
+
+      it('should handle user cancelling at confirmation step', async () => {
+        const mangaToRemove = trackedMangas[0];
+        const callbackDataSelectManga = `remove:${mangaToRemove.id}`;
+        const callbackDataCancelConfirm = 'cancel_remove_confirm';
+
+        mockConversationControls.waitFor
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataSelectManga, context.chat?.id, user.telegramId, context.message) as any)
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataCancelConfirm, context.chat?.id, user.telegramId, context.message) as any);
+
+        await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
+
+        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+
+        expect(answerCallbackQueryMock).toHaveBeenCalledWith('Removal cancelled.');
+        expect(editMessageTextMock).toHaveBeenLastCalledWith(`Ok, "${mangaToRemove.title}" will remain in your tracking list.`, { reply_markup: undefined });
+        expect(mockedRemoveTrackedManga).not.toHaveBeenCalled();
+
+        expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+        expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+          level: 'debug',
+          serviceName: 'bot:command:remove',
+          msg: 'Entered remove conversation',
+        });
+      });
+
+      it('should handle database error when removeTrackedManga fails', async () => {
+        mockRemoveTrackedMangaDbError();
+
+        const mangaToRemove = trackedMangas[0];
+        const callbackDataSelectManga = `remove:${mangaToRemove.id}`;
+        const callbackDataConfirmRemove = `confirm_remove:${mangaToRemove.id}`;
+
+        mockConversationControls.waitFor
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataSelectManga, context.chat?.id, user.telegramId, context.message) as any)
+          .mockResolvedValueOnce(createMockCallbackQueryContext(callbackDataConfirmRemove, context.chat?.id, user.telegramId, context.message) as any);
+
+        await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
+
+        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+
+        expect(answerCallbackQueryMock).toHaveBeenCalledWith('Error!');
+        expect(editMessageTextMock).toHaveBeenLastCalledWith('Could not remove manga tracking due to an error. Please try again later.', { reply_markup: undefined });
+
+        expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+        expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+          level: 'debug',
+          serviceName: 'bot:command:remove',
+          msg: 'Entered remove conversation',
+        });
+        expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+          level: 'error',
+          serviceName: 'bot:command:remove',
+          msg: 'Failed to remove manga tracking',
+          error: 'DB error',
+          mangaId: 'manga-id-123',
+          userId: 'test-user-id',
+        });
+      });
+    });
+  });
+});
+```
+
+---
+
+lib/bot/commands/remove.ts:
+
+```ts
+import type { Conversation } from '@grammyjs/conversations';
+import type { Context } from 'grammy';
+
+import type { BotContext, BotType } from '@/lib/bot/types';
+import type { Manga, User } from '@/lib/db/model';
+
+import { createConversation } from '@grammyjs/conversations';
+import { InlineKeyboard } from 'grammy';
+
+import { removeConversationId } from '@/lib/bot/constants';
+import { listTrackedMangas, removeTrackedManga } from '@/lib/db/action/manga';
+import { findUserByTelegramId } from '@/lib/db/action/user';
+import { createChildLogger } from '@/lib/log';
+
+const logger = createChildLogger('bot:command:remove');
+
+export async function removeConversationLogic(
+  conversation: Conversation,
+  ctx: Context,
+  user: User,
+  trackedMangas: Manga[],
+) {
+  logger.debug('Entered remove conversation');
+
+  if (trackedMangas.length === 0) {
+    await ctx.reply('You\'re not tracking any manga right now. Nothing to remove!');
+    return;
+  }
+
+  const keyboard = new InlineKeyboard();
+  trackedMangas.forEach((manga) => {
+    keyboard.text(`❌ ${manga.title} (${manga.chaptersCount})`, `remove:${manga.id}`).row();
+  });
+  keyboard.text('🚫 Cancel Operation', 'cancel_remove').row();
+
+  await ctx.reply('Which manga do you want to stop tracking? Select from the list below:', {
+    reply_markup: keyboard,
+  });
+
+  const answer = await conversation.waitFor('callback_query:data');
+  const callbackData = answer.callbackQuery.data;
+
+  if (callbackData === 'cancel_remove') {
+    await ctx.answerCallbackQuery('Operation cancelled.');
+    await ctx.editMessageText('Manga removal cancelled.', { reply_markup: undefined });
+    return;
+  }
+
+  if (!callbackData.startsWith('remove:')) {
+    await ctx.answerCallbackQuery('Invalid selection.');
+    await ctx.editMessageText('Invalid selection. Please try /remove again.', { reply_markup: undefined });
+    return;
+  }
+
+  const mangaIdToRemove = callbackData.substring('remove:'.length);
+  const mangaToRemove = trackedMangas.find(m => m.id === mangaIdToRemove);
+
+  if (!mangaToRemove) {
+    await ctx.answerCallbackQuery('Manga not found in your list.');
+    await ctx.editMessageText('Selected manga not found in your list. Please try /remove again.', { reply_markup: undefined });
+    return;
+  }
+
+  const confirmationKeyboard = new InlineKeyboard()
+    .text(`✅ Yes, remove "${mangaToRemove.title}"`, `confirm_remove:${mangaIdToRemove}`)
+    .text('❌ No, keep it', 'cancel_remove_confirm')
+    .row();
+
+  await ctx.editMessageText(`Are you sure you want to stop tracking "${mangaToRemove.title}"?`, {
+    reply_markup: confirmationKeyboard,
+  });
+
+  const confirmationAnswer = await conversation.waitFor('callback_query:data');
+  const confirmationData = confirmationAnswer.callbackQuery.data;
+
+  if (confirmationData === 'cancel_remove_confirm') {
+    await ctx.answerCallbackQuery('Removal cancelled.');
+    await ctx.editMessageText(`Ok, "${mangaToRemove.title}" will remain in your tracking list.`, { reply_markup: undefined });
+    return;
+  }
+
+  if (confirmationData.startsWith(`confirm_remove:${mangaIdToRemove}`)) {
+    const removeResult = await conversation.external(async () => removeTrackedManga(user.id, mangaIdToRemove));
+    if (removeResult.success) {
+      await ctx.answerCallbackQuery(`"${mangaToRemove.title}" removed!`);
+      await ctx.editMessageText(`Successfully stopped tracking "${mangaToRemove.title}".`, { reply_markup: undefined });
+      logger.info({ userId: user.id, mangaId: mangaIdToRemove, title: mangaToRemove.title }, 'User removed manga tracking');
+    } else {
+      await ctx.answerCallbackQuery('Error!');
+      await ctx.editMessageText('Could not remove manga tracking due to an error. Please try again later.', { reply_markup: undefined });
+      logger.error({ error: removeResult.databaseError, userId: user.id, mangaId: mangaIdToRemove }, 'Failed to remove manga tracking');
+    }
+  } else {
+    await ctx.answerCallbackQuery('Invalid confirmation.');
+    await ctx.editMessageText('Invalid confirmation. Removal cancelled.', { reply_markup: undefined });
+  }
+}
+
+export function createRemoveConversation(bot: BotType) {
+  bot.use(createConversation(removeConversationLogic, {
+    id: removeConversationId,
+  }));
+
+  bot.command('remove', async (ctx: BotContext) => {
+    logger.debug({ userId: ctx.from?.id }, 'Received /remove command');
+    const user = await findUserByTelegramId(ctx.from!.id);
+
+    if (!user) {
+      await ctx.reply('You need to /start and register before you can remove manga.');
+      return;
+    }
+
+    const trackedMangas = await listTrackedMangas(user.id);
+
+    await ctx.conversation.enter(removeConversationId, user, trackedMangas);
+  });
+}
+```
+
+---
+
+lib/bot/commands/signup.test.ts:
+
+```ts
+import type { BotType } from '@/lib/bot/types';
+import type { MockCommandContext } from '@/test/mocks/bot/context';
 
 import { createSignupConversation, signupConversationLogic } from '@/lib/bot/commands/signup';
 import { signupConversationId } from '@/lib/bot/constants';
-import * as userActions from '@/lib/db/action/user';
-import {
-  createMockCommandContext,
-  createMockMessageContext,
-} from '@/test/utils/contextMock';
+import { loggerWriteSpy } from '@/test/log';
+import { createMockCommandContext, createMockConversationControl, createMockMessageContext } from '@/test/mocks/bot/context';
+import { mockedUpsertUser, mockUpsertUserSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/user');
-
-const mockedUpsertUser = userActions.upsertUser as jest.Mock;
+jest.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: jest.fn(),
+  upsertUser: jest.fn(),
+}));
 
 describe('bot -> commands -> signup', () => {
   let startCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
@@ -1153,88 +1609,108 @@ describe('bot -> commands -> signup', () => {
     use: jest.fn().mockReturnThis(),
   };
 
-  beforeAll(() => {
-    createSignupConversation(mockBotInstance as BotType);
-  });
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    createSignupConversation(mockBotInstance as BotType);
 
     if (!startCommandHandler) {
       throw new Error('/start command handler not registered');
     }
   });
 
+  it('should register a "start" command handler on the bot', () => {
+    expect(mockBotInstance.command).toHaveBeenCalledWith('start', expect.any(Function));
+  });
+
   describe('command Handler: /start', () => {
     it('should enter signupConversation', async () => {
-      const chatId = 4001;
-      const ctx = createMockCommandContext('/start', chatId);
+      const context = createMockCommandContext('/start');
 
-      await startCommandHandler(ctx);
+      await startCommandHandler(context);
 
-      expect(ctx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
+      expect(context.conversation.enter).toHaveBeenCalledWith(signupConversationId);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received /start command',
+        userId: context.from?.id,
+      });
     });
   });
 
   describe('conversation Logic: signupConversationLogic', () => {
-    const testChatId = 5001;
-    const testUserId = 5001;
-
-    let mockConversationControls: jest.Mocked<Conversation>;
-    let currentCtx: BotContext;
-
-    beforeEach(() => {
-      mockConversationControls = {
-        waitFor: jest.fn(),
-        external: jest.fn(async (callback: () => any) => callback()),
-        checkpoint: jest.fn(),
-        rewind: jest.fn().mockResolvedValue(undefined),
-        log: jest.fn(),
-        skip: jest.fn(),
-        wait: jest.fn().mockResolvedValue(undefined),
-        session: {} as any,
-        __flavor: undefined as any,
-      } as any;
-
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-    });
+    const mockConversationControls = createMockConversationControl();
+    const conversationContext = createMockMessageContext('');
 
     it('happy Path: should guide user, collect name and email, and save user', async () => {
       const userName = 'Test Signup User';
       const userEmail = 'signup@example.com';
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(userEmail, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext(userEmail) as any);
 
-      mockedUpsertUser.mockResolvedValue({ success: true });
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      mockUpsertUserSuccess();
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is your name?');
       expect(replyMock).toHaveBeenNthCalledWith(2, `Welcome to Manga Mailer, ${userName}!`);
       expect(replyMock).toHaveBeenNthCalledWith(3, 'Where do you want us to mail you updates?');
       expect(replyMock).toHaveBeenNthCalledWith(4, `Perfect, we'll use "${userEmail}" as email address!`);
 
       expect(mockedUpsertUser).toHaveBeenCalledWith({
-        telegramId: testChatId,
+        telegramId: conversationContext.from!.id,
         name: userName,
         email: userEmail,
+      });
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(4);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Entered signup conversation',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received name: "Test Signup User"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received email: "signup@example.com"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'User saved',
+        email: 'signup@example.com',
+        name: 'Test Signup User',
+        telegramId: 123456789,
       });
     });
 
     it('should handle /cancel when waiting for email', async () => {
       const userName = 'User Cancels';
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext('/cancel', testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext('/cancel') as any);
 
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
       expect(mockedUpsertUser).not.toHaveBeenCalled();
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received name: "User Cancels"',
+      });
     });
 
     it('should handle validationError from upsertUser and rewind', async () => {
@@ -1243,17 +1719,33 @@ describe('bot -> commands -> signup', () => {
       const validationErrorPayload = [{ field: 'email', error: 'Invalid email address' }];
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(userEmail, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext(userEmail) as any);
 
-      mockedUpsertUser.mockResolvedValue({ success: false, validationError: validationErrorPayload });
+      mockedUpsertUser.mockResolvedValue({ success: false, validationErrors: validationErrorPayload });
 
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenLastCalledWith(`❗️ Something went wrong:\n\n• email: Invalid email address`);
       expect(mockConversationControls.checkpoint).toHaveBeenCalledTimes(1);
       expect(mockConversationControls.rewind).toHaveBeenCalledTimes(1);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(4);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received email: "invalidformat"',
+      });
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'error',
+        serviceName: 'bot:command:signup',
+        msg: 'Validation error',
+        errors: [{
+          error: 'Invalid email address',
+          field: 'email',
+        }],
+      });
     });
 
     it('should handle databaseError from upsertUser and terminate', async () => {
@@ -1262,16 +1754,24 @@ describe('bot -> commands -> signup', () => {
       const dbErrorMsg = 'Connection failed';
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(userEmail, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext(userEmail) as any);
 
       mockedUpsertUser.mockResolvedValue({ success: false, databaseError: dbErrorMsg });
 
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(4);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'error',
+        serviceName: 'bot:command:signup',
+        msg: 'Database error',
+        errors: ['Connection failed'],
+      });
     });
   });
 });
@@ -1291,18 +1791,18 @@ import { createConversation } from '@grammyjs/conversations';
 
 import { signupConversationId } from '@/lib/bot/constants';
 import { upsertUser } from '@/lib/db/action/user';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'bot:command:signup' });
+const logger = createChildLogger('bot:command:signup');
 
 export async function signupConversationLogic(conversation: Conversation, ctx: Context) {
   logger.debug('Entered signup conversation');
   await ctx.reply('Hi there! What is your name?');
 
   const ctxName = await conversation.waitFor('message:text');
-  const telegramId = ctxName.chat.id;
+  const telegramId = ctxName.from.id;
   const name = ctxName.message.text;
-  logger.debug('Received name:', name);
+  logger.debug(`Received name: "${name}"`);
   const preEmailCheckpoint = conversation.checkpoint();
   await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
   await ctx.reply(`Where do you want us to mail you updates?`);
@@ -1312,7 +1812,7 @@ export async function signupConversationLogic(conversation: Conversation, ctx: C
   if (email === '/cancel') {
     return;
   }
-  logger.debug('Received email:', email);
+  logger.debug(`Received email: "${email}"`);
 
   const newUser = {
     telegramId,
@@ -1322,18 +1822,16 @@ export async function signupConversationLogic(conversation: Conversation, ctx: C
 
   const result = await conversation.external(async () => upsertUser(newUser));
 
-  if (!result.success) {
-    if (result.validationError) {
-      logger.error('Validation error:', result.validationError);
-      await ctx.reply(`❗️ Something went wrong:\n\n${result.validationError.map(({ field, error }) => `• ${field}: ${error}`).join('\n')}`);
-      await conversation.rewind(preEmailCheckpoint);
-    } else if (typeof result.databaseError === 'string') {
-      logger.error('Database error:', result.databaseError);
-      await ctx.reply('❗️ Something went wrong, please try again later');
-    }
-  } else {
+  if (result.success) {
+    logger.debug({ telegramId, name, email }, 'User saved');
     await ctx.reply(`Perfect, we'll use "${email}" as email address!`);
-    logger.debug('Saved user:', telegramId, name, email);
+  } else if (result.validationErrors) {
+    logger.error({ errors: result.validationErrors }, 'Validation error');
+    await ctx.reply(`❗️ Something went wrong:\n\n${result.validationErrors.map(({ field, error }) => `• ${field}: ${error}`).join('\n')}`);
+    await conversation.rewind(preEmailCheckpoint);
+  } else if (typeof result.databaseError === 'string') {
+    logger.error({ errors: [result.databaseError] }, 'Database error');
+    await ctx.reply('❗️ Something went wrong, please try again later');
   }
 }
 
@@ -1343,7 +1841,7 @@ export function createSignupConversation(bot: BotType) {
   }));
 
   bot.command('start', async (ctx) => {
-    logger.debug('Received start command');
+    logger.debug({ userId: ctx.from?.id }, 'Received /start command');
     await ctx.conversation.enter(signupConversationId);
   });
 }
@@ -1354,37 +1852,50 @@ export function createSignupConversation(bot: BotType) {
 lib/bot/commands/track.test.ts:
 
 ```ts
-import type { Conversation } from '@grammyjs/conversations';
-
-import type { BotContext, BotType } from '@/lib/bot/types';
+import type { BotType } from '@/lib/bot/types';
 import type {
   MockCommandContext,
-} from '@/test/utils/contextMock';
+} from '@/test/mocks/bot/context';
 
 import { InlineKeyboard } from 'grammy';
 
 import { createTrackConversation, trackConversationLogic } from '@/lib/bot/commands/track';
-import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
-import * as mangaActions from '@/lib/db/action/manga';
-import * as userActions from '@/lib/db/action/user';
-import * as mangaSearch from '@/lib/manga';
+import { trackConversationId } from '@/lib/bot/constants';
+import { loggerWriteSpy } from '@/test/log';
 import {
   createMockCallbackQueryContext,
   createMockCommandContext,
+  createMockConversationControl,
   createMockMessageContext,
-} from '@/test/utils/contextMock';
+} from '@/test/mocks/bot/context';
+import {
+  mockedTrackManga,
+  mockTrackMangaAlreadyTracked,
+  mockTrackMangaDbError,
+  mockTrackMangaSuccess,
+} from '@/test/mocks/db/manga';
+import {
+  mockedFindUserByTelegramId,
+  mockFindUserByTelegramIdNotFound,
+  mockFindUserByTelegramIdSuccess,
+} from '@/test/mocks/db/user';
+import { mockedGetManga, mockedSearchMangas, mockGetMangaSuccess, mockSearchMangaSuccess } from '@/test/mocks/manga';
 
-jest.mock('@/lib/db/action/user');
-jest.mock('@/lib/db/action/manga');
-jest.mock('@/lib/manga');
-
-const mockedFindUserByTelegramId = userActions.findUserByTelegramId as jest.Mock;
-const mockedSearchMangas = mangaSearch.searchMangas as jest.Mock;
-const mockedGetManga = mangaSearch.getManga as jest.Mock;
-const mockedTrackMangaAction = mangaActions.trackManga as jest.Mock;
+jest.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: jest.fn(),
+  removeTrackedManga: jest.fn(),
+  trackManga: jest.fn(),
+}));
+jest.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: jest.fn(),
+}));
+jest.mock('@/lib/manga', () => ({
+  getManga: jest.fn(),
+  searchMangas: jest.fn(),
+}));
 
 describe('bot -> commands -> track', () => {
-  let trackCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
+  let trackCommandHandler: ((context: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
     command: jest.fn((commandName, handler) => {
@@ -1395,103 +1906,90 @@ describe('bot -> commands -> track', () => {
     use: jest.fn().mockReturnThis(),
   };
 
-  beforeAll(() => {
-    createTrackConversation(mockBotInstance as BotType);
-  });
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    createTrackConversation(mockBotInstance as BotType);
 
     if (!trackCommandHandler) {
       throw new Error('/track command handler not registered');
     }
   });
 
+  it('should register a "track" command handler on the bot', () => {
+    expect(mockBotInstance.command).toHaveBeenCalledWith('track', expect.any(Function));
+  });
+
   describe('command Handler: /track', () => {
     it('should enter trackConversation if user exists', async () => {
-      const chatId = 2001;
-      const ctx = createMockCommandContext('/track', chatId);
-      mockedFindUserByTelegramId.mockResolvedValue({ id: 'user-id-track', name: 'Test Track User' });
+      const context = createMockCommandContext('/track');
+      const user = mockFindUserByTelegramIdSuccess();
 
-      await trackCommandHandler(ctx);
+      await trackCommandHandler(context);
 
-      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(chatId);
-      expect(ctx.conversation.enter).toHaveBeenCalledWith(trackConversationId);
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(context.conversation.enter).toHaveBeenCalledWith(trackConversationId, user);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Received /track command',
+        userId: context.from?.id,
+      });
     });
 
-    it('should enter signupConversation if user does not exist', async () => {
-      const chatId = 2002;
-      const ctx = createMockCommandContext('/track', chatId);
-      mockedFindUserByTelegramId.mockResolvedValue(undefined);
+    it('should not enter trackConversation if user does not exist', async () => {
+      const context = createMockCommandContext('/track');
+      mockFindUserByTelegramIdNotFound();
 
-      await trackCommandHandler(ctx);
+      await trackCommandHandler(context);
 
-      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(chatId);
-      expect(ctx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(context.conversation.enter).not.toHaveBeenCalled();
+
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenLastCalledWith('You need to /start and register before you can remove manga.');
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Received /track command',
+        userId: context.from?.id,
+      });
     });
   });
 
   describe('conversation Logic: trackConversationLogic', () => {
-    const testChatId = 3001;
-    const testUserId = 3001;
-
-    let mockConversationControls: jest.Mocked<Conversation>;
-    let currentCtx: BotContext;
-
-    beforeEach(() => {
-      mockConversationControls = {
-        waitFor: jest.fn(),
-        external: jest.fn(async (callback: () => any) => callback()) as any,
-        checkpoint: jest.fn(),
-        rewind: jest.fn().mockResolvedValue(undefined),
-        log: jest.fn(),
-        skip: jest.fn(),
-        wait: jest.fn().mockResolvedValue(undefined),
-      } as any;
-
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-    });
+    const mockConversationControls = createMockConversationControl();
+    const context = createMockMessageContext('');
 
     it('happy Path: should guide user through tracking a new manga', async () => {
-      const mangaTitle = 'Epic Adventure Manga';
-      const searchedMangasResult = [
-        { connectorName: 'TestConnectorA', id: 'manga-id-123', title: mangaTitle, chaptersCount: 10 },
-      ];
-      const selectedMangaData = { connectorName: 'TestConnectorA', id: 'manga-id-123' };
-      const fullMangaDetails = {
-        sourceName: 'TestConnectorA',
-        sourceId: 'manga-id-123',
-        title: mangaTitle,
-        chaptersCount: 10,
-        slug: 'epic-adventure',
-        author: 'A. Uthor',
-        artist: 'A. Rtist',
-        excerpt: 'An epic excerpt.',
-        image: 'url.jpg',
-        url: 'manga.url',
-        status: 'Ongoing',
-        genres: ['action'],
-        score: 0,
-        releasedAt: new Date(),
-      } as const;
+      const user = mockFindUserByTelegramIdSuccess();
+      const autocompleteMangas = mockSearchMangaSuccess([{}]);
+      const manga = mockGetMangaSuccess();
       const lastReadChapter = '5';
+      mockTrackMangaSuccess();
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(`${selectedMangaData.connectorName}:${selectedMangaData.id}`, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastReadChapter, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(manga.title!) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any)
+        .mockResolvedValueOnce(createMockMessageContext(lastReadChapter) as any);
 
-      mockedSearchMangas.mockResolvedValue(searchedMangasResult);
-      mockedGetManga.mockResolvedValue(fullMangaDetails);
-      mockedTrackMangaAction.mockResolvedValue({ success: true });
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = context.reply as jest.Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is the name of the manga you want to track?');
-      expect(replyMock).toHaveBeenNthCalledWith(2, `Cool, I'm searching for "${mangaTitle}"...`);
+      expect(replyMock).toHaveBeenNthCalledWith(2, `Cool, I'm searching for "${manga.title}"...`);
       const expectedInlineKeyboard = InlineKeyboard.from([
-        [InlineKeyboard.text(`[${searchedMangasResult[0].connectorName}] ${searchedMangasResult[0].title} (${searchedMangasResult[0].chaptersCount})`, `${searchedMangasResult[0].connectorName}:${searchedMangasResult[0].id}`)],
+        [InlineKeyboard.text(
+          `[${autocompleteMangas[0].connectorName}] ${autocompleteMangas[0].title} (${autocompleteMangas[0].chaptersCount})`,
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+        )],
         [InlineKeyboard.text('❌ Cancel', '/cancel')],
       ]);
       expect(replyMock).toHaveBeenNthCalledWith(3, 'Please select the manga you want to track:', {
@@ -1499,103 +1997,143 @@ describe('bot -> commands -> track', () => {
       });
       expect(replyMock).toHaveBeenNthCalledWith(4, 'Retrieving the selected manga...');
       expect(replyMock).toHaveBeenNthCalledWith(5, 'Which chapter you read last? (if you don\'t know, type "0")');
-      expect(replyMock).toHaveBeenNthCalledWith(6, `Perfect, we'll track "${fullMangaDetails.title}" on "${fullMangaDetails.sourceName}"!`);
+      expect(replyMock).toHaveBeenNthCalledWith(6, `Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
 
-      expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
-      expect(mockedGetManga).toHaveBeenCalledWith(selectedMangaData.connectorName, selectedMangaData.id);
-      expect(mockedTrackMangaAction).toHaveBeenCalledWith(fullMangaDetails, testChatId, Number.parseFloat(lastReadChapter));
+      expect(mockedSearchMangas).toHaveBeenCalledWith(manga.title);
+      expect(mockedGetManga).toHaveBeenCalledWith(autocompleteMangas[0].connectorName, autocompleteMangas[0].id);
+      expect(mockedTrackManga).toHaveBeenCalledWith(manga, user.id, Number.parseFloat(lastReadChapter));
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(6);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Entered track conversation',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Received title: "Epic Adventure Manga"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Found 1 mangas',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Retrieving selected manga: "manga-source-id-123" @ "TestConnectorA"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Last chapter read: 5',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Manga tracked',
+        source: 'TestConnectorA',
+        title: 'Epic Adventure Manga',
+        userId: 'test-user-id',
+      });
     });
 
     it('should inform if no manga found after search', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
       const mangaTitle = 'Unknown Manga';
+      const user = mockFindUserByTelegramIdSuccess();
+      mockSearchMangaSuccess();
+
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any);
-      mockedSearchMangas.mockResolvedValue([]);
+        .mockResolvedValueOnce(createMockMessageContext(mangaTitle) as any);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = currentCtx.reply as jest.Mock;
-      expect(replyMock).toHaveBeenCalledWith('No manga found');
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledTimes(3);
+      expect(replyMock).toHaveBeenCalledWith('No mangas found');
+
+      expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
       expect(mockedGetManga).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should handle user cancelling manga selection', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
       const mangaTitle = 'Some Manga';
-      const searchedMangasResult = [{ connectorName: 'TestConnectorA', id: 'manga-id-cancel', title: mangaTitle, chaptersCount: 1 }];
+      const user = mockFindUserByTelegramIdSuccess();
+      mockSearchMangaSuccess([{}]);
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(`/cancel`, testChatId, testUserId, currentCtx.message) as any);
+        .mockResolvedValueOnce(createMockMessageContext(mangaTitle) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `/cancel`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any);
 
-      mockedSearchMangas.mockResolvedValue(searchedMangasResult);
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
-
+      const replyMock = context.reply as jest.Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
+
+      expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
       expect(mockedGetManga).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
     });
 
-    it('should reply with invalid user if trackManga action returns invalidUser', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-      const mangaTitle = 'Test Manga';
-      const selectedMangaString = 'TestConnectorA:manga123';
+    it('should reply with invalid user if trackManga action returns alreadyTracked', async () => {
+      const user = mockFindUserByTelegramIdSuccess();
+      const autocompleteMangas = mockSearchMangaSuccess([{}]);
+      const manga = mockGetMangaSuccess();
       const lastChapter = '0';
+      mockTrackMangaAlreadyTracked();
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(selectedMangaString, testChatId, testUserId, currentCtx.message) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastChapter, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(manga.title!) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any)
+        .mockResolvedValueOnce(createMockMessageContext(lastChapter) as any);
 
-      mockedSearchMangas.mockResolvedValue([{ connectorName: 'TestConnectorA', id: 'manga123', title: mangaTitle, chaptersCount: 1 }]);
-      mockedGetManga.mockResolvedValue({ sourceName: 'TestConnectorA', sourceId: 'manga123', title: mangaTitle });
-      mockedTrackMangaAction.mockResolvedValue({ success: false, invalidUser: true, alreadyTracked: false });
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
-      expect(replyMock).toHaveBeenLastCalledWith('❗️ Invalid user. Please try to /start again');
-    });
-
-    it('should reply with already tracking if trackManga action returns alreadyTracked', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-      const mangaTitle = 'Test Manga';
-      const selectedMangaString = 'TestConnectorA:manga123';
-      const lastChapter = '0';
-
-      mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(selectedMangaString, testChatId, testUserId, currentCtx.message) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastChapter, testChatId, testUserId) as any);
-
-      mockedSearchMangas.mockResolvedValue([{ connectorName: 'TestConnectorA', id: 'manga123', title: mangaTitle, chaptersCount: 1 }]);
-      mockedGetManga.mockResolvedValue({ sourceName: 'TestConnectorA', sourceId: 'manga123', title: mangaTitle });
-      mockedTrackMangaAction.mockResolvedValue({ success: false, invalidUser: false, alreadyTracked: true });
-
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ It seems you\'re already tracking this manga!');
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(6);
     });
 
-    it('should reply with database error if trackManga action returns alreadyTracked', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-      const mangaTitle = 'Test Manga';
-      const selectedMangaString = 'TestConnectorA:manga123';
+    it('should reply with invalid user if trackManga action returns databaseError', async () => {
+      const user = mockFindUserByTelegramIdSuccess();
+      const autocompleteMangas = mockSearchMangaSuccess([{}]);
+      const manga = mockGetMangaSuccess();
       const lastChapter = '0';
+      mockTrackMangaDbError();
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(selectedMangaString, testChatId, testUserId, currentCtx.message) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastChapter, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(manga.title!) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any)
+        .mockResolvedValueOnce(createMockMessageContext(lastChapter) as any);
 
-      mockedSearchMangas.mockResolvedValue([{ connectorName: 'TestConnectorA', id: 'manga123', title: mangaTitle, chaptersCount: 1 }]);
-      mockedGetManga.mockResolvedValue({ sourceName: 'TestConnectorA', sourceId: 'manga123', title: mangaTitle });
-      mockedTrackMangaAction.mockResolvedValue({ success: false, invalidUser: false, alreadyTracked: false, databaseError: 'Database error' });
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(6);
     });
   });
 });
@@ -1610,33 +2148,36 @@ import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
 import type { BotType } from '@/lib/bot/types';
+import type { User } from '@/lib/db/model';
 
 import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
 
-import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
+import { trackConversationId } from '@/lib/bot/constants';
 import { trackManga } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 import { getManga, searchMangas } from '@/lib/manga';
 
-const logger = originalLogger.child({ name: 'bot:command:track' });
+const logger = createChildLogger('bot:command:track');
 
-export async function trackConversationLogic(conversation: Conversation, ctx: Context) {
+export async function trackConversationLogic(conversation: Conversation, ctx: Context, user: User) {
   logger.debug('Entered track conversation');
   await ctx.reply('Hi there! What is the name of the manga you want to track?');
 
   const ctxName = await conversation.waitFor('message:text');
-  const telegramId = ctxName.chat.id;
   const title = ctxName.message.text;
-  logger.debug('Received title', title);
+  logger.debug(`Received title: "${title}"`);
   await ctx.reply(`Cool, I'm searching for "${title}"...`);
   const mangas = await conversation.external(async () => searchMangas(title));
 
   if (mangas.length === 0) {
-    await ctx.reply('No manga found');
+    logger.debug('No mangas found');
+    await ctx.reply('No mangas found');
     return;
   }
+
+  logger.debug(`Found ${mangas.length} mangas`);
 
   const buttons = mangas.map(manga =>
     [
@@ -1656,6 +2197,7 @@ export async function trackConversationLogic(conversation: Conversation, ctx: Co
     return;
   }
   const [connectorName, mangaId] = data.split(':');
+  logger.debug(`Retrieving selected manga: "${mangaId}" @ "${connectorName}"`);
   await ctx.reply('Retrieving the selected manga...');
 
   const manga = await conversation.external(async () => getManga(connectorName, mangaId));
@@ -1663,16 +2205,17 @@ export async function trackConversationLogic(conversation: Conversation, ctx: Co
 
   const ctxChapter = await conversation.waitFor('message:text');
   const lastReadChapter = Number.parseFloat(ctxChapter.message.text);
-  const result = await conversation.external(async () => trackManga(manga, telegramId, lastReadChapter));
+  logger.debug(`Last chapter read: ${lastReadChapter}`);
+  const result = await conversation.external(async () => trackManga(manga, user.id, lastReadChapter));
 
   if (result.success) {
+    logger.debug({ title: manga.title, source: manga.sourceName, userId: user.id }, 'Manga tracked');
     await ctx.reply(`Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
-  } else if (result.invalidUser) {
-    await ctx.reply('❗️ Invalid user. Please try to /start again');
   } else if (result.alreadyTracked) {
+    logger.error('Manga already tracked');
     await ctx.reply('❗️ It seems you\'re already tracking this manga!');
   } else {
-    logger.error('Database error:', result.databaseError);
+    logger.error({ errors: [result.databaseError] }, 'Database error');
     await ctx.reply('❗️ Something went wrong, please try again later');
   }
 }
@@ -1683,15 +2226,15 @@ export function createTrackConversation(bot: BotType) {
   }));
 
   bot.command('track', async (ctx) => {
-    const telegramId = ctx.chat.id;
-    logger.debug('Received track command', telegramId);
-    const user = await findUserByTelegramId(telegramId);
+    logger.debug({ userId: ctx.from?.id }, 'Received /track command');
+    const user = await findUserByTelegramId(ctx.from!.id);
 
-    if (user) {
-      await ctx.conversation.enter(trackConversationId);
-    } else {
-      await ctx.conversation.enter(signupConversationId);
+    if (!user) {
+      await ctx.reply('You need to /start and register before you can remove manga.');
+      return;
     }
+
+    await ctx.conversation.enter(trackConversationId, user);
   });
 }
 ```
@@ -1712,6 +2255,7 @@ export const commands: BotCommand[] = [
 
 export const signupConversationId = 'signup';
 export const trackConversationId = 'track';
+export const removeConversationId = 'remove';
 ```
 
 ---
@@ -1719,7 +2263,7 @@ export const trackConversationId = 'track';
 lib/bot/index.test.ts:
 
 ```ts
-import type { MockMessageContext } from '@/test/utils/contextMock';
+import type { MockMessageContext } from '@/test/mocks/bot/context';
 
 import * as conversacionesPlugin from '@grammyjs/conversations';
 
@@ -1728,8 +2272,8 @@ import * as listCommand from '@/lib/bot/commands/list';
 import * as signupCommand from '@/lib/bot/commands/signup';
 import * as trackCommand from '@/lib/bot/commands/track';
 import { createBot } from '@/lib/bot/index';
-import { Bot as ActualBot } from '@/lib/bot/types';
-import { createMockMessageContext } from '@/test/utils/contextMock';
+import { Bot } from '@/lib/bot/types';
+import { createMockMessageContext } from '@/test/mocks/bot/context';
 
 const mockBotInstance = {
   use: jest.fn().mockReturnThis(),
@@ -1744,6 +2288,7 @@ jest.mock('@/lib/bot/types', () => ({
 
 jest.mock('@grammyjs/conversations', () => ({
   conversations: jest.fn(() => ({ type: 'conversations-plugin' })),
+  createConversation: jest.fn(),
 }));
 jest.mock('@/lib/bot/commands/help', () => ({
   createHelpMessage: jest.fn(),
@@ -1780,16 +2325,16 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
     it('should create a Bot instance with test token in test environment', () => {
     // @ts-expect-error node env is not readonly
       process.env.NODE_ENV = 'test';
-      createBot();
-      expect(ActualBot).toHaveBeenCalledWith('test'); // ActualBot è il costruttore mockato da types.ts
+      createBot(false);
+      expect(Bot).toHaveBeenCalledWith('test');
     });
 
     it('should create a Bot instance with env token in non-test environment', () => {
     // @ts-expect-error node env is not readonly
       process.env.NODE_ENV = 'development';
       process.env.TELEGRAM_TOKEN = 'env-token-123';
-      createBot();
-      expect(ActualBot).toHaveBeenCalledWith('env-token-123');
+      createBot(false);
+      expect(Bot).toHaveBeenCalledWith('env-token-123');
     });
 
     describe('when doInit is true (default)', () => {
@@ -1831,7 +2376,6 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
       });
 
       it('should still register the generic message handler', () => {
-        // Il gestore 'on.message' è fuori dal blocco if(doInit)
         expect(mockBotInstance.on).toHaveBeenCalledWith('message', expect.any(Function));
       });
     });
@@ -1839,7 +2383,7 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
 
   describe('generic Message Handler (bot.on("message", ...))', () => {
     it('should reply with fallback message for unhandled messages', async () => {
-      createBot();
+      createBot(false);
       const messageOnArgs = mockBotInstance.on.mock.calls.find(
         // eslint-disable-next-line ts/no-unsafe-function-type
         (callArgs: [string, Function]) => callArgs[0] === 'message',
@@ -1870,12 +2414,13 @@ import {
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
 import { createListConversation } from '@/lib/bot/commands/list';
+import { createRemoveConversation } from '@/lib/bot/commands/remove';
 import { createSignupConversation } from '@/lib/bot/commands/signup';
 import { createTrackConversation } from '@/lib/bot/commands/track';
 import { Bot } from '@/lib/bot/types';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'bot' });
+const logger = createChildLogger('bot');
 
 declare global {
 
@@ -1896,11 +2441,12 @@ export function createBot(doInit = true) {
     createSignupConversation(bot);
     createTrackConversation(bot);
     createListConversation(bot);
+    createRemoveConversation(bot);
     createHelpMessage(bot);
   }
 
   bot.on('message', async (ctx) => {
-    logger.debug('Received message', ctx.message);
+    logger.debug({ message: ctx.message }, 'Unknown message');
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
 
@@ -1928,10 +2474,12 @@ export type BotType = BotConstructor<BotContext>;
 lib/db/action/manga.test.ts:
 
 ```ts
-import type { MangaInsert, User, UserInsert } from '@/lib/db/model';
+import type { Manga, MangaInsert, User, UserInsert } from '@/lib/db/model';
+
+import { and, eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
-import { listTrackedMangas, trackManga } from '@/lib/db/action/manga';
+import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
 import { mangaTable, userMangaTable, userTable } from '@/lib/db/model';
 
 const testUser: UserInsert = {
@@ -1971,7 +2519,7 @@ describe('db -> action -> manga', () => {
   describe('trackManga', () => {
     it('should track a new manga for a user successfully (manga not in DB)', async () => {
       const lastReadChapter = 0;
-      const result = await trackManga(testMangaData, createdUser.telegramId, lastReadChapter);
+      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', true);
 
       const manga = await db.query.mangaTable.findFirst({
@@ -2000,7 +2548,7 @@ describe('db -> action -> manga', () => {
       const [manga] = await db.insert(mangaTable).values(testMangaData).returning();
 
       const lastReadChapter = 1;
-      const result = await trackManga(manga, createdUser.telegramId, lastReadChapter);
+      const result = await trackManga(manga, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', true);
 
       const tracker = await db.query.userMangaTable.findFirst({
@@ -2017,25 +2565,27 @@ describe('db -> action -> manga', () => {
     });
 
     it('should return invalidUser if the user does not exist', async () => {
-      const nonExistentTelegramId = 9999;
-      const result = await trackManga(testMangaData, nonExistentTelegramId, 0);
+      const nonExistentUserId = 'user-id';
+      const result = await trackManga(testMangaData, nonExistentUserId, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
-      expect(result).toHaveProperty('invalidUser', true);
+      expect(result).toHaveProperty('alreadyTracked', false);
+      expect(result).toHaveProperty('databaseError', 'insert or update on table "user-manga" violates foreign key constraint "user-manga_userId_user_id_fk"');
     });
 
     it('should return alreadyTracked if the manga is already tracked by the user', async () => {
       const lastReadChapter = 0;
-      await trackManga(testMangaData, createdUser.telegramId, lastReadChapter);
+      await trackManga(testMangaData, createdUser.id, lastReadChapter);
 
-      const result = await trackManga(testMangaData, createdUser.telegramId, lastReadChapter);
+      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
       expect(result).toHaveProperty('alreadyTracked', true);
+      expect(result).not.toHaveProperty('databaseError');
     });
 
     it('should return databaseError if inserting manga fails', async () => {
@@ -2046,11 +2596,12 @@ describe('db -> action -> manga', () => {
           returning: jest.fn().mockRejectedValue(new Error(simulatedError) as never),
         } as any));
 
-      const result = await trackManga(testMangaData, createdUser.telegramId, 0);
+      const result = await trackManga(testMangaData, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
+      expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
       expect(insertMangaSpy).toHaveBeenCalledTimes(1);
     });
@@ -2075,14 +2626,93 @@ describe('db -> action -> manga', () => {
           values: jest.fn().mockRejectedValueOnce(new Error(simulatedError) as never),
         } as any));
 
-      const result = await trackManga(testMangaData, createdUser.telegramId, 0);
+      const result = await trackManga(testMangaData, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
+      expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
       expect(insertUserMangaSpy).toHaveBeenCalledTimes(2);
       expect(mangaInsertSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('removeTrackedManga', () => {
+    let manga1: Manga;
+    let manga2: Manga;
+
+    beforeEach(async () => {
+      [manga1] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-remove-1', title: 'Manga To Remove 1' }).returning();
+      [manga2] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-keep-1', title: 'Manga To Keep 1' }).returning();
+
+      await db.insert(userMangaTable).values([
+        { userId: createdUser.id, mangaId: manga1.id, lastReadChapter: 1 },
+        { userId: createdUser.id, mangaId: manga2.id, lastReadChapter: 1 },
+      ]);
+    });
+
+    it('should successfully remove a tracked manga for a user', async () => {
+      // Verifica che il tracker esista prima
+      let tracker = await db.query.userMangaTable.findFirst({
+        where: and(eq(userMangaTable.userId, createdUser.id), eq(userMangaTable.mangaId, manga1.id)),
+      });
+      expect(tracker).toBeDefined();
+
+      const result = await removeTrackedManga(createdUser.id, manga1.id);
+      expect(result.success).toBe(true);
+
+      // Verifica che il tracker sia stato rimosso
+      tracker = await db.query.userMangaTable.findFirst({
+        where: and(eq(userMangaTable.userId, createdUser.id), eq(userMangaTable.mangaId, manga1.id)),
+      });
+      expect(tracker).toBeUndefined();
+
+      // Verifica che l'altro tracker esista ancora
+      const otherTracker = await db.query.userMangaTable.findFirst({
+        where: and(eq(userMangaTable.userId, createdUser.id), eq(userMangaTable.mangaId, manga2.id)),
+      });
+      expect(otherTracker).toBeDefined();
+    });
+
+    it('should return notFound if the user is not tracking the specified manga', async () => {
+      const nonTrackedMangaId = 'non-tracked-manga-id'; // Un ID di un manga che l'utente non traccia
+      const result = await removeTrackedManga(createdUser.id, nonTrackedMangaId);
+      expect(result.success).toBe(false);
+      if (result.success)
+        throw new Error('Test should have failed');
+      expect(result.notFound).toBe(true);
+    });
+
+    it('should return notFound if the user ID does not exist', async () => {
+      const nonExistentUserId = 'non-existent-user-id';
+      const result = await removeTrackedManga(nonExistentUserId, manga1.id);
+      expect(result.success).toBe(false);
+      if (result.success) {
+        throw new Error('Test should have failed');
+      }
+      expect(result.notFound).toBe(true); // Perché il findFirst non troverà la combinazione
+    });
+
+    it('should return databaseError if db.delete fails', async () => {
+      const simulatedError = 'DB Error on Delete';
+      // Spy su db.delete e fallo fallire
+      const deleteSpy = jest.spyOn(db, 'delete').mockImplementationOnce(
+        () => ({ // db.delete(userMangaTable) restituisce un builder
+          where: jest.fn().mockRejectedValue(new Error(simulatedError)),
+        } as any),
+      );
+
+      const result = await removeTrackedManga(createdUser.id, manga1.id);
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        throw new Error('Test should have failed');
+      }
+      expect(result.databaseError).toBe(simulatedError);
+      expect(deleteSpy).toHaveBeenCalledTimes(1);
+      // Non possiamo facilmente verificare .where() qui senza mockare più a fondo la catena
+      // ma lo spyOn(db, 'delete') ci dice che è stato tentato.
     });
   });
 
@@ -2135,36 +2765,27 @@ import type { Manga, MangaInsert } from '@/lib/db/model';
 import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
-import { findUserByTelegramId } from '@/lib/db/action/user';
 import { mangaTable, userMangaTable } from '@/lib/db/model';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'db:action:manga' });
+const logger = createChildLogger('db:action:manga');
 
-type TrackMangaOutput = {
+export type TrackMangaOutput = {
   success: true;
 } | {
   success: false;
-  invalidUser: boolean;
   alreadyTracked: boolean;
   databaseError?: string;
 };
 
 export async function trackManga(
   manga: MangaInsert,
-  telegramId: number,
+  userId: string,
   lastReadChapter: number,
 ): Promise<TrackMangaOutput> {
-  try {
-    const user = await findUserByTelegramId(telegramId);
-    if (!user) {
-      return {
-        success: false,
-        invalidUser: true,
-        alreadyTracked: false,
-      };
-    }
+  logger.debug('[trackManga] Attempting to remove manga tracking.', { manga, userId, lastReadChapter });
 
+  try {
     let existingManga = await db.query.mangaTable.findFirst({
       where: and(
         eq(mangaTable.sourceName, manga.sourceName),
@@ -2173,12 +2794,13 @@ export async function trackManga(
     });
 
     if (!existingManga) {
+      logger.debug('[trackManga] Manga does not exist, inserting.', { manga, userId, lastReadChapter });
       [existingManga] = await db.insert(mangaTable).values(manga).returning();
     }
 
     const existingTracker = await db.query.userMangaTable.findFirst({
       where: and(
-        eq(userMangaTable.userId, user.id),
+        eq(userMangaTable.userId, userId),
         eq(userMangaTable.mangaId, existingManga.id),
       ),
     });
@@ -2186,25 +2808,64 @@ export async function trackManga(
     if (existingTracker) {
       return {
         success: false,
-        invalidUser: false,
         alreadyTracked: true,
       };
     }
 
     await db.insert(userMangaTable).values({
-      userId: user.id,
+      userId,
       mangaId: existingManga.id,
       lastReadChapter,
     });
 
     return { success: true };
   } catch (error) {
-    logger.error('[trackManga] Database error:', error);
+    logger.error('[trackManga] Database error:', error, { manga, userId, lastReadChapter });
 
     return {
       success: false,
-      invalidUser: false,
       alreadyTracked: false,
+      databaseError: (error as Error).message,
+    };
+  }
+}
+
+export type RemoveTrackedMangaOutput = {
+  success: true;
+} | {
+  success: false;
+  notFound: boolean;
+  databaseError?: string;
+};
+
+export async function removeTrackedManga(userId: string, mangaId: string): Promise<RemoveTrackedMangaOutput> {
+  logger.debug('[removeTrackedManga] Attempting to remove manga tracking.', { userId, mangaId });
+  try {
+    const existingTracker = await db.query.userMangaTable.findFirst({
+      where: and(
+        eq(userMangaTable.userId, userId),
+        eq(userMangaTable.mangaId, mangaId),
+      ),
+    });
+
+    if (!existingTracker) {
+      logger.warn('[removeTrackedManga] Tracker not found. No action taken.', { userId, mangaId });
+      return { success: false, notFound: true };
+    }
+
+    await db.delete(userMangaTable).where(
+      and(
+        eq(userMangaTable.userId, userId),
+        eq(userMangaTable.mangaId, mangaId),
+      ),
+    );
+    logger.info('[removeTrackedManga] Manga tracking removed successfully.', { userId, mangaId });
+    return { success: true };
+  } catch (error) {
+    logger.error('[removeTrackedManga] Database error while removing manga tracking.', { error, userId, mangaId });
+    return {
+      success: false,
+      notFound: false,
       databaseError: (error as Error).message,
     };
   }
@@ -2308,9 +2969,9 @@ describe('db -> action -> user', () => {
       if (result.success) {
         throw new Error('Unexpected success');
       }
-      expect(result).toHaveProperty('validationError');
-      expect(result).toHaveProperty('validationError.0.field', 'email');
-      expect(result).toHaveProperty('validationError.0.error', 'Invalid email address');
+      expect(result).toHaveProperty('validationErrors');
+      expect(result).toHaveProperty('validationErrors.0.field', 'email');
+      expect(result).toHaveProperty('validationErrors.0.error', 'Invalid email address');
     });
 
     it('should return databaseError if db.insert fails', async () => {
@@ -2370,22 +3031,22 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 import { userValidation } from '@/lib/validation/user';
 
-const logger = originalLogger.child({ name: 'db:action:user' });
+const logger = createChildLogger('db:action:user');
 
-interface UpsertInput {
+export interface UpsertInput {
   telegramId: number;
   name: string;
   email: string;
 }
 
-type UpsertOutput = {
+export type UpsertOutput = {
   success: true;
 } | {
   success: false;
-  validationError?: { field: string; error: string }[];
+  validationErrors?: { field: string; error: string }[];
   databaseError?: string;
 };
 
@@ -2396,7 +3057,7 @@ export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
 
     return {
       success: false,
-      validationError: Object.entries(parsingResult.error.flatten().fieldErrors).map(([field, errors]) => ({ field, error: errors.join(', ') })),
+      validationErrors: Object.entries(parsingResult.error.flatten().fieldErrors).map(([field, errors]) => ({ field, error: errors.join(', ') })),
     };
   }
 
@@ -2592,7 +3253,7 @@ export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
 lib/email.test.ts:
 
 ```ts
-import { logger } from '@/lib/logger';
+import { loggerWriteSpy } from '@/test/log';
 
 import { sendEmail } from './email';
 
@@ -2612,16 +3273,6 @@ jest.mock('nodemailer', () => {
     _mockVerify: _internalMockVerify,
   };
 });
-
-jest.mock('@/lib/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    child: jest.fn().mockReturnThis(),
-  },
-}));
-const mockedLoggerInfo = logger.info as jest.Mock;
-const mockedLoggerError = logger.error as jest.Mock;
 
 describe('lib -> email', () => {
   const originalNodeEnv = process.env.NODE_ENV;
@@ -2686,15 +3337,22 @@ describe('lib -> email', () => {
       text: emailOptions.text,
     });
 
-    expect(mockedLoggerInfo).toHaveBeenCalledWith(
-      '[Email] Attempting to send email...',
-      { to: emailOptions.to, subject: emailOptions.subject },
-    );
-    expect(mockedLoggerInfo).toHaveBeenCalledWith(
-      '[Email] Email sent successfully',
-      { messageId: 'test-message-id', accepted: [emailOptions.to], response: '250 OK' },
-    );
-    expect(mockedLoggerError).not.toHaveBeenCalled();
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'Attempting to send email...',
+      to: emailOptions.to,
+      subject: emailOptions.subject,
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'Email sent successfully',
+      messageId: 'test-message-id',
+      accepted: [emailOptions.to],
+      response: '250 OK',
+    });
   });
 
   it('should return false and log error if sendMail fails', async () => {
@@ -2705,10 +3363,32 @@ describe('lib -> email', () => {
 
     expect(success).toBe(false);
     expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
-    expect(mockedLoggerError).toHaveBeenCalledWith(
-      '[Email] Error sending email',
-      { error, to: emailOptions.to, subject: emailOptions.subject },
-    );
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'Attempting to send email...',
+      to: emailOptions.to,
+      subject: emailOptions.subject,
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'error',
+      serviceName: 'email',
+      msg: 'Error sending email',
+      subject: 'Test Subject',
+      to: 'recipient@example.com',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'SMTP Connection Error',
+      err: {
+        type: 'Error',
+        message: 'SMTP Connection Error',
+        stack: expect.stringMatching('.*'),
+      },
+    });
   });
 
   describe('test Environment Behavior', () => {
@@ -2723,10 +3403,19 @@ describe('lib -> email', () => {
 
       expect(success).toBe(true);
       expect(nodemailerMockModule._mockSendMail).not.toHaveBeenCalled();
-      expect(mockedLoggerInfo).toHaveBeenCalledWith(
-        '[Email] Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).',
-        { options: emailOptions },
-      );
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        serviceName: 'email',
+        msg: 'Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).',
+        options: {
+          html: '<p>Test HTML</p>',
+          subject: 'Test Subject',
+          text: 'Test Text',
+          to: 'recipient@example.com',
+        },
+      });
     });
 
     it('should attempt to send email in test environment if ACTUALLY_SEND_MAIL_IN_TEST is "true"', async () => {
@@ -2737,14 +3426,22 @@ describe('lib -> email', () => {
 
       expect(success).toBe(true);
       expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
-      expect(mockedLoggerInfo).not.toHaveBeenCalledWith(
-        expect.objectContaining({}),
-        expect.stringContaining('skipped in test environment'),
-      );
-      expect(mockedLoggerInfo).toHaveBeenCalledWith(
-        '[Email] Attempting to send email...',
-        { to: emailOptions.to, subject: emailOptions.subject },
-      );
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        serviceName: 'email',
+        msg: 'Attempting to send email...',
+        to: emailOptions.to,
+        subject: emailOptions.subject,
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        serviceName: 'email',
+        msg: 'Email sent successfully',
+        messageId: 'test-e2e-send',
+        accepted: [emailOptions.to],
+      });
     });
   });
 });
@@ -2757,7 +3454,7 @@ lib/email.ts:
 ```ts
 import { createTransport } from 'nodemailer';
 
-import { logger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
 declare global {
 
@@ -2779,6 +3476,8 @@ interface MailOptions {
   html: string;
 }
 
+const logger = createChildLogger('email');
+
 const transporter = createTransport({
   host: process.env.MAIL_HOST,
   port: Number.parseInt(process.env.MAIL_PORT ?? '2525', 10),
@@ -2791,16 +3490,16 @@ const transporter = createTransport({
 if (process.env.NODE_ENV !== 'test') {
   transporter.verify((error) => {
     if (error) {
-      logger.error('[Email] Error configuring mail transporter', { error });
+      logger.error({ error }, 'Error configuring mail transporter');
     } else {
-      logger.info('[Email] Mail transporter configured successfully. Ready to send emails (to Mailtrap).');
+      logger.info('Mail transporter configured successfully. Ready to send emails (to Mailtrap).');
     }
   });
 }
 
 export async function sendEmail(options: MailOptions): Promise<boolean> {
   if (process.env.NODE_ENV === 'test' && process.env.ACTUALLY_SEND_MAIL_IN_TEST !== 'true') {
-    logger.info('[Email] Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).', { options });
+    logger.info({ options }, 'Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).');
     return true;
   }
 
@@ -2813,39 +3512,58 @@ export async function sendEmail(options: MailOptions): Promise<boolean> {
   };
 
   try {
-    logger.info('[Email] Attempting to send email...', { to: options.to, subject: options.subject });
+    logger.info({ to: options.to, subject: options.subject }, 'Attempting to send email...');
     const info = await transporter.sendMail(mailData);
-    logger.info('[Email] Email sent successfully', { messageId: info.messageId, accepted: info.accepted, response: info.response });
+    logger.info({ messageId: info.messageId, accepted: info.accepted, response: info.response }, 'Email sent successfully');
+
     return info.accepted.length > 0;
   } catch (error) {
-    logger.error('[Email] Error sending email', { error, to: options.to, subject: options.subject });
+    logger.error({ to: options.to, subject: options.subject }, 'Error sending email');
+    logger.info(error);
+
     return false;
-  }
-}
-
-// Esempio di utilizzo (puoi metterlo in una funzione di test temporanea o in un endpoint API)
-export async function sendTestEmail() {
-  const success = await sendEmail({
-    to: 'test-recipient@example.com', // Questo andrà alla tua inbox Mailtrap
-    subject: 'Manga Mailer - Test Email via Mailtrap',
-    html: '<h1>Ciao!</h1><p>Questa è un\'email di test da Manga Mailer inviata tramite Mailtrap.</p>',
-    text: 'Ciao! Questa è un\'email di test da Manga Mailer inviata tramite Mailtrap.',
-  });
-
-  if (success) {
-    logger.info('[Email Test] Test email inviata (controlla Mailtrap).');
-  } else {
-    logger.error('[Email Test] Fallimento invio test email.');
   }
 }
 ```
 
 ---
 
-lib/logger.ts:
+lib/log/__mocks__/index.ts:
 
 ```ts
+import type { Logger } from 'pino';
+
 import pino from 'pino';
+
+import { loggerWriteSpy } from '@/test/log';
+
+const { createChildLogger: actualCreateChildLogger } = jest.requireActual<typeof import('@/lib/log')>('@/lib/log');
+
+const logger = pino({
+  level: 'trace',
+  timestamp: false,
+  base: null,
+  formatters: {
+    level: label => ({ level: label }),
+    log: object => object,
+  },
+}, {
+  write(msg: string) {
+    loggerWriteSpy(JSON.parse(msg));
+  },
+});
+
+export function createChildLogger(serviceName: string): Logger {
+  return actualCreateChildLogger(serviceName, logger);
+}
+```
+
+---
+
+lib/log/config.ts:
+
+```ts
+import type { LoggerOptions } from 'pino';
 
 let level = process.env.LOG_LEVEL;
 if (typeof level === 'undefined') {
@@ -2865,10 +3583,10 @@ if (typeof level === 'undefined') {
   }
 }
 
-const pinoOptions: pino.LoggerOptions = { level };
+export const config: LoggerOptions = { level };
 
 if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') {
-  pinoOptions.transport = {
+  config.transport = {
     target: 'pino-pretty',
     options: {
       colorize: true,
@@ -2877,8 +3595,24 @@ if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') 
     },
   };
 }
+```
 
-export const logger = pino(pinoOptions);
+---
+
+lib/log/index.ts:
+
+```ts
+import type { Logger } from 'pino';
+
+import pino from 'pino';
+
+import { config } from '@/lib/log/config';
+
+const logger = pino(config);
+
+export function createChildLogger(serviceName: string, parent: Logger = logger): Logger {
+  return parent.child({ serviceName });
+}
 ```
 
 ---
@@ -3058,11 +3792,11 @@ import type { MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'lib:manga' });
+const logger = createChildLogger('lib:manga');
 
-interface MangaAutocomplete {
+export interface MangaAutocomplete {
   connectorName: string;
   id: string;
   title: string;
@@ -3070,12 +3804,10 @@ interface MangaAutocomplete {
 }
 
 export async function searchMangas(title: string): Promise<MangaAutocomplete[]> {
-  logger.debug('[manga] search:', title);
-
   const mangasArr: MangaAutocomplete[][] = await Promise.all(
     Object.entries(connectors).map(async ([connectorName, connector]) => {
       try {
-        logger.info(`[manga] Searching "${title}" with connector: ${connectorName}`);
+        logger.debug(`[search] Searching "${title}" with connector: ${connectorName}`);
         const newMangas = await connector.getMangas(title);
 
         return newMangas.map(manga => ({
@@ -3085,7 +3817,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
           chaptersCount: manga.chaptersCount,
         }));
       } catch (error) {
-        logger.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
+        logger.error(`[search] Error with connector ${connectorName} while searching for "${title}":`, error);
         return [];
       }
     }),
@@ -3100,8 +3832,6 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
       return mangaA.title.localeCompare(mangaB.title);
     });
 
-  logger.info('[manga] mangas found:', mangas.length);
-
   return mangas;
 }
 
@@ -3112,24 +3842,30 @@ export async function getManga(connectorName: string, id: string): Promise<Manga
     throw new Error('Invalid connector name');
   }
 
-  const manga = await connector.getManga(id);
+  try {
+    logger.debug(`[get] Getting manga "${id}" with connector: ${connectorName}`);
+    const manga = await connector.getManga(id);
 
-  return {
-    sourceName: connectorName,
-    sourceId: id,
-    slug: manga.slug,
-    title: manga.title,
-    author: manga.author,
-    artist: manga.artist,
-    excerpt: manga.excerpt,
-    image: manga.image,
-    url: manga.url,
-    releasedAt: manga.releasedAt,
-    status: manga.status,
-    genres: manga.genres,
-    score: manga.score,
-    chaptersCount: manga.chaptersCount,
-  };
+    return {
+      sourceName: connectorName,
+      sourceId: id,
+      slug: manga.slug,
+      title: manga.title,
+      author: manga.author,
+      artist: manga.artist,
+      excerpt: manga.excerpt,
+      image: manga.image,
+      url: manga.url,
+      releasedAt: manga.releasedAt,
+      status: manga.status,
+      genres: manga.genres,
+      score: manga.score,
+      chaptersCount: manga.chaptersCount,
+    };
+  } catch (error) {
+    logger.error(`[get] Error with connector ${connectorName} while getting manga "${id}":`, error);
+    throw error;
+  }
 }
 ```
 
@@ -3451,54 +4187,18 @@ writeFileSync(exportFilename, exportString, { encoding: 'utf-8' });
 
 ---
 
-test/setup.ts:
+test/log/index.ts:
 
 ```ts
-import { resolve } from 'node:path';
-
-import { PgTable } from 'drizzle-orm/pg-core';
-import { drizzle } from 'drizzle-orm/pglite';
-import { migrate } from 'drizzle-orm/pglite/migrator';
-
-import * as schema from '@/lib/db/model';
-
-export const testDb = drizzle({ schema, logger: false });
-
-jest.mock('@/lib/db', () => ({
-  __esModule: true,
-  db: testDb,
-}));
-
-async function applyMigrations() {
-  const migrationsFolder = resolve(__dirname, '..', 'drizzle');
-
-  await migrate(testDb, { migrationsFolder });
-}
-
-export async function resetDatabase() {
-  await Object.values(schema)
-    .filter(table => table instanceof PgTable)
-    .reduce(async (promise, table) => {
-      await promise;
-      await testDb.delete(table);
-    }, Promise.resolve());
-}
-
-beforeAll(async () => {
-  await applyMigrations();
-});
-
-beforeEach(async () => {
-  await resetDatabase();
-});
+export const loggerWriteSpy = jest.fn();
 ```
 
 ---
 
-test/utils/contextMock.ts:
+test/mocks/bot/context.ts:
 
 ```ts
-import type { ConversationControls } from '@grammyjs/conversations';
+import type { Conversation, ConversationControls } from '@grammyjs/conversations';
 import type { Api, CallbackQueryContext, CommandContext, RawApi } from 'grammy';
 import type { Message } from 'grammy/types';
 
@@ -3508,19 +4208,17 @@ export type MockMessageContext = BotContext;
 export type MockCommandContext = CommandContext<BotContext>;
 export type MockCallbackQueryContext = CallbackQueryContext<BotContext>;
 
-function createBaseMockContext(chatId: number, userId?: number): Partial<BotContext> {
-  const effectiveUserId = userId ?? chatId;
-
+function createBaseMockContext(chatId: number, userId: number): Partial<BotContext> {
   return {
     chat: { id: chatId, type: 'private', first_name: 'Test', username: 'testuser' },
-    from: { id: effectiveUserId, is_bot: false, first_name: 'Test', username: 'testuser' },
+    from: { id: userId, is_bot: false, first_name: 'Test', username: 'testuser' },
     reply: jest.fn().mockResolvedValue(true),
     conversation: {
       enter: jest.fn().mockResolvedValue(undefined),
       exit: jest.fn().mockResolvedValue(undefined),
       active: jest.fn().mockReturnValue({}),
-      waitFor: jest.fn(), // Sarà mockato specificamente nei test
-      external: jest.fn(async callback => callback()), // Esegue il callback esterno
+      waitFor: jest.fn(),
+      external: jest.fn(async callback => callback()),
       checkpoint: jest.fn(),
       rewind: jest.fn().mockResolvedValue(undefined),
     } as unknown as ConversationControls,
@@ -3528,36 +4226,16 @@ function createBaseMockContext(chatId: number, userId?: number): Partial<BotCont
       raw: jest.fn().mockResolvedValue({ ok: true, result: true }),
       call: jest.fn().mockResolvedValue({ ok: true, result: true }),
     } as unknown as Api<RawApi>,
+    answerCallbackQuery: jest.fn().mockResolvedValue(true),
+    editMessageText: jest.fn().mockResolvedValue(true),
+    editMessageReplyMarkup: jest.fn().mockResolvedValue(true),
   };
-}
-
-export function createMockCommandContext(
-  command: string,
-  chatId: number,
-  userId?: number,
-  messageId = Date.now(),
-): MockCommandContext {
-  const baseCtx = createBaseMockContext(chatId, userId);
-  return {
-    ...baseCtx,
-    message: {
-      message_id: messageId,
-      chat: baseCtx.chat,
-      date: Math.floor(Date.now() / 1000),
-      from: baseCtx.from,
-      text: command,
-      entities: [{ type: 'bot_command', offset: 0, length: command.length }],
-    },
-    match: '',
-    from: baseCtx.from,
-    chat: baseCtx.chat,
-  } as MockCommandContext;
 }
 
 export function createMockMessageContext(
   text: string,
-  chatId: number,
-  userId?: number,
+  chatId = 12345,
+  userId = 123456789,
   messageId = Date.now(),
 ): MockMessageContext {
   const baseCtx = createBaseMockContext(chatId, userId);
@@ -3575,10 +4253,24 @@ export function createMockMessageContext(
   } as MockMessageContext;
 }
 
+export function createMockCommandContext(
+  command: string,
+  chatId = 12345,
+  userId = 123456789,
+  messageId = Date.now(),
+): MockCommandContext {
+  const context = createMockMessageContext(command, chatId, userId, messageId);
+
+  context.message!.entities = [{ type: 'bot_command', offset: 0, length: command.length }];
+  context.match = '';
+
+  return context as MockCommandContext;
+}
+
 export function createMockCallbackQueryContext(
   data: string,
-  chatId: number,
-  userId?: number,
+  chatId = 12345,
+  userId = 123456789,
   message?: Message,
 ): MockCallbackQueryContext {
   const baseCtx = createBaseMockContext(chatId, userId);
@@ -3607,6 +4299,240 @@ export function createMockCallbackQueryContext(
     editMessageText: jest.fn().mockResolvedValue(true),
   } as MockCallbackQueryContext;
 }
+
+export function createMockConversationControl(): jest.Mocked<Conversation> {
+  return {
+    waitFor: jest.fn(),
+    external: jest.fn(async (callback: () => any) => callback()),
+    checkpoint: jest.fn(),
+    rewind: jest.fn().mockResolvedValue(undefined),
+    log: jest.fn(),
+    skip: jest.fn(),
+    wait: jest.fn().mockResolvedValue(undefined),
+  } as any;
+}
+```
+
+---
+
+test/mocks/db/manga.ts:
+
+```ts
+import type { Manga } from '@/lib/db/model';
+
+import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
+import { defaultManga } from '@/test/mocks/manga';
+
+// jest.mock('@/lib/db/action/manga', () => ({
+//   listTrackedMangas: jest.fn(),
+//   removeTrackedManga: jest.fn(),
+//   trackManga: jest.fn(),
+// }));
+
+export const mockedListTrackedMangas = jest.mocked(listTrackedMangas);
+export const mockedTrackManga = jest.mocked(trackManga);
+export const mockedRemoveTrackedManga = jest.mocked(removeTrackedManga);
+
+export function mockListTrackedMangasSuccess(partialMangas: Partial<Manga>[] = []): Manga[] {
+  const mangas: Manga[] = partialMangas.map(manga => ({ ...defaultManga, ...manga }));
+  mockedListTrackedMangas.mockResolvedValue(mangas);
+
+  return mangas;
+}
+
+export function mockTrackMangaSuccess(): void {
+  mockedTrackManga.mockResolvedValue({ success: true });
+}
+export function mockTrackMangaInvalidUser(): void {
+  mockedTrackManga.mockResolvedValue({ success: false, alreadyTracked: false });
+}
+export function mockTrackMangaAlreadyTracked(): void {
+  mockedTrackManga.mockResolvedValue({ success: false, alreadyTracked: true });
+}
+export function mockTrackMangaDbError(databaseError = 'DB error'): void {
+  mockedTrackManga.mockResolvedValue({ success: false, alreadyTracked: false, databaseError });
+}
+
+export function mockRemoveTrackedMangaSuccess(): void {
+  mockedRemoveTrackedManga.mockResolvedValue({ success: true });
+}
+export function mockRemoveTrackedMangaNotFound(): void {
+  mockedRemoveTrackedManga.mockResolvedValue({ success: false, notFound: true });
+}
+export function mockRemoveTrackedMangaDbError(databaseError = 'DB error'): void {
+  mockedRemoveTrackedManga.mockResolvedValue({ success: false, notFound: false, databaseError });
+}
+```
+
+---
+
+test/mocks/db/user.ts:
+
+```ts
+import type { User } from '@/lib/db/model';
+
+import { findUserByTelegramId, upsertUser } from '@/lib/db/action/user';
+
+// jest.mock('@/lib/db/action/user', () => ({
+//   findUserByTelegramId: jest.fn(),
+//   upsertUser: jest.fn(),
+// }));
+
+export const mockedFindUserByTelegramId = jest.mocked(findUserByTelegramId);
+export const mockedUpsertUser = jest.mocked(upsertUser);
+
+const defaultUser: User = {
+  id: 'test-user-id',
+  name: 'Test User',
+  email: 'test@example.com',
+  telegramId: 12345,
+  createdAt: new Date(),
+  updatedAt: null,
+  emailVerified: null,
+  image: null,
+};
+export function mockFindUserByTelegramIdSuccess(partialUser: Partial<User> = {}): User {
+  const user: User = { ...defaultUser, ...partialUser };
+  mockedFindUserByTelegramId.mockResolvedValue(user);
+
+  return user;
+}
+export function mockFindUserByTelegramIdNotFound(): void {
+  mockedFindUserByTelegramId.mockResolvedValue(undefined);
+}
+
+export function mockUpsertUserSuccess(): void {
+  mockedUpsertUser.mockResolvedValue({ success: true });
+}
+export function mockUpsertUserValidationError(validationErrors = [{ field: 'email', error: 'Invalid format' }]): void {
+  mockedUpsertUser.mockResolvedValue({ success: false, validationErrors });
+}
+export function mockUpsertUserDbError(databaseError = 'DB error'): void {
+  mockedUpsertUser.mockResolvedValue({ success: false, databaseError });
+}
+```
+
+---
+
+test/mocks/manga.ts:
+
+```ts
+import type { ConnectorNames } from '@zweer/manga-scraper';
+
+import type { Manga, MangaInsert } from '@/lib/db/model';
+import type { MangaAutocomplete } from '@/lib/manga';
+
+import { getManga, searchMangas } from '@/lib/manga';
+
+// jest.mock('@/lib/manga', () => ({
+//   getManga: jest.fn(),
+//   searchMangas: jest.fn(),
+// }));
+
+export const mockedGetManga = jest.mocked(getManga);
+export const mockedSearchMangas = jest.mocked(searchMangas);
+
+export const testConnectorNameA = 'TestConnectorA' as ConnectorNames;
+
+export const defaultManga: Manga = {
+  id: 'manga-id-123',
+  sourceName: 'TestConnectorA',
+  sourceId: 'manga-source-id-123',
+  title: 'Epic Adventure Manga',
+  chaptersCount: 10,
+  slug: 'epic-adventure',
+  author: 'A. Uthor',
+  artist: 'A. Rtist',
+  excerpt: 'An epic excerpt.',
+  image: 'url.jpg',
+  url: 'manga.url',
+  status: 'Ongoing',
+  genres: ['action'],
+  score: 0,
+  releasedAt: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+export function mockGetMangaSuccess(partialManga: Partial<MangaInsert> = {}): Manga {
+  const manga: Manga = { ...defaultManga, ...partialManga };
+  mockedGetManga.mockResolvedValue(manga);
+
+  return manga;
+}
+export function mockGetMangaConnectorError(message = 'Invalid connector name'): void {
+  mockedGetManga.mockRejectedValue(new Error(message));
+}
+
+export function mockSearchMangaSuccess(partialAutocompleteMangas: Partial<MangaAutocomplete>[] = []): MangaAutocomplete[] {
+  const autocompleteMangas: MangaAutocomplete[] = partialAutocompleteMangas.map(manga => ({
+    connectorName: testConnectorNameA,
+    id: defaultManga.sourceId,
+    title: defaultManga.title as string,
+    chaptersCount: defaultManga.chaptersCount as number,
+    ...manga,
+  }));
+  mockedSearchMangas.mockResolvedValue(autocompleteMangas);
+
+  return autocompleteMangas;
+}
+export function mockSearchMangaError(message = 'Search error'): void {
+  mockedSearchMangas.mockRejectedValue(new Error(message));
+}
+```
+
+---
+
+test/setup.ts:
+
+```ts
+import { resolve } from 'node:path';
+
+import { PgTable } from 'drizzle-orm/pg-core';
+import { drizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
+
+import * as schema from '@/lib/db/model';
+
+export const testDb = drizzle({ schema, logger: false });
+
+jest.mock('@/lib/db', () => ({
+  __esModule: true,
+  db: testDb,
+}));
+
+jest.mock('@/lib/log');
+
+async function applyMigrations() {
+  const migrationsFolder = resolve(__dirname, '..', 'drizzle');
+
+  await migrate(testDb, { migrationsFolder });
+}
+
+export async function resetDatabase() {
+  await Object.values(schema)
+    .filter(table => table instanceof PgTable)
+    .reduce(async (promise, table) => {
+      await promise;
+      await testDb.delete(table);
+    }, Promise.resolve());
+}
+
+beforeAll(async () => {
+  await applyMigrations();
+});
+
+beforeEach(async () => {
+  await resetDatabase();
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
 ```
 
 ---

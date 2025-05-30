@@ -9,3 +9,4 @@ export const commands: BotCommand[] = [
 
 export const signupConversationId = 'signup';
 export const trackConversationId = 'track';
+export const removeConversationId = 'remove';

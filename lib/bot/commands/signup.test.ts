@@ -1,22 +1,17 @@
 /* eslint-disable ts/unbound-method */
-import type { Conversation } from '@grammyjs/conversations';
-
-import type { BotContext, BotType } from '@/lib/bot/types';
-import type {
-  MockCommandContext,
-} from '@/test/utils/contextMock';
+import type { BotType } from '@/lib/bot/types';
+import type { MockCommandContext } from '@/test/mocks/bot/context';
 
 import { createSignupConversation, signupConversationLogic } from '@/lib/bot/commands/signup';
 import { signupConversationId } from '@/lib/bot/constants';
-import * as userActions from '@/lib/db/action/user';
-import {
-  createMockCommandContext,
-  createMockMessageContext,
-} from '@/test/utils/contextMock';
+import { loggerWriteSpy } from '@/test/log';
+import { createMockCommandContext, createMockConversationControl, createMockMessageContext } from '@/test/mocks/bot/context';
+import { mockedUpsertUser, mockUpsertUserSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/user');
-
-const mockedUpsertUser = userActions.upsertUser as jest.Mock;
+jest.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: jest.fn(),
+  upsertUser: jest.fn(),
+}));
 
 describe('bot -> commands -> signup', () => {
   let startCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
@@ -30,88 +25,108 @@ describe('bot -> commands -> signup', () => {
     use: jest.fn().mockReturnThis(),
   };
 
-  beforeAll(() => {
-    createSignupConversation(mockBotInstance as BotType);
-  });
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    createSignupConversation(mockBotInstance as BotType);
     // eslint-disable-next-line ts/strict-boolean-expressions
     if (!startCommandHandler) {
       throw new Error('/start command handler not registered');
     }
   });
 
+  it('should register a "start" command handler on the bot', () => {
+    expect(mockBotInstance.command).toHaveBeenCalledWith('start', expect.any(Function));
+  });
+
   describe('command Handler: /start', () => {
     it('should enter signupConversation', async () => {
-      const chatId = 4001;
-      const ctx = createMockCommandContext('/start', chatId);
+      const context = createMockCommandContext('/start');
 
-      await startCommandHandler(ctx);
+      await startCommandHandler(context);
 
-      expect(ctx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
+      expect(context.conversation.enter).toHaveBeenCalledWith(signupConversationId);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received /start command',
+        userId: context.from?.id,
+      });
     });
   });
 
   describe('conversation Logic: signupConversationLogic', () => {
-    const testChatId = 5001;
-    const testUserId = 5001;
-
-    let mockConversationControls: jest.Mocked<Conversation>;
-    let currentCtx: BotContext;
-
-    beforeEach(() => {
-      mockConversationControls = {
-        waitFor: jest.fn(),
-        external: jest.fn(async (callback: () => any) => callback()),
-        checkpoint: jest.fn(),
-        rewind: jest.fn().mockResolvedValue(undefined),
-        log: jest.fn(),
-        skip: jest.fn(),
-        wait: jest.fn().mockResolvedValue(undefined),
-        session: {} as any,
-        __flavor: undefined as any,
-      } as any;
-
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-    });
+    const mockConversationControls = createMockConversationControl();
+    const conversationContext = createMockMessageContext('');
 
     it('happy Path: should guide user, collect name and email, and save user', async () => {
       const userName = 'Test Signup User';
       const userEmail = 'signup@example.com';
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(userEmail, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext(userEmail) as any);
 
-      mockedUpsertUser.mockResolvedValue({ success: true });
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      mockUpsertUserSuccess();
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is your name?');
       expect(replyMock).toHaveBeenNthCalledWith(2, `Welcome to Manga Mailer, ${userName}!`);
       expect(replyMock).toHaveBeenNthCalledWith(3, 'Where do you want us to mail you updates?');
       expect(replyMock).toHaveBeenNthCalledWith(4, `Perfect, we'll use "${userEmail}" as email address!`);
 
       expect(mockedUpsertUser).toHaveBeenCalledWith({
-        telegramId: testChatId,
+        telegramId: conversationContext.from!.id,
         name: userName,
         email: userEmail,
+      });
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(4);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Entered signup conversation',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received name: "Test Signup User"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received email: "signup@example.com"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'User saved',
+        email: 'signup@example.com',
+        name: 'Test Signup User',
+        telegramId: 123456789,
       });
     });
 
     it('should handle /cancel when waiting for email', async () => {
       const userName = 'User Cancels';
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext('/cancel', testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext('/cancel') as any);
 
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
       expect(mockedUpsertUser).not.toHaveBeenCalled();
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received name: "User Cancels"',
+      });
     });
 
     it('should handle validationError from upsertUser and rewind', async () => {
@@ -120,17 +135,33 @@ describe('bot -> commands -> signup', () => {
       const validationErrorPayload = [{ field: 'email', error: 'Invalid email address' }];
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(userEmail, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext(userEmail) as any);
 
-      mockedUpsertUser.mockResolvedValue({ success: false, validationError: validationErrorPayload });
+      mockedUpsertUser.mockResolvedValue({ success: false, validationErrors: validationErrorPayload });
 
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenLastCalledWith(`❗️ Something went wrong:\n\n• email: Invalid email address`);
       expect(mockConversationControls.checkpoint).toHaveBeenCalledTimes(1);
       expect(mockConversationControls.rewind).toHaveBeenCalledTimes(1);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(4);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        serviceName: 'bot:command:signup',
+        msg: 'Received email: "invalidformat"',
+      });
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'error',
+        serviceName: 'bot:command:signup',
+        msg: 'Validation error',
+        errors: [{
+          error: 'Invalid email address',
+          field: 'email',
+        }],
+      });
     });
 
     it('should handle databaseError from upsertUser and terminate', async () => {
@@ -139,16 +170,24 @@ describe('bot -> commands -> signup', () => {
       const dbErrorMsg = 'Connection failed';
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(userName, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(userEmail, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(userName) as any)
+        .mockResolvedValueOnce(createMockMessageContext(userEmail) as any);
 
       mockedUpsertUser.mockResolvedValue({ success: false, databaseError: dbErrorMsg });
 
-      await signupConversationLogic(mockConversationControls, currentCtx);
+      await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = conversationContext.reply as jest.Mock;
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(4);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'error',
+        serviceName: 'bot:command:signup',
+        msg: 'Database error',
+        errors: ['Connection failed'],
+      });
     });
   });
 });

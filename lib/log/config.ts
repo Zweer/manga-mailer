@@ -1,4 +1,4 @@
-import pino from 'pino';
+import type { LoggerOptions } from 'pino';
 
 let level = process.env.LOG_LEVEL;
 if (typeof level === 'undefined') {
@@ -18,10 +18,10 @@ if (typeof level === 'undefined') {
   }
 }
 
-const pinoOptions: pino.LoggerOptions = { level };
+export const config: LoggerOptions = { level };
 
 if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') {
-  pinoOptions.transport = {
+  config.transport = {
     target: 'pino-pretty',
     options: {
       colorize: true,
@@ -30,5 +30,3 @@ if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') 
     },
   };
 }
-
-export const logger = pino(pinoOptions);

@@ -1,4 +1,4 @@
-import type { MockMessageContext } from '@/test/utils/contextMock';
+import type { MockMessageContext } from '@/test/mocks/bot/context';
 
 import * as conversacionesPlugin from '@grammyjs/conversations';
 
@@ -7,8 +7,8 @@ import * as listCommand from '@/lib/bot/commands/list';
 import * as signupCommand from '@/lib/bot/commands/signup';
 import * as trackCommand from '@/lib/bot/commands/track';
 import { createBot } from '@/lib/bot/index';
-import { Bot as ActualBot } from '@/lib/bot/types';
-import { createMockMessageContext } from '@/test/utils/contextMock';
+import { Bot } from '@/lib/bot/types';
+import { createMockMessageContext } from '@/test/mocks/bot/context';
 
 const mockBotInstance = {
   use: jest.fn().mockReturnThis(),
@@ -23,6 +23,7 @@ jest.mock('@/lib/bot/types', () => ({
 
 jest.mock('@grammyjs/conversations', () => ({
   conversations: jest.fn(() => ({ type: 'conversations-plugin' })),
+  createConversation: jest.fn(),
 }));
 jest.mock('@/lib/bot/commands/help', () => ({
   createHelpMessage: jest.fn(),
@@ -59,16 +60,16 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
     it('should create a Bot instance with test token in test environment', () => {
     // @ts-expect-error node env is not readonly
       process.env.NODE_ENV = 'test';
-      createBot();
-      expect(ActualBot).toHaveBeenCalledWith('test'); // ActualBot è il costruttore mockato da types.ts
+      createBot(false);
+      expect(Bot).toHaveBeenCalledWith('test');
     });
 
     it('should create a Bot instance with env token in non-test environment', () => {
     // @ts-expect-error node env is not readonly
       process.env.NODE_ENV = 'development';
       process.env.TELEGRAM_TOKEN = 'env-token-123';
-      createBot();
-      expect(ActualBot).toHaveBeenCalledWith('env-token-123');
+      createBot(false);
+      expect(Bot).toHaveBeenCalledWith('env-token-123');
     });
 
     describe('when doInit is true (default)', () => {
@@ -110,7 +111,6 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
       });
 
       it('should still register the generic message handler', () => {
-        // Il gestore 'on.message' è fuori dal blocco if(doInit)
         expect(mockBotInstance.on).toHaveBeenCalledWith('message', expect.any(Function));
       });
     });
@@ -118,7 +118,7 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
 
   describe('generic Message Handler (bot.on("message", ...))', () => {
     it('should reply with fallback message for unhandled messages', async () => {
-      createBot();
+      createBot(false);
       const messageOnArgs = mockBotInstance.on.mock.calls.find(
         // eslint-disable-next-line ts/no-unsafe-function-type
         (callArgs: [string, Function]) => callArgs[0] === 'message',

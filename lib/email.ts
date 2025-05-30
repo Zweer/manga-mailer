@@ -1,6 +1,6 @@
 import { createTransport } from 'nodemailer';
 
-import { logger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
 declare global {
   // eslint-disable-next-line ts/no-namespace
@@ -22,6 +22,8 @@ interface MailOptions {
   html: string;
 }
 
+const logger = createChildLogger('email');
+
 const transporter = createTransport({
   host: process.env.MAIL_HOST,
   port: Number.parseInt(process.env.MAIL_PORT ?? '2525', 10),
@@ -34,16 +36,16 @@ const transporter = createTransport({
 if (process.env.NODE_ENV !== 'test') {
   transporter.verify((error) => {
     if (error) {
-      logger.error('[Email] Error configuring mail transporter', { error });
+      logger.error({ error }, 'Error configuring mail transporter');
     } else {
-      logger.info('[Email] Mail transporter configured successfully. Ready to send emails (to Mailtrap).');
+      logger.info('Mail transporter configured successfully. Ready to send emails (to Mailtrap).');
     }
   });
 }
 
 export async function sendEmail(options: MailOptions): Promise<boolean> {
   if (process.env.NODE_ENV === 'test' && process.env.ACTUALLY_SEND_MAIL_IN_TEST !== 'true') {
-    logger.info('[Email] Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).', { options });
+    logger.info({ options }, 'Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).');
     return true;
   }
 
@@ -56,28 +58,15 @@ export async function sendEmail(options: MailOptions): Promise<boolean> {
   };
 
   try {
-    logger.info('[Email] Attempting to send email...', { to: options.to, subject: options.subject });
+    logger.info({ to: options.to, subject: options.subject }, 'Attempting to send email...');
     const info = await transporter.sendMail(mailData);
-    logger.info('[Email] Email sent successfully', { messageId: info.messageId, accepted: info.accepted, response: info.response });
+    logger.info({ messageId: info.messageId, accepted: info.accepted, response: info.response }, 'Email sent successfully');
+
     return info.accepted.length > 0;
   } catch (error) {
-    logger.error('[Email] Error sending email', { error, to: options.to, subject: options.subject });
+    logger.error({ to: options.to, subject: options.subject }, 'Error sending email');
+    logger.info(error);
+
     return false;
-  }
-}
-
-// Esempio di utilizzo (puoi metterlo in una funzione di test temporanea o in un endpoint API)
-export async function sendTestEmail() {
-  const success = await sendEmail({
-    to: 'test-recipient@example.com', // Questo andrà alla tua inbox Mailtrap
-    subject: 'Manga Mailer - Test Email via Mailtrap',
-    html: '<h1>Ciao!</h1><p>Questa è un\'email di test da Manga Mailer inviata tramite Mailtrap.</p>',
-    text: 'Ciao! Questa è un\'email di test da Manga Mailer inviata tramite Mailtrap.',
-  });
-
-  if (success) {
-    logger.info('[Email Test] Test email inviata (controlla Mailtrap).');
-  } else {
-    logger.error('[Email Test] Fallimento invio test email.');
   }
 }

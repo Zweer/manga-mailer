@@ -1,7 +1,9 @@
-import type { MangaInsert, User, UserInsert } from '@/lib/db/model';
+import type { Manga, MangaInsert, User, UserInsert } from '@/lib/db/model';
+
+import { and, eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
-import { listTrackedMangas, trackManga } from '@/lib/db/action/manga';
+import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
 import { mangaTable, userMangaTable, userTable } from '@/lib/db/model';
 
 const testUser: UserInsert = {
@@ -41,7 +43,7 @@ describe('db -> action -> manga', () => {
   describe('trackManga', () => {
     it('should track a new manga for a user successfully (manga not in DB)', async () => {
       const lastReadChapter = 0;
-      const result = await trackManga(testMangaData, createdUser.telegramId, lastReadChapter);
+      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', true);
 
       const manga = await db.query.mangaTable.findFirst({
@@ -70,7 +72,7 @@ describe('db -> action -> manga', () => {
       const [manga] = await db.insert(mangaTable).values(testMangaData).returning();
 
       const lastReadChapter = 1;
-      const result = await trackManga(manga, createdUser.telegramId, lastReadChapter);
+      const result = await trackManga(manga, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', true);
 
       const tracker = await db.query.userMangaTable.findFirst({
@@ -87,25 +89,27 @@ describe('db -> action -> manga', () => {
     });
 
     it('should return invalidUser if the user does not exist', async () => {
-      const nonExistentTelegramId = 9999;
-      const result = await trackManga(testMangaData, nonExistentTelegramId, 0);
+      const nonExistentUserId = 'user-id';
+      const result = await trackManga(testMangaData, nonExistentUserId, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
-      expect(result).toHaveProperty('invalidUser', true);
+      expect(result).toHaveProperty('alreadyTracked', false);
+      expect(result).toHaveProperty('databaseError', 'insert or update on table "user-manga" violates foreign key constraint "user-manga_userId_user_id_fk"');
     });
 
     it('should return alreadyTracked if the manga is already tracked by the user', async () => {
       const lastReadChapter = 0;
-      await trackManga(testMangaData, createdUser.telegramId, lastReadChapter);
+      await trackManga(testMangaData, createdUser.id, lastReadChapter);
 
-      const result = await trackManga(testMangaData, createdUser.telegramId, lastReadChapter);
+      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
       expect(result).toHaveProperty('alreadyTracked', true);
+      expect(result).not.toHaveProperty('databaseError');
     });
 
     it('should return databaseError if inserting manga fails', async () => {
@@ -116,11 +120,12 @@ describe('db -> action -> manga', () => {
           returning: jest.fn().mockRejectedValue(new Error(simulatedError) as never),
         } as any));
 
-      const result = await trackManga(testMangaData, createdUser.telegramId, 0);
+      const result = await trackManga(testMangaData, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
+      expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
       expect(insertMangaSpy).toHaveBeenCalledTimes(1);
     });
@@ -145,14 +150,93 @@ describe('db -> action -> manga', () => {
           values: jest.fn().mockRejectedValueOnce(new Error(simulatedError) as never),
         } as any));
 
-      const result = await trackManga(testMangaData, createdUser.telegramId, 0);
+      const result = await trackManga(testMangaData, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
+      expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
       expect(insertUserMangaSpy).toHaveBeenCalledTimes(2);
       expect(mangaInsertSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('removeTrackedManga', () => {
+    let manga1: Manga;
+    let manga2: Manga;
+
+    beforeEach(async () => {
+      [manga1] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-remove-1', title: 'Manga To Remove 1' }).returning();
+      [manga2] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-keep-1', title: 'Manga To Keep 1' }).returning();
+
+      await db.insert(userMangaTable).values([
+        { userId: createdUser.id, mangaId: manga1.id, lastReadChapter: 1 },
+        { userId: createdUser.id, mangaId: manga2.id, lastReadChapter: 1 },
+      ]);
+    });
+
+    it('should successfully remove a tracked manga for a user', async () => {
+      // Verifica che il tracker esista prima
+      let tracker = await db.query.userMangaTable.findFirst({
+        where: and(eq(userMangaTable.userId, createdUser.id), eq(userMangaTable.mangaId, manga1.id)),
+      });
+      expect(tracker).toBeDefined();
+
+      const result = await removeTrackedManga(createdUser.id, manga1.id);
+      expect(result.success).toBe(true);
+
+      // Verifica che il tracker sia stato rimosso
+      tracker = await db.query.userMangaTable.findFirst({
+        where: and(eq(userMangaTable.userId, createdUser.id), eq(userMangaTable.mangaId, manga1.id)),
+      });
+      expect(tracker).toBeUndefined();
+
+      // Verifica che l'altro tracker esista ancora
+      const otherTracker = await db.query.userMangaTable.findFirst({
+        where: and(eq(userMangaTable.userId, createdUser.id), eq(userMangaTable.mangaId, manga2.id)),
+      });
+      expect(otherTracker).toBeDefined();
+    });
+
+    it('should return notFound if the user is not tracking the specified manga', async () => {
+      const nonTrackedMangaId = 'non-tracked-manga-id'; // Un ID di un manga che l'utente non traccia
+      const result = await removeTrackedManga(createdUser.id, nonTrackedMangaId);
+      expect(result.success).toBe(false);
+      if (result.success)
+        throw new Error('Test should have failed');
+      expect(result.notFound).toBe(true);
+    });
+
+    it('should return notFound if the user ID does not exist', async () => {
+      const nonExistentUserId = 'non-existent-user-id';
+      const result = await removeTrackedManga(nonExistentUserId, manga1.id);
+      expect(result.success).toBe(false);
+      if (result.success) {
+        throw new Error('Test should have failed');
+      }
+      expect(result.notFound).toBe(true); // Perché il findFirst non troverà la combinazione
+    });
+
+    it('should return databaseError if db.delete fails', async () => {
+      const simulatedError = 'DB Error on Delete';
+      // Spy su db.delete e fallo fallire
+      const deleteSpy = jest.spyOn(db, 'delete').mockImplementationOnce(
+        () => ({ // db.delete(userMangaTable) restituisce un builder
+          where: jest.fn().mockRejectedValue(new Error(simulatedError)),
+        } as any),
+      );
+
+      const result = await removeTrackedManga(createdUser.id, manga1.id);
+
+      expect(result.success).toBe(false);
+      if (result.success) {
+        throw new Error('Test should have failed');
+      }
+      expect(result.databaseError).toBe(simulatedError);
+      expect(deleteSpy).toHaveBeenCalledTimes(1);
+      // Non possiamo facilmente verificare .where() qui senza mockare più a fondo la catena
+      // ma lo spyOn(db, 'delete') ci dice che è stato tentato.
     });
   });
 

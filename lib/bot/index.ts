@@ -4,12 +4,13 @@ import {
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
 import { createListConversation } from '@/lib/bot/commands/list';
+import { createRemoveConversation } from '@/lib/bot/commands/remove';
 import { createSignupConversation } from '@/lib/bot/commands/signup';
 import { createTrackConversation } from '@/lib/bot/commands/track';
 import { Bot } from '@/lib/bot/types';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'bot' });
+const logger = createChildLogger('bot');
 
 declare global {
   // eslint-disable-next-line ts/no-namespace
@@ -30,11 +31,12 @@ export function createBot(doInit = true) {
     createSignupConversation(bot);
     createTrackConversation(bot);
     createListConversation(bot);
+    createRemoveConversation(bot);
     createHelpMessage(bot);
   }
 
   bot.on('message', async (ctx) => {
-    logger.debug('Received message', ctx.message);
+    logger.debug({ message: ctx.message }, 'Unknown message');
     await ctx.reply('❗️ I don\'t understand... tap /help to see the list of commands that you can use.');
   });
 

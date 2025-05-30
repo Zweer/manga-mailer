@@ -77,9 +77,9 @@ describe('db -> action -> user', () => {
       if (result.success) {
         throw new Error('Unexpected success');
       }
-      expect(result).toHaveProperty('validationError');
-      expect(result).toHaveProperty('validationError.0.field', 'email');
-      expect(result).toHaveProperty('validationError.0.error', 'Invalid email address');
+      expect(result).toHaveProperty('validationErrors');
+      expect(result).toHaveProperty('validationErrors.0.field', 'email');
+      expect(result).toHaveProperty('validationErrors.0.error', 'Invalid email address');
     });
 
     it('should return databaseError if db.insert fails', async () => {

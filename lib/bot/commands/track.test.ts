@@ -1,35 +1,48 @@
 /* eslint-disable ts/unbound-method */
-import type { Conversation } from '@grammyjs/conversations';
-
-import type { BotContext, BotType } from '@/lib/bot/types';
+import type { BotType } from '@/lib/bot/types';
 import type {
   MockCommandContext,
-} from '@/test/utils/contextMock';
+} from '@/test/mocks/bot/context';
 
 import { InlineKeyboard } from 'grammy';
 
 import { createTrackConversation, trackConversationLogic } from '@/lib/bot/commands/track';
-import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
-import * as mangaActions from '@/lib/db/action/manga';
-import * as userActions from '@/lib/db/action/user';
-import * as mangaSearch from '@/lib/manga';
+import { trackConversationId } from '@/lib/bot/constants';
+import { loggerWriteSpy } from '@/test/log';
 import {
   createMockCallbackQueryContext,
   createMockCommandContext,
+  createMockConversationControl,
   createMockMessageContext,
-} from '@/test/utils/contextMock';
+} from '@/test/mocks/bot/context';
+import {
+  mockedTrackManga,
+  mockTrackMangaAlreadyTracked,
+  mockTrackMangaDbError,
+  mockTrackMangaSuccess,
+} from '@/test/mocks/db/manga';
+import {
+  mockedFindUserByTelegramId,
+  mockFindUserByTelegramIdNotFound,
+  mockFindUserByTelegramIdSuccess,
+} from '@/test/mocks/db/user';
+import { mockedGetManga, mockedSearchMangas, mockGetMangaSuccess, mockSearchMangaSuccess } from '@/test/mocks/manga';
 
-jest.mock('@/lib/db/action/user');
-jest.mock('@/lib/db/action/manga');
-jest.mock('@/lib/manga');
-
-const mockedFindUserByTelegramId = userActions.findUserByTelegramId as jest.Mock;
-const mockedSearchMangas = mangaSearch.searchMangas as jest.Mock;
-const mockedGetManga = mangaSearch.getManga as jest.Mock;
-const mockedTrackMangaAction = mangaActions.trackManga as jest.Mock;
+jest.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: jest.fn(),
+  removeTrackedManga: jest.fn(),
+  trackManga: jest.fn(),
+}));
+jest.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: jest.fn(),
+}));
+jest.mock('@/lib/manga', () => ({
+  getManga: jest.fn(),
+  searchMangas: jest.fn(),
+}));
 
 describe('bot -> commands -> track', () => {
-  let trackCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
+  let trackCommandHandler: ((context: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
     command: jest.fn((commandName, handler) => {
@@ -40,103 +53,90 @@ describe('bot -> commands -> track', () => {
     use: jest.fn().mockReturnThis(),
   };
 
-  beforeAll(() => {
-    createTrackConversation(mockBotInstance as BotType);
-  });
-
   beforeEach(() => {
-    jest.clearAllMocks();
+    createTrackConversation(mockBotInstance as BotType);
     // eslint-disable-next-line ts/strict-boolean-expressions
     if (!trackCommandHandler) {
       throw new Error('/track command handler not registered');
     }
   });
 
+  it('should register a "track" command handler on the bot', () => {
+    expect(mockBotInstance.command).toHaveBeenCalledWith('track', expect.any(Function));
+  });
+
   describe('command Handler: /track', () => {
     it('should enter trackConversation if user exists', async () => {
-      const chatId = 2001;
-      const ctx = createMockCommandContext('/track', chatId);
-      mockedFindUserByTelegramId.mockResolvedValue({ id: 'user-id-track', name: 'Test Track User' });
+      const context = createMockCommandContext('/track');
+      const user = mockFindUserByTelegramIdSuccess();
 
-      await trackCommandHandler(ctx);
+      await trackCommandHandler(context);
 
-      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(chatId);
-      expect(ctx.conversation.enter).toHaveBeenCalledWith(trackConversationId);
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(context.conversation.enter).toHaveBeenCalledWith(trackConversationId, user);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Received /track command',
+        userId: context.from?.id,
+      });
     });
 
-    it('should enter signupConversation if user does not exist', async () => {
-      const chatId = 2002;
-      const ctx = createMockCommandContext('/track', chatId);
-      mockedFindUserByTelegramId.mockResolvedValue(undefined);
+    it('should not enter trackConversation if user does not exist', async () => {
+      const context = createMockCommandContext('/track');
+      mockFindUserByTelegramIdNotFound();
 
-      await trackCommandHandler(ctx);
+      await trackCommandHandler(context);
 
-      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(chatId);
-      expect(ctx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
+      expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+      expect(context.conversation.enter).not.toHaveBeenCalled();
+
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenLastCalledWith('You need to /start and register before you can remove manga.');
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Received /track command',
+        userId: context.from?.id,
+      });
     });
   });
 
   describe('conversation Logic: trackConversationLogic', () => {
-    const testChatId = 3001;
-    const testUserId = 3001;
-
-    let mockConversationControls: jest.Mocked<Conversation>;
-    let currentCtx: BotContext;
-
-    beforeEach(() => {
-      mockConversationControls = {
-        waitFor: jest.fn(),
-        external: jest.fn(async (callback: () => any) => callback()) as any,
-        checkpoint: jest.fn(),
-        rewind: jest.fn().mockResolvedValue(undefined),
-        log: jest.fn(),
-        skip: jest.fn(),
-        wait: jest.fn().mockResolvedValue(undefined),
-      } as any;
-
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-    });
+    const mockConversationControls = createMockConversationControl();
+    const context = createMockMessageContext('');
 
     it('happy Path: should guide user through tracking a new manga', async () => {
-      const mangaTitle = 'Epic Adventure Manga';
-      const searchedMangasResult = [
-        { connectorName: 'TestConnectorA', id: 'manga-id-123', title: mangaTitle, chaptersCount: 10 },
-      ];
-      const selectedMangaData = { connectorName: 'TestConnectorA', id: 'manga-id-123' };
-      const fullMangaDetails = {
-        sourceName: 'TestConnectorA',
-        sourceId: 'manga-id-123',
-        title: mangaTitle,
-        chaptersCount: 10,
-        slug: 'epic-adventure',
-        author: 'A. Uthor',
-        artist: 'A. Rtist',
-        excerpt: 'An epic excerpt.',
-        image: 'url.jpg',
-        url: 'manga.url',
-        status: 'Ongoing',
-        genres: ['action'],
-        score: 0,
-        releasedAt: new Date(),
-      } as const;
+      const user = mockFindUserByTelegramIdSuccess();
+      const autocompleteMangas = mockSearchMangaSuccess([{}]);
+      const manga = mockGetMangaSuccess();
       const lastReadChapter = '5';
+      mockTrackMangaSuccess();
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(`${selectedMangaData.connectorName}:${selectedMangaData.id}`, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastReadChapter, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(manga.title!) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any)
+        .mockResolvedValueOnce(createMockMessageContext(lastReadChapter) as any);
 
-      mockedSearchMangas.mockResolvedValue(searchedMangasResult);
-      mockedGetManga.mockResolvedValue(fullMangaDetails);
-      mockedTrackMangaAction.mockResolvedValue({ success: true });
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = context.reply as jest.Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is the name of the manga you want to track?');
-      expect(replyMock).toHaveBeenNthCalledWith(2, `Cool, I'm searching for "${mangaTitle}"...`);
+      expect(replyMock).toHaveBeenNthCalledWith(2, `Cool, I'm searching for "${manga.title}"...`);
       const expectedInlineKeyboard = InlineKeyboard.from([
-        [InlineKeyboard.text(`[${searchedMangasResult[0].connectorName}] ${searchedMangasResult[0].title} (${searchedMangasResult[0].chaptersCount})`, `${searchedMangasResult[0].connectorName}:${searchedMangasResult[0].id}`)],
+        [InlineKeyboard.text(
+          `[${autocompleteMangas[0].connectorName}] ${autocompleteMangas[0].title} (${autocompleteMangas[0].chaptersCount})`,
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+        )],
         [InlineKeyboard.text('❌ Cancel', '/cancel')],
       ]);
       expect(replyMock).toHaveBeenNthCalledWith(3, 'Please select the manga you want to track:', {
@@ -144,103 +144,143 @@ describe('bot -> commands -> track', () => {
       });
       expect(replyMock).toHaveBeenNthCalledWith(4, 'Retrieving the selected manga...');
       expect(replyMock).toHaveBeenNthCalledWith(5, 'Which chapter you read last? (if you don\'t know, type "0")');
-      expect(replyMock).toHaveBeenNthCalledWith(6, `Perfect, we'll track "${fullMangaDetails.title}" on "${fullMangaDetails.sourceName}"!`);
+      expect(replyMock).toHaveBeenNthCalledWith(6, `Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
 
-      expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
-      expect(mockedGetManga).toHaveBeenCalledWith(selectedMangaData.connectorName, selectedMangaData.id);
-      expect(mockedTrackMangaAction).toHaveBeenCalledWith(fullMangaDetails, testChatId, Number.parseFloat(lastReadChapter));
+      expect(mockedSearchMangas).toHaveBeenCalledWith(manga.title);
+      expect(mockedGetManga).toHaveBeenCalledWith(autocompleteMangas[0].connectorName, autocompleteMangas[0].id);
+      expect(mockedTrackManga).toHaveBeenCalledWith(manga, user.id, Number.parseFloat(lastReadChapter));
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(6);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Entered track conversation',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Received title: "Epic Adventure Manga"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Found 1 mangas',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Retrieving selected manga: "manga-source-id-123" @ "TestConnectorA"',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Last chapter read: 5',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'debug',
+        serviceName: 'bot:command:track',
+        msg: 'Manga tracked',
+        source: 'TestConnectorA',
+        title: 'Epic Adventure Manga',
+        userId: 'test-user-id',
+      });
     });
 
     it('should inform if no manga found after search', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
       const mangaTitle = 'Unknown Manga';
+      const user = mockFindUserByTelegramIdSuccess();
+      mockSearchMangaSuccess();
+
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any);
-      mockedSearchMangas.mockResolvedValue([]);
+        .mockResolvedValueOnce(createMockMessageContext(mangaTitle) as any);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = currentCtx.reply as jest.Mock;
-      expect(replyMock).toHaveBeenCalledWith('No manga found');
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledTimes(3);
+      expect(replyMock).toHaveBeenCalledWith('No mangas found');
+
+      expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
       expect(mockedGetManga).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should handle user cancelling manga selection', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
       const mangaTitle = 'Some Manga';
-      const searchedMangasResult = [{ connectorName: 'TestConnectorA', id: 'manga-id-cancel', title: mangaTitle, chaptersCount: 1 }];
+      const user = mockFindUserByTelegramIdSuccess();
+      mockSearchMangaSuccess([{}]);
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(`/cancel`, testChatId, testUserId, currentCtx.message) as any);
+        .mockResolvedValueOnce(createMockMessageContext(mangaTitle) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `/cancel`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any);
 
-      mockedSearchMangas.mockResolvedValue(searchedMangasResult);
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
-
+      const replyMock = context.reply as jest.Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
+
+      expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
       expect(mockedGetManga).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
     });
 
-    it('should reply with invalid user if trackManga action returns invalidUser', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-      const mangaTitle = 'Test Manga';
-      const selectedMangaString = 'TestConnectorA:manga123';
+    it('should reply with invalid user if trackManga action returns alreadyTracked', async () => {
+      const user = mockFindUserByTelegramIdSuccess();
+      const autocompleteMangas = mockSearchMangaSuccess([{}]);
+      const manga = mockGetMangaSuccess();
       const lastChapter = '0';
+      mockTrackMangaAlreadyTracked();
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(selectedMangaString, testChatId, testUserId, currentCtx.message) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastChapter, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(manga.title!) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any)
+        .mockResolvedValueOnce(createMockMessageContext(lastChapter) as any);
 
-      mockedSearchMangas.mockResolvedValue([{ connectorName: 'TestConnectorA', id: 'manga123', title: mangaTitle, chaptersCount: 1 }]);
-      mockedGetManga.mockResolvedValue({ sourceName: 'TestConnectorA', sourceId: 'manga123', title: mangaTitle });
-      mockedTrackMangaAction.mockResolvedValue({ success: false, invalidUser: true, alreadyTracked: false });
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
-      expect(replyMock).toHaveBeenLastCalledWith('❗️ Invalid user. Please try to /start again');
-    });
-
-    it('should reply with already tracking if trackManga action returns alreadyTracked', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-      const mangaTitle = 'Test Manga';
-      const selectedMangaString = 'TestConnectorA:manga123';
-      const lastChapter = '0';
-
-      mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(selectedMangaString, testChatId, testUserId, currentCtx.message) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastChapter, testChatId, testUserId) as any);
-
-      mockedSearchMangas.mockResolvedValue([{ connectorName: 'TestConnectorA', id: 'manga123', title: mangaTitle, chaptersCount: 1 }]);
-      mockedGetManga.mockResolvedValue({ sourceName: 'TestConnectorA', sourceId: 'manga123', title: mangaTitle });
-      mockedTrackMangaAction.mockResolvedValue({ success: false, invalidUser: false, alreadyTracked: true });
-
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ It seems you\'re already tracking this manga!');
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(6);
     });
 
-    it('should reply with database error if trackManga action returns alreadyTracked', async () => {
-      currentCtx = createMockMessageContext('', testChatId, testUserId);
-      const mangaTitle = 'Test Manga';
-      const selectedMangaString = 'TestConnectorA:manga123';
+    it('should reply with invalid user if trackManga action returns databaseError', async () => {
+      const user = mockFindUserByTelegramIdSuccess();
+      const autocompleteMangas = mockSearchMangaSuccess([{}]);
+      const manga = mockGetMangaSuccess();
       const lastChapter = '0';
+      mockTrackMangaDbError();
 
       mockConversationControls.waitFor
-        .mockResolvedValueOnce(createMockMessageContext(mangaTitle, testChatId, testUserId) as any)
-        .mockResolvedValueOnce(createMockCallbackQueryContext(selectedMangaString, testChatId, testUserId, currentCtx.message) as any)
-        .mockResolvedValueOnce(createMockMessageContext(lastChapter, testChatId, testUserId) as any);
+        .mockResolvedValueOnce(createMockMessageContext(manga.title!) as any)
+        .mockResolvedValueOnce(createMockCallbackQueryContext(
+          `${autocompleteMangas[0].connectorName}:${autocompleteMangas[0].id}`,
+          context.chat!.id,
+          context.from!.id,
+          context.message,
+        ) as any)
+        .mockResolvedValueOnce(createMockMessageContext(lastChapter) as any);
 
-      mockedSearchMangas.mockResolvedValue([{ connectorName: 'TestConnectorA', id: 'manga123', title: mangaTitle, chaptersCount: 1 }]);
-      mockedGetManga.mockResolvedValue({ sourceName: 'TestConnectorA', sourceId: 'manga123', title: mangaTitle });
-      mockedTrackMangaAction.mockResolvedValue({ success: false, invalidUser: false, alreadyTracked: false, databaseError: 'Database error' });
+      await trackConversationLogic(mockConversationControls, context, user);
 
-      await trackConversationLogic(mockConversationControls, currentCtx);
-      const replyMock = currentCtx.reply as jest.Mock;
+      const replyMock = context.reply as jest.Mock;
+      expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(6);
     });
   });
 });

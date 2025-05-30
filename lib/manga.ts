@@ -4,11 +4,11 @@ import type { MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'lib:manga' });
+const logger = createChildLogger('lib:manga');
 
-interface MangaAutocomplete {
+export interface MangaAutocomplete {
   connectorName: string;
   id: string;
   title: string;
@@ -16,12 +16,10 @@ interface MangaAutocomplete {
 }
 
 export async function searchMangas(title: string): Promise<MangaAutocomplete[]> {
-  logger.debug('[manga] search:', title);
-
   const mangasArr: MangaAutocomplete[][] = await Promise.all(
     Object.entries(connectors).map(async ([connectorName, connector]) => {
       try {
-        logger.info(`[manga] Searching "${title}" with connector: ${connectorName}`);
+        logger.debug(`[search] Searching "${title}" with connector: ${connectorName}`);
         const newMangas = await connector.getMangas(title);
 
         return newMangas.map(manga => ({
@@ -31,7 +29,7 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
           chaptersCount: manga.chaptersCount,
         }));
       } catch (error) {
-        logger.error(`[manga] Error with connector ${connectorName} while searching for "${title}":`, error);
+        logger.error(`[search] Error with connector ${connectorName} while searching for "${title}":`, error);
         return [];
       }
     }),
@@ -46,8 +44,6 @@ export async function searchMangas(title: string): Promise<MangaAutocomplete[]> 
       return mangaA.title.localeCompare(mangaB.title);
     });
 
-  logger.info('[manga] mangas found:', mangas.length);
-
   return mangas;
 }
 
@@ -58,22 +54,28 @@ export async function getManga(connectorName: string, id: string): Promise<Manga
     throw new Error('Invalid connector name');
   }
 
-  const manga = await connector.getManga(id);
+  try {
+    logger.debug(`[get] Getting manga "${id}" with connector: ${connectorName}`);
+    const manga = await connector.getManga(id);
 
-  return {
-    sourceName: connectorName,
-    sourceId: id,
-    slug: manga.slug,
-    title: manga.title,
-    author: manga.author,
-    artist: manga.artist,
-    excerpt: manga.excerpt,
-    image: manga.image,
-    url: manga.url,
-    releasedAt: manga.releasedAt,
-    status: manga.status,
-    genres: manga.genres,
-    score: manga.score,
-    chaptersCount: manga.chaptersCount,
-  };
+    return {
+      sourceName: connectorName,
+      sourceId: id,
+      slug: manga.slug,
+      title: manga.title,
+      author: manga.author,
+      artist: manga.artist,
+      excerpt: manga.excerpt,
+      image: manga.image,
+      url: manga.url,
+      releasedAt: manga.releasedAt,
+      status: manga.status,
+      genres: manga.genres,
+      score: manga.score,
+      chaptersCount: manga.chaptersCount,
+    };
+  } catch (error) {
+    logger.error(`[get] Error with connector ${connectorName} while getting manga "${id}":`, error);
+    throw error;
+  }
 }

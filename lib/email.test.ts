@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger';
+import { loggerWriteSpy } from '@/test/log';
 
 import { sendEmail } from './email';
 
@@ -18,16 +18,6 @@ jest.mock('nodemailer', () => {
     _mockVerify: _internalMockVerify,
   };
 });
-
-jest.mock('@/lib/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    child: jest.fn().mockReturnThis(),
-  },
-}));
-const mockedLoggerInfo = logger.info as jest.Mock;
-const mockedLoggerError = logger.error as jest.Mock;
 
 describe('lib -> email', () => {
   const originalNodeEnv = process.env.NODE_ENV;
@@ -92,15 +82,22 @@ describe('lib -> email', () => {
       text: emailOptions.text,
     });
 
-    expect(mockedLoggerInfo).toHaveBeenCalledWith(
-      '[Email] Attempting to send email...',
-      { to: emailOptions.to, subject: emailOptions.subject },
-    );
-    expect(mockedLoggerInfo).toHaveBeenCalledWith(
-      '[Email] Email sent successfully',
-      { messageId: 'test-message-id', accepted: [emailOptions.to], response: '250 OK' },
-    );
-    expect(mockedLoggerError).not.toHaveBeenCalled();
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'Attempting to send email...',
+      to: emailOptions.to,
+      subject: emailOptions.subject,
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'Email sent successfully',
+      messageId: 'test-message-id',
+      accepted: [emailOptions.to],
+      response: '250 OK',
+    });
   });
 
   it('should return false and log error if sendMail fails', async () => {
@@ -111,10 +108,32 @@ describe('lib -> email', () => {
 
     expect(success).toBe(false);
     expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
-    expect(mockedLoggerError).toHaveBeenCalledWith(
-      '[Email] Error sending email',
-      { error, to: emailOptions.to, subject: emailOptions.subject },
-    );
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'Attempting to send email...',
+      to: emailOptions.to,
+      subject: emailOptions.subject,
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'error',
+      serviceName: 'email',
+      msg: 'Error sending email',
+      subject: 'Test Subject',
+      to: 'recipient@example.com',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      level: 'info',
+      serviceName: 'email',
+      msg: 'SMTP Connection Error',
+      err: {
+        type: 'Error',
+        message: 'SMTP Connection Error',
+        stack: expect.stringMatching('.*'),
+      },
+    });
   });
 
   describe('test Environment Behavior', () => {
@@ -129,10 +148,19 @@ describe('lib -> email', () => {
 
       expect(success).toBe(true);
       expect(nodemailerMockModule._mockSendMail).not.toHaveBeenCalled();
-      expect(mockedLoggerInfo).toHaveBeenCalledWith(
-        '[Email] Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).',
-        { options: emailOptions },
-      );
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        serviceName: 'email',
+        msg: 'Email sending skipped in test environment (unless ACTUALLY_SEND_MAIL_IN_TEST is true).',
+        options: {
+          html: '<p>Test HTML</p>',
+          subject: 'Test Subject',
+          text: 'Test Text',
+          to: 'recipient@example.com',
+        },
+      });
     });
 
     it('should attempt to send email in test environment if ACTUALLY_SEND_MAIL_IN_TEST is "true"', async () => {
@@ -143,14 +171,22 @@ describe('lib -> email', () => {
 
       expect(success).toBe(true);
       expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
-      expect(mockedLoggerInfo).not.toHaveBeenCalledWith(
-        expect.objectContaining({}),
-        expect.stringContaining('skipped in test environment'),
-      );
-      expect(mockedLoggerInfo).toHaveBeenCalledWith(
-        '[Email] Attempting to send email...',
-        { to: emailOptions.to, subject: emailOptions.subject },
-      );
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        serviceName: 'email',
+        msg: 'Attempting to send email...',
+        to: emailOptions.to,
+        subject: emailOptions.subject,
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        serviceName: 'email',
+        msg: 'Email sent successfully',
+        messageId: 'test-e2e-send',
+        accepted: [emailOptions.to],
+      });
     });
   });
 });

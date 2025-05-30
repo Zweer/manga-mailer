@@ -1,7 +1,7 @@
 import type { Api } from 'grammy';
 import type { Update, UserFromGetMe } from 'grammy/types';
 
-import type { Bot } from '@/lib/bot';
+import type { BotType } from '@/lib/bot/types';
 
 import { createBot } from '@/lib/bot';
 import { db } from '@/lib/db';
@@ -12,7 +12,7 @@ interface CapturedRequest {
   payload: any;
 }
 
-let botInstance: Bot;
+let botInstance: BotType;
 let outgoingRequests: CapturedRequest[] = [];
 
 function createMessageUpdate(text: string, chatId = 1111111, userId = 1111111, messageId = 1365): Update {

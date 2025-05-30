@@ -4,10 +4,10 @@ import type { CommandContext } from 'grammy';
 import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createListConversation } from '@/lib/bot/commands/list';
-import { signupConversationId } from '@/lib/bot/constants';
-import { listTrackedMangas } from '@/lib/db/action/manga';
-import { findUserByTelegramId } from '@/lib/db/action/user';
-import { createMockCommandContext } from '@/test/utils/contextMock';
+import { loggerWriteSpy } from '@/test/log';
+import { createMockCommandContext } from '@/test/mocks/bot/context';
+import { mockedListTrackedMangas, mockListTrackedMangasSuccess } from '@/test/mocks/db/manga';
+import { mockedFindUserByTelegramId, mockFindUserByTelegramIdNotFound, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
 
 jest.mock('@/lib/db/action/user', () => ({
   findUserByTelegramId: jest.fn(),
@@ -15,9 +15,6 @@ jest.mock('@/lib/db/action/user', () => ({
 jest.mock('@/lib/db/action/manga', () => ({
   listTrackedMangas: jest.fn(),
 }));
-
-const mockedFindUserByTelegramId = findUserByTelegramId as jest.Mock;
-const mockedListTrackedMangas = listTrackedMangas as jest.Mock;
 
 describe('bot -> commands -> list', () => {
   let listHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
@@ -30,7 +27,6 @@ describe('bot -> commands -> list', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
     createListConversation(mockBotInstance as BotType);
     // eslint-disable-next-line ts/strict-boolean-expressions
     if (!listHandler) {
@@ -43,54 +39,73 @@ describe('bot -> commands -> list', () => {
   });
 
   it('should prompt user to signup if user is not found', async () => {
-    const currentChatId = 1234;
-    const currentCtx = createMockCommandContext('/list', currentChatId);
-    mockedFindUserByTelegramId.mockResolvedValue(undefined);
+    const context = createMockCommandContext('/list');
+    mockFindUserByTelegramIdNotFound();
 
-    await listHandler(currentCtx);
+    await listHandler(context);
 
-    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(currentCtx.conversation.enter).toHaveBeenCalledWith(signupConversationId);
-    expect(currentCtx.reply).not.toHaveBeenCalled();
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+    expect(context.reply).toHaveBeenCalledTimes(1);
+    expect(context.reply).toHaveBeenLastCalledWith('You need to /start and register before you can remove manga.');
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:list',
+      msg: 'Received /list command',
+      userId: context.from?.id,
+    });
   });
 
   it('should inform user if they are tracking no mangas', async () => {
-    const currentChatId = 5678;
-    const currentCtx = createMockCommandContext('/list', currentChatId);
-    const mockUser = { id: 'user-test-id-list', name: 'Test User', telegramId: currentChatId, email: 'u@e.com' };
+    const context = createMockCommandContext('/list');
 
-    mockedFindUserByTelegramId.mockResolvedValue(mockUser);
-    mockedListTrackedMangas.mockResolvedValue([]);
+    const user = mockFindUserByTelegramIdSuccess();
+    mockListTrackedMangasSuccess([]);
 
-    await listHandler(currentCtx);
+    await listHandler(context);
 
-    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(mockedListTrackedMangas).toHaveBeenCalledWith(mockUser.id);
-    expect(currentCtx.reply).toHaveBeenCalledWith('You\'re not tracking any manga yet: tap /track to track your first manga');
-    expect(currentCtx.conversation?.enter).not.toHaveBeenCalled();
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+    expect(mockedListTrackedMangas).toHaveBeenCalledWith(user.id);
+    expect(context.reply).toHaveBeenCalledWith('You\'re not tracking any manga yet: tap /track to track your first manga');
+    expect(context.conversation.enter).not.toHaveBeenCalled();
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:list',
+      msg: 'Received /list command',
+      userId: context.from?.id,
+    });
   });
 
   it('should list tracked mangas if user and mangas exist', async () => {
-    const currentChatId = 9101;
-    const currentCtx = createMockCommandContext('/list', currentChatId);
-    const mockUser = { id: 'user-test-id-list-2', name: 'Test User 2', telegramId: currentChatId, email: 'u2@e.com' };
+    const context = createMockCommandContext('/list');
     const trackedMangas = [
       { title: 'Manga Alpha', chaptersCount: 10 },
       { title: 'Manga Beta', chaptersCount: 25 },
     ];
 
-    mockedFindUserByTelegramId.mockResolvedValue(mockUser);
-    mockedListTrackedMangas.mockResolvedValue(trackedMangas);
+    const user = mockFindUserByTelegramIdSuccess();
+    mockListTrackedMangasSuccess(trackedMangas);
 
-    await listHandler(currentCtx);
+    await listHandler(context);
 
-    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(currentChatId);
-    expect(mockedListTrackedMangas).toHaveBeenCalledWith(mockUser.id);
+    expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
+    expect(mockedListTrackedMangas).toHaveBeenCalledWith(user.id);
 
     const expectedReplyMessage = `Here is what you're currently tracking:\n\n${
       trackedMangas.map(manga => `• ${manga.title} (${manga.chaptersCount})`).join('\n')
     }`;
-    expect(currentCtx.reply).toHaveBeenCalledWith(expectedReplyMessage);
-    expect(currentCtx.conversation?.enter).not.toHaveBeenCalled();
+    expect(context.reply).toHaveBeenCalledWith(expectedReplyMessage);
+    expect(context.conversation.enter).not.toHaveBeenCalled();
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:list',
+      userId: context.from?.id,
+      trackedMangas: 2,
+    });
   });
 });

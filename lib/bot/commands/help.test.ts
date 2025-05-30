@@ -3,7 +3,8 @@ import type { CommandContext } from 'grammy';
 import type { BotContext, BotType } from '@/lib/bot/types';
 
 import { createHelpMessage } from '@/lib/bot/commands/help';
-import { createMockCommandContext } from '@/test/utils/contextMock';
+import { loggerWriteSpy } from '@/test/log';
+import { createMockCommandContext } from '@/test/mocks/bot/context';
 
 describe('bot -> commands -> help', () => {
   let helpHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
@@ -29,11 +30,11 @@ describe('bot -> commands -> help', () => {
   });
 
   it('should reply with a formatted list of commands when the /help handler is invoked', async () => {
-    const currentCtx = createMockCommandContext('/help', 1000);
+    const context = createMockCommandContext('/help');
 
     expect(helpHandler).toBeDefined();
 
-    await helpHandler(currentCtx);
+    await helpHandler(context);
 
     const exppectedHelpMessage = `⚙️ *Commands*:
 
@@ -41,6 +42,14 @@ describe('bot -> commands -> help', () => {
 • /track \\- Track a new manga
 • /list \\- List all the manga you are tracking
 • /remove \\- Remove a tracked manga`;
-    expect(currentCtx.reply).toHaveBeenCalledWith(exppectedHelpMessage, { parse_mode: 'MarkdownV2' });
+    expect(context.reply).toHaveBeenCalledWith(exppectedHelpMessage, { parse_mode: 'MarkdownV2' });
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
+    expect(loggerWriteSpy).toHaveBeenLastCalledWith({
+      level: 'debug',
+      serviceName: 'bot:command:help',
+      msg: 'Received /help command',
+      userId: context.from?.id,
+    });
   });
 });

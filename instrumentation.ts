@@ -1,7 +1,7 @@
 import { createBot } from '@/lib/bot';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'instrumentation' });
+const logger = createChildLogger('instrumentation');
 
 declare global {
   // eslint-disable-next-line ts/no-namespace

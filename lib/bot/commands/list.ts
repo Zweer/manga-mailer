@@ -1,19 +1,18 @@
 import type { BotType } from '@/lib/bot/types';
 
-import { signupConversationId } from '@/lib/bot/constants';
 import { listTrackedMangas } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'bot:command:list' });
+const logger = createChildLogger('bot:command:list');
 
 export function createListConversation(bot: BotType) {
   bot.command('list', async (ctx) => {
-    const telegramId = ctx.chat.id;
-    logger.debug('Received list command', telegramId);
-    const user = await findUserByTelegramId(telegramId);
+    logger.debug({ userId: ctx.from?.id }, 'Received /list command');
+    const user = await findUserByTelegramId(ctx.from!.id);
+
     if (!user) {
-      await ctx.conversation.enter(signupConversationId);
+      await ctx.reply('You need to /start and register before you can remove manga.');
       return;
     }
 
@@ -24,6 +23,7 @@ export function createListConversation(bot: BotType) {
       return;
     }
 
+    logger.debug({ userId: ctx.from?.id, trackedMangas: mangas.length });
     await ctx.reply(`Here is what you're currently tracking:\n\n${
       mangas.map(manga => `• ${manga.title} (${manga.chaptersCount})`).join('\n')
     }`);

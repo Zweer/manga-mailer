@@ -13,6 +13,8 @@ jest.mock('@/lib/db', () => ({
   db: testDb,
 }));
 
+jest.mock('@/lib/log');
+
 async function applyMigrations() {
   const migrationsFolder = resolve(__dirname, '..', 'drizzle');
 
@@ -34,4 +36,12 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await resetDatabase();
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
 });

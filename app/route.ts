@@ -2,9 +2,9 @@ import { webhookCallback } from 'grammy';
 import { NextResponse } from 'next/server';
 
 import { createBot } from '@/lib/bot';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 
-const logger = originalLogger.child({ name: 'route:/' });
+const logger = createChildLogger('route:/');
 
 const bot = createBot();
 

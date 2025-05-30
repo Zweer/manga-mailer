@@ -4,22 +4,22 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { userTable } from '@/lib/db/model';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 import { userValidation } from '@/lib/validation/user';
 
-const logger = originalLogger.child({ name: 'db:action:user' });
+const logger = createChildLogger('db:action:user');
 
-interface UpsertInput {
+export interface UpsertInput {
   telegramId: number;
   name: string;
   email: string;
 }
 
-type UpsertOutput = {
+export type UpsertOutput = {
   success: true;
 } | {
   success: false;
-  validationError?: { field: string; error: string }[];
+  validationErrors?: { field: string; error: string }[];
   databaseError?: string;
 };
 
@@ -30,7 +30,7 @@ export async function upsertUser(newUser: UpsertInput): Promise<UpsertOutput> {
 
     return {
       success: false,
-      validationError: Object.entries(parsingResult.error.flatten().fieldErrors).map(([field, errors]) => ({ field, error: errors.join(', ') })),
+      validationErrors: Object.entries(parsingResult.error.flatten().fieldErrors).map(([field, errors]) => ({ field, error: errors.join(', ') })),
     };
   }
 

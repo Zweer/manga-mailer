@@ -2,33 +2,36 @@ import type { Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
 import type { BotType } from '@/lib/bot/types';
+import type { User } from '@/lib/db/model';
 
 import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
 
-import { signupConversationId, trackConversationId } from '@/lib/bot/constants';
+import { trackConversationId } from '@/lib/bot/constants';
 import { trackManga } from '@/lib/db/action/manga';
 import { findUserByTelegramId } from '@/lib/db/action/user';
-import { logger as originalLogger } from '@/lib/logger';
+import { createChildLogger } from '@/lib/log';
 import { getManga, searchMangas } from '@/lib/manga';
 
-const logger = originalLogger.child({ name: 'bot:command:track' });
+const logger = createChildLogger('bot:command:track');
 
-export async function trackConversationLogic(conversation: Conversation, ctx: Context) {
+export async function trackConversationLogic(conversation: Conversation, ctx: Context, user: User) {
   logger.debug('Entered track conversation');
   await ctx.reply('Hi there! What is the name of the manga you want to track?');
 
   const ctxName = await conversation.waitFor('message:text');
-  const telegramId = ctxName.chat.id;
   const title = ctxName.message.text;
-  logger.debug('Received title', title);
+  logger.debug(`Received title: "${title}"`);
   await ctx.reply(`Cool, I'm searching for "${title}"...`);
   const mangas = await conversation.external(async () => searchMangas(title));
 
   if (mangas.length === 0) {
-    await ctx.reply('No manga found');
+    logger.debug('No mangas found');
+    await ctx.reply('No mangas found');
     return;
   }
+
+  logger.debug(`Found ${mangas.length} mangas`);
 
   const buttons = mangas.map(manga =>
     [
@@ -48,6 +51,7 @@ export async function trackConversationLogic(conversation: Conversation, ctx: Co
     return;
   }
   const [connectorName, mangaId] = data.split(':');
+  logger.debug(`Retrieving selected manga: "${mangaId}" @ "${connectorName}"`);
   await ctx.reply('Retrieving the selected manga...');
 
   const manga = await conversation.external(async () => getManga(connectorName, mangaId));
@@ -55,16 +59,17 @@ export async function trackConversationLogic(conversation: Conversation, ctx: Co
 
   const ctxChapter = await conversation.waitFor('message:text');
   const lastReadChapter = Number.parseFloat(ctxChapter.message.text);
-  const result = await conversation.external(async () => trackManga(manga, telegramId, lastReadChapter));
+  logger.debug(`Last chapter read: ${lastReadChapter}`);
+  const result = await conversation.external(async () => trackManga(manga, user.id, lastReadChapter));
 
   if (result.success) {
+    logger.debug({ title: manga.title, source: manga.sourceName, userId: user.id }, 'Manga tracked');
     await ctx.reply(`Perfect, we'll track "${manga.title}" on "${manga.sourceName}"!`);
-  } else if (result.invalidUser) {
-    await ctx.reply('❗️ Invalid user. Please try to /start again');
   } else if (result.alreadyTracked) {
+    logger.error('Manga already tracked');
     await ctx.reply('❗️ It seems you\'re already tracking this manga!');
   } else {
-    logger.error('Database error:', result.databaseError);
+    logger.error({ errors: [result.databaseError] }, 'Database error');
     await ctx.reply('❗️ Something went wrong, please try again later');
   }
 }
@@ -75,14 +80,14 @@ export function createTrackConversation(bot: BotType) {
   }));
 
   bot.command('track', async (ctx) => {
-    const telegramId = ctx.chat.id;
-    logger.debug('Received track command', telegramId);
-    const user = await findUserByTelegramId(telegramId);
+    logger.debug({ userId: ctx.from?.id }, 'Received /track command');
+    const user = await findUserByTelegramId(ctx.from!.id);
 
-    if (user) {
-      await ctx.conversation.enter(trackConversationId);
-    } else {
-      await ctx.conversation.enter(signupConversationId);
+    if (!user) {
+      await ctx.reply('You need to /start and register before you can remove manga.');
+      return;
     }
+
+    await ctx.conversation.enter(trackConversationId, user);
   });
 }
