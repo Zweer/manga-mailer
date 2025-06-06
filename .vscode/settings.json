@@ -2,7 +2,8 @@
   "conventionalCommits.scopes": [
     "bot",
     "database",
-    "email"
+    "email",
+    "updater"
   ],
   "vsicons.associations.folders": [
     {

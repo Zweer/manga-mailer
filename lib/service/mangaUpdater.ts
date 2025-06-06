@@ -203,7 +203,7 @@ async function notifyUsersForUpdates(result: MangaUpdaterResult): Promise<void> 
           to: user.email,
           subject,
           html,
-          text: manga.url ?? '',
+          text: chapter.url ?? '',
         });
 
         if (isEmailSent) {

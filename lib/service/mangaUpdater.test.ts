@@ -9,7 +9,7 @@ import { chapterTable, mangaTable, userMangaTable, userTable } from '@/lib/db/mo
 import { mangaUpdater } from '@/lib/service/mangaUpdater';
 import { loggerWriteSpy } from '@/test/log';
 import { defaultUser } from '@/test/mocks/db/user';
-import { mockSendEmailError, mockSendEmailSuccess } from '@/test/mocks/email';
+import { mockedSendEmail, mockSendEmailError, mockSendEmailSuccess } from '@/test/mocks/email';
 import {
   defaultChapter,
   defaultManga,
@@ -93,6 +93,7 @@ describe('task: checkForMangaUpdates', () => {
 
     expect(mockedGetManga).toHaveBeenCalledTimes(2);
     expect(mockedGetChapters).toHaveBeenCalledTimes(0);
+    expect(mockedSendEmail).toHaveBeenCalledTimes(0);
 
     expect(result).toEqual({
       emailsSent: 0,
@@ -190,6 +191,7 @@ describe('task: checkForMangaUpdates', () => {
 
     expect(mockedGetManga).toHaveBeenCalledTimes(2);
     expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+    expect(mockedSendEmail).toHaveBeenCalledTimes(0);
 
     expect(result).toEqual({
       emailsSent: 0,
@@ -295,6 +297,7 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(mockedGetManga).toHaveBeenCalledTimes(2);
       expect(mockedGetChapters).toHaveBeenCalledTimes(0);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(0);
 
       expect(result).toEqual({
         emailsSent: 0,
@@ -393,6 +396,13 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(mockedGetManga).toHaveBeenCalledTimes(2);
       expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledWith({
+        to: user1.email,
+        subject: 'Epic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        html: '<img src=\"image-1\" /><br />\n<img src=\"image-2\" /><br /><br />\nEpic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        text: defaultChapter.url,
+      });
 
       expect(result).toEqual({
         emailsSent: 1,
@@ -506,6 +516,13 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(mockedGetManga).toHaveBeenCalledTimes(2);
       expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledWith({
+        to: user1.email,
+        subject: 'Epic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        html: '<img src=\"image-1\" /><br />\n<img src=\"image-2\" /><br /><br />\nEpic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        text: defaultChapter.url,
+      });
 
       expect(result).toEqual({
         emailsSent: 0,
@@ -633,6 +650,13 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(mockedGetManga).toHaveBeenCalledTimes(2);
       expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledWith({
+        to: user1.email,
+        subject: 'Epic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        html: '<img src=\"image-1\" /><br />\n<img src=\"image-2\" /><br /><br />\nEpic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        text: defaultChapter.url,
+      });
 
       expect(result).toEqual({
         emailsSent: 1,
@@ -756,6 +780,13 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(mockedGetManga).toHaveBeenCalledTimes(2);
       expect(mockedGetChapters).toHaveBeenCalledTimes(2);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledWith({
+        to: user1.email,
+        subject: 'Epic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        html: '<img src=\"image-1\" /><br />\n<img src=\"image-2\" /><br /><br />\nEpic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        text: defaultChapter.url,
+      });
 
       expect(result).toEqual({
         emailsSent: 1,
@@ -912,6 +943,13 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(updateSpy).toHaveBeenCalledWith(mangaTable);
       expect(updateSpy).toHaveBeenCalledTimes(2);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledWith({
+        to: user1.email,
+        subject: 'Epic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        html: '<img src=\"image-1\" /><br />\n<img src=\"image-2\" /><br /><br />\nEpic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        text: defaultChapter.url,
+      });
 
       expect(result).toEqual({
         emailsSent: 1,
@@ -1068,6 +1106,13 @@ describe('task: checkForMangaUpdates', () => {
 
       expect(updateSpy).toHaveBeenCalledWith(mangaTable);
       expect(updateSpy).toHaveBeenCalledTimes(2);
+      expect(mockedSendEmail).toHaveBeenCalledTimes(1);
+      expect(mockedSendEmail).toHaveBeenCalledWith({
+        to: user1.email,
+        subject: 'Epic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        html: '<img src=\"image-1\" /><br />\n<img src=\"image-2\" /><br /><br />\nEpic Adventure Manga 1 - 11 - Epic Adventure Chapter 11',
+        text: defaultChapter.url,
+      });
 
       expect(result).toEqual({
         emailsSent: 1,
