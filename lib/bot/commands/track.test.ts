@@ -1,10 +1,13 @@
 /* eslint-disable ts/unbound-method */
+import type { Mock } from 'vitest';
+
 import type { BotType } from '@/lib/bot/types';
 import type {
   MockCommandContext,
 } from '@/test/mocks/bot/context';
 
 import { InlineKeyboard } from 'grammy';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTrackConversation, trackConversationLogic } from '@/lib/bot/commands/track';
 import { trackConversationId } from '@/lib/bot/constants';
@@ -28,29 +31,32 @@ import {
 } from '@/test/mocks/db/user';
 import { mockedGetManga, mockedSearchMangas, mockGetMangaSuccess, mockSearchMangaSuccess } from '@/test/mocks/manga';
 
-jest.mock('@/lib/db/action/manga', () => ({
-  listTrackedMangas: jest.fn(),
-  removeTrackedManga: jest.fn(),
-  trackManga: jest.fn(),
+vi.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: vi.fn(),
+  removeTrackedManga: vi.fn(),
+  trackManga: vi.fn(),
 }));
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
-jest.mock('@/lib/manga', () => ({
-  getManga: jest.fn(),
-  searchMangas: jest.fn(),
+vi.mock('@/lib/manga', () => ({
+  getManga: vi.fn(),
+  searchMangas: vi.fn(),
+  getChapters: vi.fn(),
+  getChapter: vi.fn(),
 }));
 
 describe('bot -> commands -> track', () => {
   let trackCommandHandler: ((context: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'track') {
         trackCommandHandler = handler;
       }
     }) as any,
-    use: jest.fn().mockReturnThis(),
+    use: vi.fn().mockReturnThis(),
   };
 
   beforeEach(() => {
@@ -93,7 +99,7 @@ describe('bot -> commands -> track', () => {
       expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
       expect(context.conversation.enter).not.toHaveBeenCalled();
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenLastCalledWith('You need to /start and register before you can remove manga.');
 
       expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
@@ -129,7 +135,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is the name of the manga you want to track?');
       expect(replyMock).toHaveBeenNthCalledWith(2, `Cool, I'm searching for "${manga.title}"...`);
       const expectedInlineKeyboard = InlineKeyboard.from([
@@ -196,7 +202,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
       expect(replyMock).toHaveBeenCalledWith('No mangas found');
 
@@ -222,7 +228,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
 
       expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
@@ -250,7 +256,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ It seems you\'re already tracking this manga!');
 
@@ -276,7 +282,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
 

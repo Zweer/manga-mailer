@@ -3,23 +3,28 @@ import type { CommandContext } from 'grammy';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
 
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createListConversation } from '@/lib/bot/commands/list';
 import { loggerWriteSpy } from '@/test/log';
 import { createMockCommandContext } from '@/test/mocks/bot/context';
 import { mockedListTrackedMangas, mockListTrackedMangasSuccess } from '@/test/mocks/db/manga';
 import { mockedFindUserByTelegramId, mockFindUserByTelegramIdNotFound, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
+vi.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: vi.fn(),
+  removeTrackedManga: vi.fn(),
+  trackManga: vi.fn(),
 }));
-jest.mock('@/lib/db/action/manga', () => ({
-  listTrackedMangas: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
 
 describe('bot -> commands -> list', () => {
   let listHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'list') {
         listHandler = handler;
       }

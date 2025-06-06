@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { userValidation } from '@/lib/validation/user';
 
 describe('validation -> user', () => {

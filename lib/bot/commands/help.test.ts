@@ -2,6 +2,8 @@ import type { CommandContext } from 'grammy';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
 
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createHelpMessage } from '@/lib/bot/commands/help';
 import { loggerWriteSpy } from '@/test/log';
 import { createMockCommandContext } from '@/test/mocks/bot/context';
@@ -10,7 +12,7 @@ describe('bot -> commands -> help', () => {
   let helpHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'help') {
         helpHandler = handler;
       }

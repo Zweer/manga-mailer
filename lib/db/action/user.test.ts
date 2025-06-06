@@ -1,14 +1,16 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { db } from '@/lib/db';
 import { findUserByTelegramId, upsertUser } from '@/lib/db/action/user';
 import { userTable } from '@/lib/db/model';
 
 describe('db -> action -> user', () => {
-  const name = 'Test User Jest';
-  const email = 'testjest@example.com';
+  const name = 'Test User vi';
+  const email = 'testvi@example.com';
   const telegramId = 123;
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('findUserByTelegramId', () => {
@@ -86,8 +88,8 @@ describe('db -> action -> user', () => {
       const newUser = { name, email, telegramId };
 
       const simulatedError = 'Simulated DB Insert Error';
-      const insertSpy = jest.spyOn(db, 'insert').mockImplementationOnce(() => ({
-        values: jest.fn().mockRejectedValue(new Error(simulatedError)),
+      const insertSpy = vi.spyOn(db, 'insert').mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(new Error(simulatedError)),
       }) as any);
 
       const result = await upsertUser(newUser);
@@ -110,9 +112,9 @@ describe('db -> action -> user', () => {
       };
 
       const simulatedError = 'Simulated DB Insert Error';
-      const updateSpy = jest.spyOn(db, 'update').mockImplementationOnce(() => ({
-        set: jest.fn().mockReturnThis(),
-        where: jest.fn().mockRejectedValue(new Error(simulatedError)),
+      const updateSpy = vi.spyOn(db, 'update').mockImplementationOnce(() => ({
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockRejectedValue(new Error(simulatedError)),
       }) as any);
 
       const result = await upsertUser(updatedInput);

@@ -1,17 +1,19 @@
 import type { Manga } from '@/lib/db/model';
 
+import { vi } from 'vitest';
+
 import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
 import { defaultManga } from '@/test/mocks/manga';
 
-// jest.mock('@/lib/db/action/manga', () => ({
-//   listTrackedMangas: jest.fn(),
-//   removeTrackedManga: jest.fn(),
-//   trackManga: jest.fn(),
+// vi.mock('@/lib/db/action/manga', () => ({
+//   listTrackedMangas: vi.fn(),
+//   removeTrackedManga: vi.fn(),
+//   trackManga: vi.fn(),
 // }));
 
-export const mockedListTrackedMangas = jest.mocked(listTrackedMangas);
-export const mockedTrackManga = jest.mocked(trackManga);
-export const mockedRemoveTrackedManga = jest.mocked(removeTrackedManga);
+export const mockedListTrackedMangas = vi.mocked(listTrackedMangas);
+export const mockedTrackManga = vi.mocked(trackManga);
+export const mockedRemoveTrackedManga = vi.mocked(removeTrackedManga);
 
 export function mockListTrackedMangasSuccess(partialMangas: Partial<Manga>[] = []): Manga[] {
   const mangas: Manga[] = partialMangas.map(manga => ({ ...defaultManga, ...manga }));

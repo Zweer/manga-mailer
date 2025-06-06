@@ -1,43 +1,38 @@
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { loggerWriteSpy } from '@/test/log';
 
 import { sendEmail } from './email';
 
-jest.mock('nodemailer', () => {
-  const _internalMockSendMail = jest.fn();
-  const _internalMockVerify = jest.fn(callback => callback(null, true));
-  const _internalTransporterInstance = {
-    sendMail: _internalMockSendMail,
-    verify: _internalMockVerify,
-  };
-  const _internalMockCreateTransport = jest.fn(() => _internalTransporterInstance);
-
+const mocks = vi.hoisted(() => {
   return {
-    __esModule: true,
-    createTransport: _internalMockCreateTransport,
-    _mockSendMail: _internalMockSendMail,
-    _mockVerify: _internalMockVerify,
+    sendMail: vi.fn(),
+    verify: vi.fn(),
   };
+});
+
+vi.mock(import('nodemailer'), () => {
+  return {
+    createTransport: () => ({
+      sendMail: mocks.sendMail,
+      verify: mocks.verify,
+    }),
+  } as any;
 });
 
 describe('lib -> email', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalActuallySendMailFlag = process.env.ACTUALLY_SEND_MAIL_IN_TEST;
 
-  let nodemailerMockModule: {
-    createTransport: jest.Mock;
-    _mockSendMail: jest.Mock;
-    _mockVerify: jest.Mock;
+  const emailOptions = {
+    to: 'recipient@example.com',
+    subject: 'Test Subject',
+    html: '<p>Test HTML</p>',
+    text: 'Test Text',
   };
 
-  beforeAll(() => {
-    nodemailerMockModule = jest.requireMock('nodemailer');
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    const nodemailerMock = jest.requireMock('nodemailer');
-    nodemailerMock.createTransport.mockClear();
+  beforeEach(async () => {
+    vi.clearAllMocks();
 
     // @ts-expect-error node env is not readonly
     process.env.NODE_ENV = 'development';
@@ -55,15 +50,8 @@ describe('lib -> email', () => {
     process.env.ACTUALLY_SEND_MAIL_IN_TEST = originalActuallySendMailFlag;
   });
 
-  const emailOptions = {
-    to: 'recipient@example.com',
-    subject: 'Test Subject',
-    html: '<p>Test HTML</p>',
-    text: 'Test Text',
-  };
-
   it('should call transporter.sendMail with correct parameters on successful send', async () => {
-    nodemailerMockModule._mockSendMail.mockResolvedValueOnce({
+    mocks.sendMail.mockResolvedValueOnce({
       messageId: 'test-message-id',
       accepted: [emailOptions.to],
       response: '250 OK',
@@ -73,8 +61,8 @@ describe('lib -> email', () => {
 
     expect(success).toBe(true);
 
-    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
-    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledWith({
+    expect(mocks.sendMail).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMail).toHaveBeenCalledWith({
       from: process.env.EMAIL_SENDER,
       to: emailOptions.to,
       subject: emailOptions.subject,
@@ -102,12 +90,12 @@ describe('lib -> email', () => {
 
   it('should return false and log error if sendMail fails', async () => {
     const error = new Error('SMTP Connection Error');
-    nodemailerMockModule._mockSendMail.mockRejectedValueOnce(error);
+    mocks.sendMail.mockRejectedValueOnce(error);
 
     const success = await sendEmail(emailOptions);
 
     expect(success).toBe(false);
-    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMail).toHaveBeenCalledTimes(1);
 
     expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
     expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
@@ -147,7 +135,7 @@ describe('lib -> email', () => {
       const success = await sendEmail(emailOptions);
 
       expect(success).toBe(true);
-      expect(nodemailerMockModule._mockSendMail).not.toHaveBeenCalled();
+      expect(mocks.sendMail).not.toHaveBeenCalled();
 
       expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
       expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
@@ -165,12 +153,12 @@ describe('lib -> email', () => {
 
     it('should attempt to send email in test environment if ACTUALLY_SEND_MAIL_IN_TEST is "true"', async () => {
       process.env.ACTUALLY_SEND_MAIL_IN_TEST = 'true';
-      nodemailerMockModule._mockSendMail.mockResolvedValueOnce({ messageId: 'test-e2e-send', accepted: [emailOptions.to] });
+      mocks.sendMail.mockResolvedValueOnce({ messageId: 'test-e2e-send', accepted: [emailOptions.to] });
 
       const success = await sendEmail(emailOptions);
 
       expect(success).toBe(true);
-      expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+      expect(mocks.sendMail).toHaveBeenCalledTimes(1);
 
       expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
       expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {

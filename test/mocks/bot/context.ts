@@ -3,8 +3,11 @@
 import type { Conversation, ConversationControls } from '@grammyjs/conversations';
 import type { Api, CallbackQueryContext, CommandContext, RawApi } from 'grammy';
 import type { Message } from 'grammy/types';
+import type { Mocked } from 'vitest';
 
 import type { BotContext } from '@/lib/bot/types';
+
+import { vi } from 'vitest';
 
 export type MockMessageContext = BotContext;
 export type MockCommandContext = CommandContext<BotContext>;
@@ -14,23 +17,23 @@ function createBaseMockContext(chatId: number, userId: number): Partial<BotConte
   return {
     chat: { id: chatId, type: 'private', first_name: 'Test', username: 'testuser' },
     from: { id: userId, is_bot: false, first_name: 'Test', username: 'testuser' },
-    reply: jest.fn().mockResolvedValue(true),
+    reply: vi.fn().mockResolvedValue(true),
     conversation: {
-      enter: jest.fn().mockResolvedValue(undefined),
-      exit: jest.fn().mockResolvedValue(undefined),
-      active: jest.fn().mockReturnValue({}),
-      waitFor: jest.fn(),
-      external: jest.fn(async callback => callback()),
-      checkpoint: jest.fn(),
-      rewind: jest.fn().mockResolvedValue(undefined),
+      enter: vi.fn().mockResolvedValue(undefined),
+      exit: vi.fn().mockResolvedValue(undefined),
+      active: vi.fn().mockReturnValue({}),
+      waitFor: vi.fn(),
+      external: vi.fn(async callback => callback()),
+      checkpoint: vi.fn(),
+      rewind: vi.fn().mockResolvedValue(undefined),
     } as unknown as ConversationControls,
     api: {
-      raw: jest.fn().mockResolvedValue({ ok: true, result: true }),
-      call: jest.fn().mockResolvedValue({ ok: true, result: true }),
+      raw: vi.fn().mockResolvedValue({ ok: true, result: true }),
+      call: vi.fn().mockResolvedValue({ ok: true, result: true }),
     } as unknown as Api<RawApi>,
-    answerCallbackQuery: jest.fn().mockResolvedValue(true),
-    editMessageText: jest.fn().mockResolvedValue(true),
-    editMessageReplyMarkup: jest.fn().mockResolvedValue(true),
+    answerCallbackQuery: vi.fn().mockResolvedValue(true),
+    editMessageText: vi.fn().mockResolvedValue(true),
+    editMessageReplyMarkup: vi.fn().mockResolvedValue(true),
   };
 }
 
@@ -97,19 +100,19 @@ export function createMockCallbackQueryContext(
     },
     from: baseCtx.from,
     chat: baseCtx.chat,
-    answerCallbackQuery: jest.fn().mockResolvedValue(true),
-    editMessageText: jest.fn().mockResolvedValue(true),
+    answerCallbackQuery: vi.fn().mockResolvedValue(true),
+    editMessageText: vi.fn().mockResolvedValue(true),
   } as MockCallbackQueryContext;
 }
 
-export function createMockConversationControl(): jest.Mocked<Conversation> {
+export function createMockConversationControl(): Mocked<Conversation> {
   return {
-    waitFor: jest.fn(),
-    external: jest.fn(async (callback: () => any) => callback()),
-    checkpoint: jest.fn(),
-    rewind: jest.fn().mockResolvedValue(undefined),
-    log: jest.fn(),
-    skip: jest.fn(),
-    wait: jest.fn().mockResolvedValue(undefined),
+    waitFor: vi.fn(),
+    external: vi.fn(async (callback: () => any) => callback()),
+    checkpoint: vi.fn(),
+    rewind: vi.fn().mockResolvedValue(undefined),
+    log: vi.fn(),
+    skip: vi.fn(),
+    wait: vi.fn().mockResolvedValue(undefined),
   } as any;
 }

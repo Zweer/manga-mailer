@@ -1,6 +1,7 @@
 import type { MockMessageContext } from '@/test/mocks/bot/context';
 
 import * as conversacionesPlugin from '@grammyjs/conversations';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as helpCommand from '@/lib/bot/commands/help';
 import * as listCommand from '@/lib/bot/commands/list';
@@ -11,31 +12,31 @@ import { Bot } from '@/lib/bot/types';
 import { createMockMessageContext } from '@/test/mocks/bot/context';
 
 const mockBotInstance = {
-  use: jest.fn().mockReturnThis(),
-  command: jest.fn().mockReturnThis(),
-  on: jest.fn().mockReturnThis(),
+  use: vi.fn().mockReturnThis(),
+  command: vi.fn().mockReturnThis(),
+  on: vi.fn<(msg: string, handler: () => unknown) => void>().mockReturnThis(),
   api: {},
 };
 
-jest.mock('@/lib/bot/types', () => ({
-  Bot: jest.fn().mockImplementation(() => mockBotInstance),
+vi.mock('@/lib/bot/types', () => ({
+  Bot: vi.fn().mockImplementation(() => mockBotInstance),
 }));
 
-jest.mock('@grammyjs/conversations', () => ({
-  conversations: jest.fn(() => ({ type: 'conversations-plugin' })),
-  createConversation: jest.fn(),
+vi.mock('@grammyjs/conversations', () => ({
+  conversations: vi.fn(() => ({ type: 'conversations-plugin' })),
+  createConversation: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/help', () => ({
-  createHelpMessage: jest.fn(),
+vi.mock('@/lib/bot/commands/help', () => ({
+  createHelpMessage: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/list', () => ({
-  createListConversation: jest.fn(),
+vi.mock('@/lib/bot/commands/list', () => ({
+  createListConversation: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/signup', () => ({
-  createSignupConversation: jest.fn(),
+vi.mock('@/lib/bot/commands/signup', () => ({
+  createSignupConversation: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/track', () => ({
-  createTrackConversation: jest.fn(),
+vi.mock('@/lib/bot/commands/track', () => ({
+  createTrackConversation: vi.fn(),
 }));
 
 describe('bot Core Logic (lib/bot/index.ts)', () => {
@@ -43,8 +44,6 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
   const originalTelegramToken = process.env.TELEGRAM_TOKEN;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
     // @ts-expect-error node env is not readonly
     process.env.NODE_ENV = originalNodeEnv;
     process.env.TELEGRAM_TOKEN = originalTelegramToken;
@@ -125,7 +124,8 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
       );
 
       expect(messageOnArgs).toBeDefined();
-      const messageHandler = messageOnArgs[1] as (ctx: MockMessageContext) => Promise<void>;
+      expect(messageOnArgs).toHaveLength(2);
+      const messageHandler = messageOnArgs![1] as (ctx: MockMessageContext) => Promise<void>;
 
       const chatId = 6001;
       const ctx = createMockMessageContext('unhandled random text', chatId);

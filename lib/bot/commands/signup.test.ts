@@ -1,6 +1,10 @@
 /* eslint-disable ts/unbound-method */
+import type { Mock } from 'vitest';
+
 import type { BotType } from '@/lib/bot/types';
 import type { MockCommandContext } from '@/test/mocks/bot/context';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSignupConversation, signupConversationLogic } from '@/lib/bot/commands/signup';
 import { signupConversationId } from '@/lib/bot/constants';
@@ -8,21 +12,21 @@ import { loggerWriteSpy } from '@/test/log';
 import { createMockCommandContext, createMockConversationControl, createMockMessageContext } from '@/test/mocks/bot/context';
 import { mockedUpsertUser, mockUpsertUserSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
-  upsertUser: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
 
 describe('bot -> commands -> signup', () => {
   let startCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'start') {
         startCommandHandler = handler;
       }
     }) as any,
-    use: jest.fn().mockReturnThis(),
+    use: vi.fn().mockReturnThis(),
   };
 
   beforeEach(() => {
@@ -70,7 +74,7 @@ describe('bot -> commands -> signup', () => {
       mockUpsertUserSuccess();
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is your name?');
       expect(replyMock).toHaveBeenNthCalledWith(2, `Welcome to Manga Mailer, ${userName}!`);
       expect(replyMock).toHaveBeenNthCalledWith(3, 'Where do you want us to mail you updates?');
@@ -116,7 +120,7 @@ describe('bot -> commands -> signup', () => {
 
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
       expect(mockedUpsertUser).not.toHaveBeenCalled();
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
@@ -142,7 +146,7 @@ describe('bot -> commands -> signup', () => {
 
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenLastCalledWith(`❗️ Something went wrong:\n\n• email: Invalid email address`);
       expect(mockConversationControls.checkpoint).toHaveBeenCalledTimes(1);
       expect(mockConversationControls.rewind).toHaveBeenCalledTimes(1);
@@ -177,7 +181,7 @@ describe('bot -> commands -> signup', () => {
 
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
 

@@ -1,1 +1,3 @@
-export const loggerWriteSpy = jest.fn();
+import { vi } from 'vitest';
+
+export const loggerWriteSpy = vi.fn();

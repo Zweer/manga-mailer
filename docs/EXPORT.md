@@ -24,12 +24,14 @@ manga-mailer
  │   ├── 0002_freezing_annihilus.sql
  │   ├── 0003_brave_lily_hollister.sql
  │   ├── 0004_graceful_speedball.sql
+ │   ├── 0005_dashing_karen_page.sql
  │   └─> meta
  │       ├── 0000_snapshot.json
  │       ├── 0001_snapshot.json
  │       ├── 0002_snapshot.json
  │       ├── 0003_snapshot.json
  │       ├── 0004_snapshot.json
+ │       ├── 0005_snapshot.json
  │       └── _journal.json
  ├── drizzle.config.ts
  ├─> e2e
@@ -68,12 +70,13 @@ manga-mailer
  │   ├── email.test.ts
  │   ├── email.ts
  │   ├─> log
- │   │   ├─> __mocks__
- │   │   │   └── index.ts
  │   │   ├── config.ts
  │   │   └── index.ts
  │   ├── manga.test.ts
  │   ├── manga.ts
+ │   ├─> service
+ │   │   ├── mangaUpdater.test.ts
+ │   │   └── mangaUpdater.ts
  │   └─> validation
  │       ├── user.test.ts
  │       └── user.ts
@@ -94,9 +97,11 @@ manga-mailer
  │   │   ├─> db
  │   │   │   ├── manga.ts
  │   │   │   └── user.ts
+ │   │   ├── email.ts
  │   │   └── manga.ts
  │   └── setup.ts
- └── tsconfig.json
+ ├── tsconfig.json
+ └── vitest.config.ts
 ```
 
 ## File export
@@ -628,6 +633,8 @@ import type { Update, UserFromGetMe } from 'grammy/types';
 
 import type { BotType } from '@/lib/bot/types';
 
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createBot } from '@/lib/bot';
 import { db } from '@/lib/db';
 import * as userActions from '@/lib/db/action/user';
@@ -691,7 +698,7 @@ beforeEach(async () => {
   outgoingRequests = [];
 });
 
-xdescribe('bot E2E-like Tests', () => {
+describe.skip('bot E2E-like Tests', () => {
   describe('/start (Signup Conversation)', () => {
     const chatId = 1000001;
     const userId = 1000001;
@@ -754,7 +761,7 @@ xdescribe('bot E2E-like Tests', () => {
     });
 
     it('should handle validation error for email and allow retry', async () => {
-      const upsertUserSpy = jest.spyOn(userActions, 'upsertUser');
+      const upsertUserSpy = vi.spyOn(userActions, 'upsertUser');
 
       // 1. /start
       await botInstance.handleUpdate(createMessageUpdate('/start', chatId, userId));
@@ -918,6 +925,8 @@ import type { CommandContext } from 'grammy';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
 
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createHelpMessage } from '@/lib/bot/commands/help';
 import { loggerWriteSpy } from '@/test/log';
 import { createMockCommandContext } from '@/test/mocks/bot/context';
@@ -926,7 +935,7 @@ describe('bot -> commands -> help', () => {
   let helpHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'help') {
         helpHandler = handler;
       }
@@ -1008,23 +1017,28 @@ import type { CommandContext } from 'grammy';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
 
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createListConversation } from '@/lib/bot/commands/list';
 import { loggerWriteSpy } from '@/test/log';
 import { createMockCommandContext } from '@/test/mocks/bot/context';
 import { mockedListTrackedMangas, mockListTrackedMangasSuccess } from '@/test/mocks/db/manga';
 import { mockedFindUserByTelegramId, mockFindUserByTelegramIdNotFound, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
+vi.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: vi.fn(),
+  removeTrackedManga: vi.fn(),
+  trackManga: vi.fn(),
 }));
-jest.mock('@/lib/db/action/manga', () => ({
-  listTrackedMangas: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
 
 describe('bot -> commands -> list', () => {
   let listHandler: ((ctx: CommandContext<BotContext>) => Promise<void>);
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'list') {
         listHandler = handler;
       }
@@ -1160,6 +1174,7 @@ lib/bot/commands/remove.test.ts:
 
 ```ts
 import type { Conversation } from '@grammyjs/conversations';
+import type { Mock, Mocked } from 'vitest';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
 import type { Manga, User } from '@/lib/db/model';
@@ -1168,6 +1183,7 @@ import type {
 } from '@/test/mocks/bot/context';
 
 import { InlineKeyboard } from 'grammy';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createRemoveConversation, removeConversationLogic } from '@/lib/bot/commands/remove';
 import { removeConversationId } from '@/lib/bot/constants';
@@ -1185,24 +1201,26 @@ import {
 } from '@/test/mocks/db/manga';
 import { mockedFindUserByTelegramId, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/manga', () => ({
-  listTrackedMangas: jest.fn(),
-  removeTrackedManga: jest.fn(),
+vi.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: vi.fn(),
+  removeTrackedManga: vi.fn(),
+  trackManga: vi.fn(),
 }));
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
 
 describe('bot -> commands -> remove', () => {
   let removeCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'remove') {
         removeCommandHandler = handler;
       }
     }) as any,
-    use: jest.fn().mockReturnThis(),
+    use: vi.fn().mockReturnThis(),
   };
 
   beforeAll(() => {
@@ -1210,7 +1228,7 @@ describe('bot -> commands -> remove', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     if (!removeCommandHandler) {
       throw new Error('/remove command handler not registered');
@@ -1278,17 +1296,17 @@ describe('bot -> commands -> remove', () => {
   });
 
   describe('conversation Logic: removeConversationLogic', () => {
-    let mockConversationControls: jest.Mocked<Conversation>;
+    let mockConversationControls: Mocked<Conversation>;
     let context: BotContext;
     let user: User;
 
     beforeEach(() => {
       mockConversationControls = {
-        waitFor: jest.fn(),
-        external: jest.fn(async (callback: () => any) => callback()),
-        log: jest.fn(),
-        skip: jest.fn(),
-        wait: jest.fn().mockResolvedValue(undefined),
+        waitFor: vi.fn(),
+        external: vi.fn(async (callback: () => any) => callback()),
+        log: vi.fn(),
+        skip: vi.fn(),
+        wait: vi.fn().mockResolvedValue(undefined),
         session: {} as any,
         __flavor: undefined as any,
       } as any;
@@ -1303,7 +1321,7 @@ describe('bot -> commands -> remove', () => {
 
       await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledWith('You\'re not tracking any manga right now. Nothing to remove!');
       expect(mockConversationControls.waitFor).not.toHaveBeenCalled();
     });
@@ -1328,9 +1346,9 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const replyMock = context.reply as jest.Mock;
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const replyMock = context.reply as Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
 
         const expectedKeyboard = new InlineKeyboard();
         trackedMangas.forEach(m => expectedKeyboard.text(`❌ ${m.title} (${m.chaptersCount})`, `remove:${m.id}`).row());
@@ -1375,8 +1393,8 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
         expect(answerCallbackQueryMock).toHaveBeenCalledWith('Operation cancelled.');
         expect(editMessageTextMock).toHaveBeenCalledWith('Manga removal cancelled.', { reply_markup: undefined });
         expect(mockedRemoveTrackedManga).not.toHaveBeenCalled();
@@ -1400,8 +1418,8 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
 
         expect(answerCallbackQueryMock).toHaveBeenCalledWith('Removal cancelled.');
         expect(editMessageTextMock).toHaveBeenLastCalledWith(`Ok, "${mangaToRemove.title}" will remain in your tracking list.`, { reply_markup: undefined });
@@ -1428,8 +1446,8 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
 
         expect(answerCallbackQueryMock).toHaveBeenCalledWith('Error!');
         expect(editMessageTextMock).toHaveBeenLastCalledWith('Could not remove manga tracking due to an error. Please try again later.', { reply_markup: undefined });
@@ -1583,8 +1601,12 @@ export function createRemoveConversation(bot: BotType) {
 lib/bot/commands/signup.test.ts:
 
 ```ts
+import type { Mock } from 'vitest';
+
 import type { BotType } from '@/lib/bot/types';
 import type { MockCommandContext } from '@/test/mocks/bot/context';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSignupConversation, signupConversationLogic } from '@/lib/bot/commands/signup';
 import { signupConversationId } from '@/lib/bot/constants';
@@ -1592,21 +1614,21 @@ import { loggerWriteSpy } from '@/test/log';
 import { createMockCommandContext, createMockConversationControl, createMockMessageContext } from '@/test/mocks/bot/context';
 import { mockedUpsertUser, mockUpsertUserSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
-  upsertUser: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
 
 describe('bot -> commands -> signup', () => {
   let startCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'start') {
         startCommandHandler = handler;
       }
     }) as any,
-    use: jest.fn().mockReturnThis(),
+    use: vi.fn().mockReturnThis(),
   };
 
   beforeEach(() => {
@@ -1654,7 +1676,7 @@ describe('bot -> commands -> signup', () => {
       mockUpsertUserSuccess();
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is your name?');
       expect(replyMock).toHaveBeenNthCalledWith(2, `Welcome to Manga Mailer, ${userName}!`);
       expect(replyMock).toHaveBeenNthCalledWith(3, 'Where do you want us to mail you updates?');
@@ -1700,7 +1722,7 @@ describe('bot -> commands -> signup', () => {
 
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
       expect(mockedUpsertUser).not.toHaveBeenCalled();
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
@@ -1726,7 +1748,7 @@ describe('bot -> commands -> signup', () => {
 
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenLastCalledWith(`❗️ Something went wrong:\n\n• email: Invalid email address`);
       expect(mockConversationControls.checkpoint).toHaveBeenCalledTimes(1);
       expect(mockConversationControls.rewind).toHaveBeenCalledTimes(1);
@@ -1761,7 +1783,7 @@ describe('bot -> commands -> signup', () => {
 
       await signupConversationLogic(mockConversationControls, conversationContext);
 
-      const replyMock = conversationContext.reply as jest.Mock;
+      const replyMock = conversationContext.reply as Mock;
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
       expect(mockConversationControls.rewind).not.toHaveBeenCalled();
 
@@ -1852,12 +1874,15 @@ export function createSignupConversation(bot: BotType) {
 lib/bot/commands/track.test.ts:
 
 ```ts
+import type { Mock } from 'vitest';
+
 import type { BotType } from '@/lib/bot/types';
 import type {
   MockCommandContext,
 } from '@/test/mocks/bot/context';
 
 import { InlineKeyboard } from 'grammy';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTrackConversation, trackConversationLogic } from '@/lib/bot/commands/track';
 import { trackConversationId } from '@/lib/bot/constants';
@@ -1881,29 +1906,32 @@ import {
 } from '@/test/mocks/db/user';
 import { mockedGetManga, mockedSearchMangas, mockGetMangaSuccess, mockSearchMangaSuccess } from '@/test/mocks/manga';
 
-jest.mock('@/lib/db/action/manga', () => ({
-  listTrackedMangas: jest.fn(),
-  removeTrackedManga: jest.fn(),
-  trackManga: jest.fn(),
+vi.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: vi.fn(),
+  removeTrackedManga: vi.fn(),
+  trackManga: vi.fn(),
 }));
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
-jest.mock('@/lib/manga', () => ({
-  getManga: jest.fn(),
-  searchMangas: jest.fn(),
+vi.mock('@/lib/manga', () => ({
+  getManga: vi.fn(),
+  searchMangas: vi.fn(),
+  getChapters: vi.fn(),
+  getChapter: vi.fn(),
 }));
 
 describe('bot -> commands -> track', () => {
   let trackCommandHandler: ((context: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'track') {
         trackCommandHandler = handler;
       }
     }) as any,
-    use: jest.fn().mockReturnThis(),
+    use: vi.fn().mockReturnThis(),
   };
 
   beforeEach(() => {
@@ -1946,7 +1974,7 @@ describe('bot -> commands -> track', () => {
       expect(mockedFindUserByTelegramId).toHaveBeenCalledWith(context.from?.id);
       expect(context.conversation.enter).not.toHaveBeenCalled();
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenLastCalledWith('You need to /start and register before you can remove manga.');
 
       expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
@@ -1982,7 +2010,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenNthCalledWith(1, 'Hi there! What is the name of the manga you want to track?');
       expect(replyMock).toHaveBeenNthCalledWith(2, `Cool, I'm searching for "${manga.title}"...`);
       const expectedInlineKeyboard = InlineKeyboard.from([
@@ -2049,7 +2077,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
       expect(replyMock).toHaveBeenCalledWith('No mangas found');
 
@@ -2075,7 +2103,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(3);
 
       expect(mockedSearchMangas).toHaveBeenCalledWith(mangaTitle);
@@ -2103,7 +2131,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ It seems you\'re already tracking this manga!');
 
@@ -2129,7 +2157,7 @@ describe('bot -> commands -> track', () => {
 
       await trackConversationLogic(mockConversationControls, context, user);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledTimes(6);
       expect(replyMock).toHaveBeenLastCalledWith('❗️ Something went wrong, please try again later');
 
@@ -2266,6 +2294,7 @@ lib/bot/index.test.ts:
 import type { MockMessageContext } from '@/test/mocks/bot/context';
 
 import * as conversacionesPlugin from '@grammyjs/conversations';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as helpCommand from '@/lib/bot/commands/help';
 import * as listCommand from '@/lib/bot/commands/list';
@@ -2276,31 +2305,31 @@ import { Bot } from '@/lib/bot/types';
 import { createMockMessageContext } from '@/test/mocks/bot/context';
 
 const mockBotInstance = {
-  use: jest.fn().mockReturnThis(),
-  command: jest.fn().mockReturnThis(),
-  on: jest.fn().mockReturnThis(),
+  use: vi.fn().mockReturnThis(),
+  command: vi.fn().mockReturnThis(),
+  on: vi.fn<(msg: string, handler: () => unknown) => void>().mockReturnThis(),
   api: {},
 };
 
-jest.mock('@/lib/bot/types', () => ({
-  Bot: jest.fn().mockImplementation(() => mockBotInstance),
+vi.mock('@/lib/bot/types', () => ({
+  Bot: vi.fn().mockImplementation(() => mockBotInstance),
 }));
 
-jest.mock('@grammyjs/conversations', () => ({
-  conversations: jest.fn(() => ({ type: 'conversations-plugin' })),
-  createConversation: jest.fn(),
+vi.mock('@grammyjs/conversations', () => ({
+  conversations: vi.fn(() => ({ type: 'conversations-plugin' })),
+  createConversation: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/help', () => ({
-  createHelpMessage: jest.fn(),
+vi.mock('@/lib/bot/commands/help', () => ({
+  createHelpMessage: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/list', () => ({
-  createListConversation: jest.fn(),
+vi.mock('@/lib/bot/commands/list', () => ({
+  createListConversation: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/signup', () => ({
-  createSignupConversation: jest.fn(),
+vi.mock('@/lib/bot/commands/signup', () => ({
+  createSignupConversation: vi.fn(),
 }));
-jest.mock('@/lib/bot/commands/track', () => ({
-  createTrackConversation: jest.fn(),
+vi.mock('@/lib/bot/commands/track', () => ({
+  createTrackConversation: vi.fn(),
 }));
 
 describe('bot Core Logic (lib/bot/index.ts)', () => {
@@ -2308,8 +2337,6 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
   const originalTelegramToken = process.env.TELEGRAM_TOKEN;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
     // @ts-expect-error node env is not readonly
     process.env.NODE_ENV = originalNodeEnv;
     process.env.TELEGRAM_TOKEN = originalTelegramToken;
@@ -2390,7 +2417,8 @@ describe('bot Core Logic (lib/bot/index.ts)', () => {
       );
 
       expect(messageOnArgs).toBeDefined();
-      const messageHandler = messageOnArgs[1] as (ctx: MockMessageContext) => Promise<void>;
+      expect(messageOnArgs).toHaveLength(2);
+      const messageHandler = messageOnArgs![1] as (ctx: MockMessageContext) => Promise<void>;
 
       const chatId = 6001;
       const ctx = createMockMessageContext('unhandled random text', chatId);
@@ -2474,62 +2502,48 @@ export type BotType = BotConstructor<BotContext>;
 lib/db/action/manga.test.ts:
 
 ```ts
-import type { Manga, MangaInsert, User, UserInsert } from '@/lib/db/model';
+import type { MockInstance } from 'vitest';
+
+import type { Manga, User } from '@/lib/db/model';
 
 import { and, eq } from 'drizzle-orm';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { db } from '@/lib/db';
 import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
 import { mangaTable, userMangaTable, userTable } from '@/lib/db/model';
-
-const testUser: UserInsert = {
-  name: 'Manga Tracker User',
-  email: 'tracker@example.com',
-  telegramId: 1001,
-};
-
-const testMangaData: MangaInsert = {
-  sourceName: 'Test Source',
-  sourceId: 'test-manga-001',
-  title: 'The Great Test Manga',
-  chaptersCount: 10,
-  slug: 'the-great-test-manga',
-  author: 'Test Author',
-  artist: 'Test Artist',
-  excerpt: 'An excerpt',
-  image: 'http://example.com/image.jpg',
-  url: 'http://example.com/manga',
-  status: 'Ongoing',
-  genres: ['action', 'test'],
-  score: 8.5,
-  releasedAt: new Date(),
-};
+import { defaultUser } from '@/test/mocks/db/user';
+import { defaultManga } from '@/test/mocks/manga';
 
 describe('db -> action -> manga', () => {
   let createdUser: User;
+  let insertSpy: MockInstance<typeof db.insert>;
+  let deleteSpy: MockInstance<typeof db.delete>;
 
   beforeEach(async () => {
-    [createdUser] = await db.insert(userTable).values(testUser).returning();
+    [createdUser] = await db.insert(userTable).values(defaultUser).returning();
+    insertSpy = vi.spyOn(db, 'insert');
+    deleteSpy = vi.spyOn(db, 'delete');
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('trackManga', () => {
     it('should track a new manga for a user successfully (manga not in DB)', async () => {
       const lastReadChapter = 0;
-      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
+      const result = await trackManga(defaultManga, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', true);
 
       const manga = await db.query.mangaTable.findFirst({
-        where: (manga, { eq }) => eq(manga.sourceId, testMangaData.sourceId),
+        where: (manga, { eq }) => eq(manga.sourceId, defaultManga.sourceId),
       });
       expect(manga).toBeDefined();
       if (typeof manga === 'undefined') {
         throw new TypeError('Invalid test');
       }
-      expect(manga).toHaveProperty('title', testMangaData.title);
+      expect(manga).toHaveProperty('title', defaultManga.title);
 
       const tracker = await db.query.userMangaTable.findFirst({
         where: (userManga, { and, eq }) => and(
@@ -2545,7 +2559,7 @@ describe('db -> action -> manga', () => {
     });
 
     it('should track an existing manga for a user successfully (manga already in DB)', async () => {
-      const [manga] = await db.insert(mangaTable).values(testMangaData).returning();
+      const [manga] = await db.insert(mangaTable).values(defaultManga).returning();
 
       const lastReadChapter = 1;
       const result = await trackManga(manga, createdUser.id, lastReadChapter);
@@ -2566,7 +2580,7 @@ describe('db -> action -> manga', () => {
 
     it('should return invalidUser if the user does not exist', async () => {
       const nonExistentUserId = 'user-id';
-      const result = await trackManga(testMangaData, nonExistentUserId, 0);
+      const result = await trackManga(defaultManga, nonExistentUserId, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
@@ -2577,9 +2591,9 @@ describe('db -> action -> manga', () => {
 
     it('should return alreadyTracked if the manga is already tracked by the user', async () => {
       const lastReadChapter = 0;
-      await trackManga(testMangaData, createdUser.id, lastReadChapter);
+      await trackManga(defaultManga, createdUser.id, lastReadChapter);
 
-      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
+      const result = await trackManga(defaultManga, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
@@ -2590,51 +2604,49 @@ describe('db -> action -> manga', () => {
 
     it('should return databaseError if inserting manga fails', async () => {
       const simulatedError = 'DB Error on Manga Insert';
-      const insertMangaSpy = jest.spyOn(db, 'insert')
-        .mockImplementationOnce(() => ({
-          values: jest.fn().mockReturnThis(),
-          returning: jest.fn().mockRejectedValue(new Error(simulatedError) as never),
-        } as any));
+      insertSpy.mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockRejectedValue(new Error(simulatedError) as never),
+      } as any));
 
-      const result = await trackManga(testMangaData, createdUser.id, 0);
+      const result = await trackManga(defaultManga, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
       expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
-      expect(insertMangaSpy).toHaveBeenCalledTimes(1);
+
+      expect(insertSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should return databaseError if inserting userManga (tracker) fails', async () => {
       const simulatedError = 'DB Error on Tracker Insert';
-      const insertUserMangaSpy = jest.spyOn(db, 'insert')
+      insertSpy.mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValue([defaultManga] as never),
+      } as any))
         .mockImplementationOnce(() => ({
-          values: jest.fn().mockReturnThis(),
-          returning: jest.fn().mockResolvedValue([testMangaData] as never),
+          values: vi.fn().mockRejectedValue(new Error(simulatedError) as never),
         } as any))
         .mockImplementationOnce(() => ({
-          values: jest.fn().mockRejectedValue(new Error(simulatedError) as never),
-        } as any));
-
-      const mangaInsertSpy = jest.spyOn(db, 'insert')
-        .mockImplementationOnce(() => ({
-          values: jest.fn().mockReturnThis(),
-          returning: jest.fn().mockResolvedValueOnce([{ ...testMangaData, id: 'mocked-manga-id' }] as never), // Simula che il manga sia stato inserito
+          values: vi.fn().mockReturnThis(),
+          returning: vi.fn().mockResolvedValueOnce([{ ...defaultManga, id: 'mocked-manga-id' }] as never),
         } as any))
         .mockImplementationOnce(() => ({
-          values: jest.fn().mockRejectedValueOnce(new Error(simulatedError) as never),
+          values: vi.fn().mockRejectedValueOnce(new Error(simulatedError) as never),
         } as any));
 
-      const result = await trackManga(testMangaData, createdUser.id, 0);
+      const result = await trackManga(defaultManga, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
       expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
-      expect(insertUserMangaSpy).toHaveBeenCalledTimes(2);
-      expect(mangaInsertSpy).toHaveBeenCalledTimes(2);
+
+      expect(insertSpy).toHaveBeenCalledTimes(2);
+      expect(insertSpy).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -2643,8 +2655,18 @@ describe('db -> action -> manga', () => {
     let manga2: Manga;
 
     beforeEach(async () => {
-      [manga1] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-remove-1', title: 'Manga To Remove 1' }).returning();
-      [manga2] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-keep-1', title: 'Manga To Keep 1' }).returning();
+      [manga1] = await db.insert(mangaTable).values({
+        ...defaultManga,
+        id: 'manga-id-123-1',
+        sourceId: 'manga-to-remove-1',
+        title: 'Manga To Remove 1',
+      }).returning();
+      [manga2] = await db.insert(mangaTable).values({
+        ...defaultManga,
+        id: 'manga-id-123-2',
+        sourceId: 'manga-to-keep-1',
+        title: 'Manga To Keep 1',
+      }).returning();
 
       await db.insert(userMangaTable).values([
         { userId: createdUser.id, mangaId: manga1.id, lastReadChapter: 1 },
@@ -2696,10 +2718,9 @@ describe('db -> action -> manga', () => {
 
     it('should return databaseError if db.delete fails', async () => {
       const simulatedError = 'DB Error on Delete';
-      // Spy su db.delete e fallo fallire
-      const deleteSpy = jest.spyOn(db, 'delete').mockImplementationOnce(
-        () => ({ // db.delete(userMangaTable) restituisce un builder
-          where: jest.fn().mockRejectedValue(new Error(simulatedError)),
+      deleteSpy.mockImplementationOnce(
+        () => ({
+          where: vi.fn().mockRejectedValue(new Error(simulatedError)),
         } as any),
       );
 
@@ -2710,9 +2731,8 @@ describe('db -> action -> manga', () => {
         throw new Error('Test should have failed');
       }
       expect(result.databaseError).toBe(simulatedError);
+
       expect(deleteSpy).toHaveBeenCalledTimes(1);
-      // Non possiamo facilmente verificare .where() qui senza mockare più a fondo la catena
-      // ma lo spyOn(db, 'delete') ci dice che è stato tentato.
     });
   });
 
@@ -2723,9 +2743,9 @@ describe('db -> action -> manga', () => {
     });
 
     it('should return a list of tracked mangas for the user, ordered by title', async () => {
-      const manga1Data = { ...testMangaData, sourceId: 'manga001', title: 'Alpha Test Manga' };
-      const manga2Data = { ...testMangaData, sourceId: 'manga002', title: 'Zulu Test Manga' };
-      const manga3Data = { ...testMangaData, sourceId: 'manga003', title: 'Beta Test Manga' };
+      const manga1Data = { ...defaultManga, id: 'manga-id-123-1', sourceId: 'manga001', title: 'Alpha Test Manga' };
+      const manga2Data = { ...defaultManga, id: 'manga-id-123-2', sourceId: 'manga002', title: 'Zulu Test Manga' };
+      const manga3Data = { ...defaultManga, id: 'manga-id-123-3', sourceId: 'manga003', title: 'Beta Test Manga' };
 
       const [manga1] = await db.insert(mangaTable).values(manga1Data).returning();
       const [manga2] = await db.insert(mangaTable).values(manga2Data).returning();
@@ -2890,17 +2910,19 @@ export async function listTrackedMangas(userId: string): Promise<Manga[]> {
 lib/db/action/user.test.ts:
 
 ```ts
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { db } from '@/lib/db';
 import { findUserByTelegramId, upsertUser } from '@/lib/db/action/user';
 import { userTable } from '@/lib/db/model';
 
 describe('db -> action -> user', () => {
-  const name = 'Test User Jest';
-  const email = 'testjest@example.com';
+  const name = 'Test User vi';
+  const email = 'testvi@example.com';
   const telegramId = 123;
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('findUserByTelegramId', () => {
@@ -2978,8 +3000,8 @@ describe('db -> action -> user', () => {
       const newUser = { name, email, telegramId };
 
       const simulatedError = 'Simulated DB Insert Error';
-      const insertSpy = jest.spyOn(db, 'insert').mockImplementationOnce(() => ({
-        values: jest.fn().mockRejectedValue(new Error(simulatedError)),
+      const insertSpy = vi.spyOn(db, 'insert').mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(new Error(simulatedError)),
       }) as any);
 
       const result = await upsertUser(newUser);
@@ -3002,9 +3024,9 @@ describe('db -> action -> user', () => {
       };
 
       const simulatedError = 'Simulated DB Insert Error';
-      const updateSpy = jest.spyOn(db, 'update').mockImplementationOnce(() => ({
-        set: jest.fn().mockReturnThis(),
-        where: jest.fn().mockRejectedValue(new Error(simulatedError)),
+      const updateSpy = vi.spyOn(db, 'update').mockImplementationOnce(() => ({
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockRejectedValue(new Error(simulatedError)),
       }) as any);
 
       const result = await upsertUser(updatedInput);
@@ -3148,7 +3170,7 @@ lib/db/model/manga.ts:
 
 ```ts
 import { relations } from 'drizzle-orm';
-import { integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import { timestamps } from '@/lib/db/model/helpers';
 import { userMangaTable } from '@/lib/db/model/user';
@@ -3175,20 +3197,54 @@ export const mangaTable = pgTable('manga', {
   url: text(),
   releasedAt: timestamp({ mode: 'date' }),
   status: statusType(),
-  genres: jsonb('genres').$type<string[]>(),
+  genres: jsonb().$type<string[]>(),
   score: real(),
+  lastCheckedAt: timestamp({ mode: 'date' }),
   chaptersCount: integer(),
   ...timestamps,
 }, mangaTable => [
   {
     sourceUniqueIndex: uniqueIndex('manga_unique_source_idx').on(mangaTable.sourceName, mangaTable.sourceId),
+    lastCheckedAtIndex: index('manga_last_checked_at_idx').on(mangaTable.lastCheckedAt),
   },
 ]);
 export type MangaInsert = typeof mangaTable.$inferInsert;
 export type Manga = typeof mangaTable.$inferSelect;
 
+export const chapterTable = pgTable('chapter', {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  sourceName: text().notNull(),
+  sourceId: text().notNull(),
+  mangaId: text()
+    .references(() => mangaTable.id, { onDelete: 'cascade' })
+    .notNull(),
+  title: text(),
+  index: real(),
+  url: text(),
+  releasedAt: timestamp({ mode: 'date' }),
+  images: jsonb().$type<string[]>(),
+  ...timestamps,
+}, chapterTable => [
+  {
+    sourceUniqueIndex: uniqueIndex('chapter_unique_source_idx').on(chapterTable.sourceName, chapterTable.sourceId),
+    mangaIdIndex: index('chapter_manga_id_idx').on(chapterTable.mangaId),
+  },
+]);
+export type ChapterInsert = typeof chapterTable.$inferInsert;
+export type Chapter = typeof chapterTable.$inferSelect;
+
 export const mangaRelations = relations(mangaTable, ({ many }) => ({
   userMangas: many(userMangaTable),
+  chapters: many(chapterTable),
+}));
+
+export const chapterRelations = relations(chapterTable, ({ one }) => ({
+  manga: one(mangaTable, {
+    fields: [chapterTable.mangaId],
+    references: [mangaTable.id],
+  }),
 }));
 ```
 
@@ -3243,8 +3299,14 @@ export const userRelations = relations(userTable, ({ many }) => ({
 }));
 
 export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
-  user: one(userTable),
-  manga: one(mangaTable),
+  user: one(userTable, {
+    fields: [userMangaTable.userId],
+    references: [userTable.id],
+  }),
+  manga: one(mangaTable, {
+    fields: [userMangaTable.mangaId],
+    references: [mangaTable.id],
+  }),
 }));
 ```
 
@@ -3253,46 +3315,41 @@ export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
 lib/email.test.ts:
 
 ```ts
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { loggerWriteSpy } from '@/test/log';
 
 import { sendEmail } from './email';
 
-jest.mock('nodemailer', () => {
-  const _internalMockSendMail = jest.fn();
-  const _internalMockVerify = jest.fn(callback => callback(null, true));
-  const _internalTransporterInstance = {
-    sendMail: _internalMockSendMail,
-    verify: _internalMockVerify,
-  };
-  const _internalMockCreateTransport = jest.fn(() => _internalTransporterInstance);
-
+const mocks = vi.hoisted(() => {
   return {
-    __esModule: true,
-    createTransport: _internalMockCreateTransport,
-    _mockSendMail: _internalMockSendMail,
-    _mockVerify: _internalMockVerify,
+    sendMail: vi.fn(),
+    verify: vi.fn(),
   };
+});
+
+vi.mock(import('nodemailer'), () => {
+  return {
+    createTransport: () => ({
+      sendMail: mocks.sendMail,
+      verify: mocks.verify,
+    }),
+  } as any;
 });
 
 describe('lib -> email', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalActuallySendMailFlag = process.env.ACTUALLY_SEND_MAIL_IN_TEST;
 
-  let nodemailerMockModule: {
-    createTransport: jest.Mock;
-    _mockSendMail: jest.Mock;
-    _mockVerify: jest.Mock;
+  const emailOptions = {
+    to: 'recipient@example.com',
+    subject: 'Test Subject',
+    html: '<p>Test HTML</p>',
+    text: 'Test Text',
   };
 
-  beforeAll(() => {
-    nodemailerMockModule = jest.requireMock('nodemailer');
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-
-    const nodemailerMock = jest.requireMock('nodemailer');
-    nodemailerMock.createTransport.mockClear();
+  beforeEach(async () => {
+    vi.clearAllMocks();
 
     // @ts-expect-error node env is not readonly
     process.env.NODE_ENV = 'development';
@@ -3310,15 +3367,8 @@ describe('lib -> email', () => {
     process.env.ACTUALLY_SEND_MAIL_IN_TEST = originalActuallySendMailFlag;
   });
 
-  const emailOptions = {
-    to: 'recipient@example.com',
-    subject: 'Test Subject',
-    html: '<p>Test HTML</p>',
-    text: 'Test Text',
-  };
-
   it('should call transporter.sendMail with correct parameters on successful send', async () => {
-    nodemailerMockModule._mockSendMail.mockResolvedValueOnce({
+    mocks.sendMail.mockResolvedValueOnce({
       messageId: 'test-message-id',
       accepted: [emailOptions.to],
       response: '250 OK',
@@ -3328,8 +3378,8 @@ describe('lib -> email', () => {
 
     expect(success).toBe(true);
 
-    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
-    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledWith({
+    expect(mocks.sendMail).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMail).toHaveBeenCalledWith({
       from: process.env.EMAIL_SENDER,
       to: emailOptions.to,
       subject: emailOptions.subject,
@@ -3357,12 +3407,12 @@ describe('lib -> email', () => {
 
   it('should return false and log error if sendMail fails', async () => {
     const error = new Error('SMTP Connection Error');
-    nodemailerMockModule._mockSendMail.mockRejectedValueOnce(error);
+    mocks.sendMail.mockRejectedValueOnce(error);
 
     const success = await sendEmail(emailOptions);
 
     expect(success).toBe(false);
-    expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMail).toHaveBeenCalledTimes(1);
 
     expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
     expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
@@ -3402,7 +3452,7 @@ describe('lib -> email', () => {
       const success = await sendEmail(emailOptions);
 
       expect(success).toBe(true);
-      expect(nodemailerMockModule._mockSendMail).not.toHaveBeenCalled();
+      expect(mocks.sendMail).not.toHaveBeenCalled();
 
       expect(loggerWriteSpy).toHaveBeenCalledTimes(1);
       expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
@@ -3420,12 +3470,12 @@ describe('lib -> email', () => {
 
     it('should attempt to send email in test environment if ACTUALLY_SEND_MAIL_IN_TEST is "true"', async () => {
       process.env.ACTUALLY_SEND_MAIL_IN_TEST = 'true';
-      nodemailerMockModule._mockSendMail.mockResolvedValueOnce({ messageId: 'test-e2e-send', accepted: [emailOptions.to] });
+      mocks.sendMail.mockResolvedValueOnce({ messageId: 'test-e2e-send', accepted: [emailOptions.to] });
 
       const success = await sendEmail(emailOptions);
 
       expect(success).toBe(true);
-      expect(nodemailerMockModule._mockSendMail).toHaveBeenCalledTimes(1);
+      expect(mocks.sendMail).toHaveBeenCalledTimes(1);
 
       expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
       expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
@@ -3503,17 +3553,17 @@ export async function sendEmail(options: MailOptions): Promise<boolean> {
     return true;
   }
 
-  const mailData = {
-    from: process.env.EMAIL_SENDER,
-    to: options.to,
-    subject: options.subject,
-    text: options.text,
-    html: options.html,
-  };
-
   try {
     logger.info({ to: options.to, subject: options.subject }, 'Attempting to send email...');
-    const info = await transporter.sendMail(mailData);
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_SENDER,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+    });
+
     logger.info({ messageId: info.messageId, accepted: info.accepted, response: info.response }, 'Email sent successfully');
 
     return info.accepted.length > 0;
@@ -3523,38 +3573,6 @@ export async function sendEmail(options: MailOptions): Promise<boolean> {
 
     return false;
   }
-}
-```
-
----
-
-lib/log/__mocks__/index.ts:
-
-```ts
-import type { Logger } from 'pino';
-
-import pino from 'pino';
-
-import { loggerWriteSpy } from '@/test/log';
-
-const { createChildLogger: actualCreateChildLogger } = jest.requireActual<typeof import('@/lib/log')>('@/lib/log');
-
-const logger = pino({
-  level: 'trace',
-  timestamp: false,
-  base: null,
-  formatters: {
-    level: label => ({ level: label }),
-    log: object => object,
-  },
-}, {
-  write(msg: string) {
-    loggerWriteSpy(JSON.parse(msg));
-  },
-});
-
-export function createChildLogger(serviceName: string): Logger {
-  return actualCreateChildLogger(serviceName, logger);
 }
 ```
 
@@ -3620,33 +3638,36 @@ export function createChildLogger(serviceName: string, parent: Logger = logger):
 lib/manga.test.ts:
 
 ```ts
+import type { Mock } from 'vitest';
+
 import type { mangaTable } from '@/lib/db/model/manga';
 
 import * as mangaScraper from '@zweer/manga-scraper';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getManga, searchMangas } from '@/lib/manga';
 
-jest.mock('@zweer/manga-scraper', () => ({
+vi.mock('@zweer/manga-scraper', () => ({
   __esModule: true,
   connectors: {
     TestConnectorA: {
-      getMangas: jest.fn(),
-      getManga: jest.fn(),
-      getChapters: jest.fn(),
-      getChapter: jest.fn(),
+      getMangas: vi.fn(),
+      getManga: vi.fn(),
+      getChapters: vi.fn(),
+      getChapter: vi.fn(),
     },
     TestConnectorB: {
-      getMangas: jest.fn(),
-      getManga: jest.fn(),
-      getChapters: jest.fn(),
-      getChapter: jest.fn(),
+      getMangas: vi.fn(),
+      getManga: vi.fn(),
+      getChapters: vi.fn(),
+      getChapter: vi.fn(),
     },
   },
 }));
 
 const mockedConnectors = mangaScraper.connectors as unknown as {
-  TestConnectorA: { getMangas: jest.Mock; getManga: jest.Mock; getChapters: jest.Mock; getChapter: jest.Mock };
-  TestConnectorB: { getMangas: jest.Mock; getManga: jest.Mock; getChapters: jest.Mock; getChapter: jest.Mock };
+  TestConnectorA: { getMangas: Mock; getManga: Mock; getChapters: Mock; getChapter: Mock };
+  TestConnectorB: { getMangas: Mock; getManga: Mock; getChapters: Mock; getChapter: Mock };
 };
 
 describe('manga Library Functions (lib/manga.ts)', () => {
@@ -3788,7 +3809,7 @@ lib/manga.ts:
 ```ts
 import type { ConnectorNames } from '@zweer/manga-scraper';
 
-import type { MangaInsert } from '@/lib/db/model/manga';
+import type { ChapterInsert, MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
@@ -3867,6 +3888,1486 @@ export async function getManga(connectorName: string, id: string): Promise<Manga
     throw error;
   }
 }
+
+export async function getChapters(connectorName: string, mangaId: string): Promise<ChapterInsert[]> {
+  const connector = connectors[connectorName as ConnectorNames];
+
+  if (!connector) {
+    throw new Error('Invalid connector name');
+  }
+
+  try {
+    logger.debug(`[getChapters] Getting manga "${mangaId}" chapters with connector: ${connectorName}`);
+    const chapters = await connector.getChapters(mangaId);
+
+    return chapters.map(chapter => ({
+      mangaId,
+      sourceName: connectorName,
+      sourceId: chapter.id,
+      title: chapter.title,
+      index: chapter.index,
+      url: chapter.url,
+      releasedAt: chapter.releasedAt && new Date(chapter.releasedAt),
+      images: chapter.images,
+    }));
+  } catch (error) {
+    logger.error(`[getChapters] Error with connector ${connectorName} while getting manga "${mangaId}" chapters:`, error);
+    throw error;
+  }
+}
+
+export async function getChapter(connectorName: string, mangaId: string, chapterId: string): Promise<ChapterInsert> {
+  const connector = connectors[connectorName as ConnectorNames];
+
+  if (!connector) {
+    throw new Error('Invalid connector name');
+  }
+
+  try {
+    logger.debug(`[getChapter] Getting manga "${mangaId}" chapter "${chapterId}" with connector: ${connectorName}`);
+    const chapter = await connector.getChapter(mangaId, chapterId);
+
+    return {
+      mangaId,
+      sourceName: connectorName,
+      sourceId: chapter.id,
+      title: chapter.title,
+      index: chapter.index,
+      url: chapter.url,
+      releasedAt: chapter.releasedAt && new Date(chapter.releasedAt),
+      images: chapter.images,
+    };
+  } catch (error) {
+    logger.error(`[getChapter] Error with connector ${connectorName} while getting manga "${mangaId}" chapter "${chapterId}":`, error);
+    throw error;
+  }
+}
+```
+
+---
+
+lib/service/mangaUpdater.test.ts:
+
+```ts
+import type { MockInstance } from 'vitest';
+
+import type { Chapter, Manga, User } from '@/lib/db/model';
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { db } from '@/lib/db';
+import { chapterTable, mangaTable, userMangaTable, userTable } from '@/lib/db/model';
+import { mangaUpdater } from '@/lib/service/mangaUpdater';
+import { loggerWriteSpy } from '@/test/log';
+import { defaultUser } from '@/test/mocks/db/user';
+import { mockSendEmailError, mockSendEmailSuccess } from '@/test/mocks/email';
+import {
+  defaultChapter,
+  defaultManga,
+  mockedGetChapters,
+  mockedGetManga,
+  mockGetChaptersError,
+  mockGetChaptersSuccess,
+  mockGetMangaConnectorError,
+  mockGetMangaSuccess,
+} from '@/test/mocks/manga';
+
+vi.mock('@/lib/manga', () => ({
+  getManga: vi.fn(),
+  searchMangas: vi.fn(),
+  getChapters: vi.fn(),
+  getChapter: vi.fn(),
+}));
+vi.mock('@/lib/email', () => ({
+  sendEmail: vi.fn(),
+}));
+
+const manga1: Manga = {
+  ...defaultManga,
+  id: 'manga-id-1',
+  sourceName: 'TestConnectorA',
+  sourceId: 'manga-source-id-1',
+  title: 'Epic Adventure Manga 1',
+  chaptersCount: 11,
+};
+const manga1Chapters: Chapter[] = Array.from({ length: manga1.chaptersCount! }, (_, index) => ({
+  ...defaultChapter,
+  id: `chapter-id-a-${index}`,
+  mangaId: manga1.id,
+  sourceId: `chapter-source-id-a-${index}`,
+  title: `${defaultChapter.title} ${index}`,
+  index,
+}));
+const manga2: Manga = {
+  ...defaultManga,
+  id: 'manga-id-2',
+  sourceName: 'TestConnectorA',
+  sourceId: 'manga-source-id-2',
+  title: 'Epic Adventure Manga 2',
+  chaptersCount: 12,
+};
+const manga2Chapters: Chapter[] = Array.from({ length: manga2.chaptersCount! }, (_, index) => ({
+  ...defaultChapter,
+  id: `chapter-id-b-${index}`,
+  mangaId: manga2.id,
+  sourceId: `chapter-source-id-b-${index}`,
+  title: `${defaultChapter.title} ${index}`,
+  index,
+}));
+
+const user1: User = {
+  ...defaultUser,
+  id: 'test-user-id-1',
+  name: 'Test User 1',
+  email: 'test1@example.com',
+  telegramId: 1,
+};
+
+describe('task: checkForMangaUpdates', () => {
+  let insertSpy: MockInstance<typeof db.insert>;
+  let updateSpy: MockInstance<typeof db.update>;
+
+  beforeEach(async () => {
+    insertSpy = vi.spyOn(db, 'insert');
+    updateSpy = vi.spyOn(db, 'update');
+
+    await db.insert(userTable).values([user1]);
+    await db.insert(mangaTable).values([manga1, manga2]);
+    await db.insert(chapterTable).values([...manga1Chapters, ...manga2Chapters]);
+  });
+
+  it('should check a manga even if none is tracking, find no update, and not update DB or list users', async () => {
+    mockGetMangaSuccess(manga1);
+    mockGetMangaSuccess(manga2);
+
+    const result = await mangaUpdater();
+
+    expect(mockedGetManga).toHaveBeenCalledTimes(2);
+    expect(mockedGetChapters).toHaveBeenCalledTimes(0);
+
+    expect(result).toEqual({
+      emailsSent: 0,
+      updatedMangas: [],
+      errors: [],
+    });
+
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(10);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      msg: 'Starting manga update check...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      msg: 'Found 2 mangas. Checking for updates...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      level: 'debug',
+      mangaId: 'manga-id-1',
+      mangaTitle: 'Epic Adventure Manga 1',
+      msg: 'Checking manga for updates.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+      level: 'debug',
+      mangaId: 'manga-id-1',
+      mangaTitle: 'Epic Adventure Manga 1',
+      oldChapters: 11,
+      newChapters: 11,
+      msg: 'No new chapters found.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+      level: 'debug',
+      mangaId: 'manga-id-2',
+      mangaTitle: 'Epic Adventure Manga 2',
+      msg: 'Checking manga for updates.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+      level: 'debug',
+      mangaId: 'manga-id-2',
+      mangaTitle: 'Epic Adventure Manga 2',
+      oldChapters: 12,
+      newChapters: 12,
+      msg: 'No new chapters found.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+      level: 'info',
+      msg: 'Starting user retrieval...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+      level: 'info',
+      msg: 'Found 0 users to be notified.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+      level: 'info',
+      msg: 'Starting manga update notification...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+      level: 'info',
+      msg: 'Sent 0 emails to users.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+  });
+
+  it('should find an update, update DB, and identify users to notify', async () => {
+    const freshChaptersCount = 12;
+    mockGetMangaSuccess({
+      ...manga1,
+      chaptersCount: freshChaptersCount,
+    });
+    mockGetChaptersSuccess([
+      ...manga1Chapters,
+      {
+        ...defaultChapter,
+        id: 'chapter-id-a-11',
+        mangaId: manga1.id,
+        sourceId: 'chapter-source-id-a-11',
+        title: `${defaultChapter.title} 11`,
+        index: 11,
+      },
+    ]);
+    mockGetMangaSuccess(manga2);
+
+    const result = await mangaUpdater();
+
+    expect(mockedGetManga).toHaveBeenCalledTimes(2);
+    expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+
+    expect(result).toEqual({
+      emailsSent: 0,
+      updatedMangas: [{
+        id: manga1.id,
+        sourceName: manga1.sourceName,
+        title: manga1.title,
+        url: manga1.url,
+        chapters: [expect.objectContaining({ index: 11 })],
+        usersToNotify: [],
+      }],
+      errors: [],
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+    const newManga1 = await db.query.mangaTable.findFirst({
+      where: (manga, { eq }) => eq(manga.id, manga1.id),
+    });
+
+    expect(newManga1).toHaveProperty('chaptersCount', freshChaptersCount);
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(10);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      msg: 'Starting manga update check...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      msg: 'Found 2 mangas. Checking for updates...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      level: 'debug',
+      mangaId: 'manga-id-1',
+      mangaTitle: 'Epic Adventure Manga 1',
+      msg: 'Checking manga for updates.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+      level: 'info',
+      mangaId: 'manga-id-1',
+      mangaTitle: 'Epic Adventure Manga 1',
+      oldChaptersCount: 11,
+      newChaptersCount: 12,
+      msg: 'Manga has new chapters.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+      level: 'debug',
+      mangaId: 'manga-id-2',
+      mangaTitle: 'Epic Adventure Manga 2',
+      msg: 'Checking manga for updates.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+      level: 'debug',
+      mangaId: 'manga-id-2',
+      mangaTitle: 'Epic Adventure Manga 2',
+      oldChapters: 12,
+      newChapters: 12,
+      msg: 'No new chapters found.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+      level: 'info',
+      msg: 'Starting user retrieval...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+      level: 'info',
+      msg: 'Found 0 users to be notified.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+      level: 'info',
+      msg: 'Starting manga update notification...',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+      level: 'info',
+      msg: 'Sent 0 emails to users.',
+      serviceName: 'task:mangaUpdateChecker',
+    });
+  });
+
+  describe('some manga should be tracked', () => {
+    const lastReadChapter = 8;
+
+    beforeEach(async () => {
+      await db.insert(userMangaTable).values([{
+        mangaId: manga1.id,
+        userId: user1.id,
+        lastReadChapter,
+      }]);
+    });
+
+    it('should check a manga, find no update, and not update DB or list users', async () => {
+      mockGetMangaSuccess(manga1);
+      mockGetMangaSuccess(manga2);
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(0);
+
+      expect(result).toEqual({
+        emailsSent: 0,
+        updatedMangas: [],
+        errors: [],
+      });
+
+      expect(updateSpy).not.toHaveBeenCalled();
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(10);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChapters: 11,
+        newChapters: 11,
+        msg: 'No new chapters found.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        oldChapters: 12,
+        newChapters: 12,
+        msg: 'No new chapters found.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Found 0 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'info',
+        msg: 'Sent 0 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+
+    it('should find an update, update DB, and identify users to notify', async () => {
+      const freshChaptersCount = 12;
+      mockGetMangaSuccess({
+        ...manga1,
+        chaptersCount: freshChaptersCount,
+      });
+      mockGetChaptersSuccess([
+        ...manga1Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        },
+      ]);
+      mockGetMangaSuccess(manga2);
+      mockSendEmailSuccess();
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+
+      expect(result).toEqual({
+        emailsSent: 1,
+        updatedMangas: [{
+          id: manga1.id,
+          sourceName: manga1.sourceName,
+          title: manga1.title,
+          url: manga1.url,
+          chapters: [expect.objectContaining({ index: 11 })],
+          usersToNotify: [{
+            id: user1.id,
+            email: user1.email,
+          }],
+        }],
+        errors: [],
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+      const newManga1 = await db.query.mangaTable.findFirst({
+        where: (manga, { eq }) => eq(manga.id, manga1.id),
+      });
+
+      expect(newManga1).toHaveProperty('chaptersCount', freshChaptersCount);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(10);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'info',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChaptersCount: 11,
+        newChaptersCount: 12,
+        msg: 'Manga has new chapters.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        oldChapters: 12,
+        newChapters: 12,
+        msg: 'No new chapters found.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Found 1 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'info',
+        msg: 'Sent 1 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+
+    it('should find an update, update DB, and identify users to notify, but fails sending the email', async () => {
+      const freshChaptersCount = 12;
+      mockGetMangaSuccess({
+        ...manga1,
+        chaptersCount: freshChaptersCount,
+      });
+      mockGetChaptersSuccess([
+        ...manga1Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        },
+      ]);
+      mockGetMangaSuccess(manga2);
+      mockSendEmailError();
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+
+      expect(result).toEqual({
+        emailsSent: 0,
+        updatedMangas: [{
+          id: manga1.id,
+          sourceName: manga1.sourceName,
+          title: manga1.title,
+          url: manga1.url,
+          chapters: [expect.objectContaining({ index: 11 })],
+          usersToNotify: [{
+            id: user1.id,
+            email: user1.email,
+          }],
+        }],
+        errors: [{
+          mangaId: 'manga-id-1',
+          mangaSourceName: 'TestConnectorA',
+          mangaTitle: 'Epic Adventure Manga 1',
+          message: 'Email send failed',
+          error: expect.any(Object),
+        }],
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+      const newManga1 = await db.query.mangaTable.findFirst({
+        where: (manga, { eq }) => eq(manga.id, manga1.id),
+      });
+
+      expect(newManga1).toHaveProperty('chaptersCount', freshChaptersCount);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(11);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'info',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChaptersCount: 11,
+        newChaptersCount: 12,
+        msg: 'Manga has new chapters.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        oldChapters: 12,
+        newChapters: 12,
+        msg: 'No new chapters found.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Found 1 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'error',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Failed to send email to user.',
+        userEmail: 'test1@example.com',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(11, {
+        level: 'info',
+        msg: 'Sent 0 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+
+    it('should handle manga scraper error for one manga and continue with others', async () => {
+      const freshChaptersCount = 12;
+      mockGetMangaSuccess({
+        ...manga1,
+        chaptersCount: freshChaptersCount,
+      });
+      mockGetChaptersSuccess([
+        ...manga1Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        },
+      ]);
+      mockGetMangaConnectorError();
+      mockSendEmailSuccess();
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(1);
+
+      expect(result).toEqual({
+        emailsSent: 1,
+        updatedMangas: [{
+          id: manga1.id,
+          sourceName: manga1.sourceName,
+          title: manga1.title,
+          url: manga1.url,
+          chapters: [expect.objectContaining({ index: 11 })],
+          usersToNotify: [{
+            id: user1.id,
+            email: user1.email,
+          }],
+        }],
+        errors: [{
+          mangaId: 'manga-id-2',
+          mangaSourceName: 'TestConnectorA',
+          mangaTitle: 'Epic Adventure Manga 2',
+          message: 'Manga fetch failed',
+          error: expect.any(Object),
+        }],
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+      const newManga1 = await db.query.mangaTable.findFirst({
+        where: (manga, { eq }) => eq(manga.id, manga1.id),
+      });
+
+      expect(newManga1).toHaveProperty('chaptersCount', freshChaptersCount);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(10);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'info',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChaptersCount: 11,
+        newChaptersCount: 12,
+        msg: 'Manga has new chapters.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'error',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Failed to fetch manga details.',
+        error: expect.any(Object),
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Found 1 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'info',
+        msg: 'Sent 1 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+
+    it('should handle chapters scraper error for one manga and continue with others', async () => {
+      const freshChaptersACount = 12;
+      const freshChaptersBCount = 13;
+      mockGetMangaSuccess({
+        ...manga1,
+        chaptersCount: freshChaptersACount,
+      });
+      mockGetChaptersSuccess([
+        ...manga1Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        },
+      ]);
+      mockGetMangaSuccess({
+        ...manga2,
+        chaptersCount: freshChaptersBCount,
+      });
+      mockGetChaptersError();
+      mockSendEmailSuccess();
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(2);
+
+      expect(result).toEqual({
+        emailsSent: 1,
+        updatedMangas: [{
+          id: manga1.id,
+          sourceName: manga1.sourceName,
+          title: manga1.title,
+          url: manga1.url,
+          chapters: [expect.objectContaining({ index: 11 })],
+          usersToNotify: [{
+            id: user1.id,
+            email: user1.email,
+          }],
+        }],
+        errors: [{
+          mangaId: 'manga-id-2',
+          mangaSourceName: 'TestConnectorA',
+          mangaTitle: 'Epic Adventure Manga 2',
+          message: 'Chapters fetch failed',
+          error: expect.any(Object),
+        }],
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+      const newManga1 = await db.query.mangaTable.findFirst({
+        where: (manga, { eq }) => eq(manga.id, manga1.id),
+      });
+
+      expect(newManga1).toHaveProperty('chaptersCount', freshChaptersACount);
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(11);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'info',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChaptersCount: 11,
+        newChaptersCount: 12,
+        msg: 'Manga has new chapters.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'info',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Manga has new chapters.',
+        newChaptersCount: 13,
+        oldChaptersCount: 12,
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'error',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Failed to fetch manga chapters.',
+        error: expect.any(Object),
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Found 1 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(11, {
+        level: 'info',
+        msg: 'Sent 1 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+
+    it('should handle db error for one manga and continue with others', async () => {
+      const freshChaptersACount = 12;
+      const freshChaptersBCount = 13;
+      mockGetMangaSuccess({
+        ...manga1,
+        chaptersCount: freshChaptersACount,
+      });
+      mockGetChaptersSuccess([
+        ...manga1Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        },
+      ]);
+      mockGetMangaSuccess({
+        ...manga2,
+        chaptersCount: freshChaptersBCount,
+      });
+      mockGetChaptersSuccess([
+        ...manga2Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-b-12',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-b-12',
+          title: `${defaultChapter.title} 12`,
+          index: 12,
+        },
+      ]);
+      mockSendEmailSuccess();
+
+      const simulatedError = 'Simulated error';
+      updateSpy.mockImplementationOnce(() => ({
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValueOnce({}),
+      }) as any);
+      updateSpy.mockImplementationOnce(() => ({
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn()
+          .mockRejectedValueOnce(new Error(simulatedError)),
+      }) as any);
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(2);
+
+      expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+      expect(updateSpy).toHaveBeenCalledTimes(2);
+
+      expect(result).toEqual({
+        emailsSent: 1,
+        updatedMangas: [{
+          id: manga1.id,
+          sourceName: manga1.sourceName,
+          title: manga1.title,
+          url: manga1.url,
+          chapters: [expect.objectContaining({ index: 11 })],
+          usersToNotify: [{
+            id: user1.id,
+            email: user1.email,
+          }],
+        }],
+        errors: [{
+          mangaId: manga2.id,
+          mangaSourceName: manga2.sourceName,
+          mangaTitle: manga2.title,
+          message: 'Failed to update manga in DB',
+          error: expect.any(Object),
+        }],
+      });
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(11);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'info',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChaptersCount: 11,
+        newChaptersCount: 12,
+        msg: 'Manga has new chapters.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'info',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Manga has new chapters.',
+        newChaptersCount: 13,
+        oldChaptersCount: 12,
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'error',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Failed to update manga in DB.',
+        error: expect.any(Object),
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Found 1 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(11, {
+        level: 'info',
+        msg: 'Sent 1 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+
+    it('should handle db error for one manga chapters and continue with others', async () => {
+      const freshChaptersACount = 12;
+      const freshChaptersBCount = 13;
+      mockGetMangaSuccess({
+        ...manga1,
+        chaptersCount: freshChaptersACount,
+      });
+      mockGetChaptersSuccess([
+        ...manga1Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        },
+      ]);
+      mockGetMangaSuccess({
+        ...manga2,
+        chaptersCount: freshChaptersBCount,
+      });
+      mockGetChaptersSuccess([
+        ...manga2Chapters,
+        {
+          ...defaultChapter,
+          id: 'chapter-id-b-12',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-b-12',
+          title: `${defaultChapter.title} 12`,
+          index: 12,
+        },
+      ]);
+      mockSendEmailSuccess();
+
+      const simulatedError = 'Simulated error';
+      insertSpy.mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValueOnce([{
+          ...defaultChapter,
+          id: 'chapter-id-a-11',
+          mangaId: manga1.id,
+          sourceId: 'chapter-source-id-a-11',
+          title: `${defaultChapter.title} 11`,
+          index: 11,
+        }]),
+      }) as any);
+      insertSpy.mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn()
+          .mockRejectedValueOnce(new Error(simulatedError)),
+      }) as any);
+
+      const result = await mangaUpdater();
+
+      expect(mockedGetManga).toHaveBeenCalledTimes(2);
+      expect(mockedGetChapters).toHaveBeenCalledTimes(2);
+
+      expect(updateSpy).toHaveBeenCalledWith(mangaTable);
+      expect(updateSpy).toHaveBeenCalledTimes(2);
+
+      expect(result).toEqual({
+        emailsSent: 1,
+        updatedMangas: [{
+          id: manga1.id,
+          sourceName: manga1.sourceName,
+          title: manga1.title,
+          url: manga1.url,
+          chapters: [expect.objectContaining({ index: 11 })],
+          usersToNotify: [{
+            id: user1.id,
+            email: user1.email,
+          }],
+        }],
+        errors: [{
+          mangaId: manga2.id,
+          mangaSourceName: manga2.sourceName,
+          mangaTitle: manga2.title,
+          message: 'Failed to insert new chapters in DB',
+          error: expect.any(Object),
+        }],
+      });
+
+      expect(loggerWriteSpy).toHaveBeenCalledTimes(11);
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+        level: 'info',
+        msg: 'Starting manga update check...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+        level: 'info',
+        msg: 'Found 2 mangas. Checking for updates...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+        level: 'debug',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(4, {
+        level: 'info',
+        mangaId: 'manga-id-1',
+        mangaTitle: 'Epic Adventure Manga 1',
+        oldChaptersCount: 11,
+        newChaptersCount: 12,
+        msg: 'Manga has new chapters.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(5, {
+        level: 'debug',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Checking manga for updates.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(6, {
+        level: 'info',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Manga has new chapters.',
+        newChaptersCount: 13,
+        oldChaptersCount: 12,
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(7, {
+        level: 'error',
+        mangaId: 'manga-id-2',
+        mangaTitle: 'Epic Adventure Manga 2',
+        msg: 'Failed to insert new chapters in DB.',
+        error: expect.any(Object),
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(8, {
+        level: 'info',
+        msg: 'Starting user retrieval...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(9, {
+        level: 'info',
+        msg: 'Found 1 users to be notified.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(10, {
+        level: 'info',
+        msg: 'Starting manga update notification...',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+      expect(loggerWriteSpy).toHaveBeenNthCalledWith(11, {
+        level: 'info',
+        msg: 'Sent 1 emails to users.',
+        serviceName: 'task:mangaUpdateChecker',
+      });
+    });
+  });
+});
+```
+
+---
+
+lib/service/mangaUpdater.ts:
+
+```ts
+import type { ChapterInsert, Manga, MangaInsert, User } from '@/lib/db/model';
+
+import { eq } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { chapterTable, mangaTable } from '@/lib/db/model';
+import { sendEmail } from '@/lib/email';
+import { createChildLogger } from '@/lib/log';
+import { getChapter, getChapters, getManga } from '@/lib/manga';
+
+const logger = createChildLogger('task:mangaUpdateChecker');
+
+type UserToNotify = Pick<User, 'id' | 'email'>;
+
+interface MangaUpdate extends Pick<Manga, 'sourceName' | 'id' | 'title' | 'url'> {
+  chapters: ChapterInsert[];
+  usersToNotify: UserToNotify[];
+}
+
+interface MangaError {
+  mangaSourceName: Manga['sourceName'];
+  mangaId: Manga['id'];
+  mangaTitle: Manga['title'];
+  message: string;
+  error: Error;
+}
+
+interface MangaUpdaterResult {
+  emailsSent: number;
+  updatedMangas: MangaUpdate[];
+  errors: MangaError[];
+}
+
+async function checkMangasForUpdates(result: MangaUpdaterResult): Promise<void> {
+  logger.info('Starting manga update check...');
+
+  const mangas = await db.query.mangaTable.findMany({
+    orderBy: (mangaTable, { asc }) => asc(mangaTable.lastCheckedAt),
+    limit: 10,
+    with: {
+      chapters: {
+        limit: 1,
+        orderBy: (chapterTable, { desc }) => desc(chapterTable.index),
+      },
+    },
+  });
+
+  logger.info(`Found ${mangas.length} mangas. Checking for updates...`);
+
+  for (const manga of mangas) {
+    logger.debug({ mangaId: manga.id, mangaTitle: manga.title }, 'Checking manga for updates.');
+
+    const lastChapterIndex = (manga.chapters.length && manga.chapters[0].index) ?? 0;
+    let freshManga: MangaInsert;
+
+    try {
+      freshManga = await getManga(manga.sourceName, manga.sourceId);
+    } catch (error) {
+      logger.error({ mangaId: manga.id, mangaTitle: manga.title, error }, 'Failed to fetch manga details.');
+
+      result.errors.push({
+        mangaSourceName: manga.sourceName,
+        mangaId: manga.id,
+        mangaTitle: manga.title,
+        message: 'Manga fetch failed',
+        error: error as Error,
+      });
+
+      continue;
+    }
+
+    const oldChaptersCount = manga.chaptersCount ?? 0;
+    const newChaptersCount = freshManga.chaptersCount ?? 0;
+    let newChapters: ChapterInsert[] = [];
+
+    if (newChaptersCount > oldChaptersCount) {
+      logger.info({
+        mangaId: manga.id,
+        mangaTitle: manga.title,
+        oldChaptersCount,
+        newChaptersCount,
+      }, 'Manga has new chapters.');
+
+      try {
+        const chapters = await getChapters(manga.sourceName, manga.sourceId);
+        newChapters = await Promise.all(chapters
+          .filter(chapter => chapter.index! > lastChapterIndex)
+          .map(
+            async chapter => chapter.images && chapter.images.length > 0
+              ? chapter
+              : getChapter(manga.sourceName, manga.sourceId, chapter.sourceId),
+          ));
+      } catch (error) {
+        logger.error({ mangaId: manga.id, mangaTitle: manga.title, error }, 'Failed to fetch manga chapters.');
+
+        result.errors.push({
+          mangaSourceName: manga.sourceName,
+          mangaId: manga.id,
+          mangaTitle: manga.title,
+          message: 'Chapters fetch failed',
+          error: error as Error,
+        });
+
+        continue;
+      }
+    } else {
+      logger.debug({
+        mangaId: manga.id,
+        mangaTitle: manga.title,
+        oldChapters: oldChaptersCount,
+        newChapters: newChaptersCount,
+      }, 'No new chapters found.');
+
+      continue;
+    }
+
+    try {
+      await db.update(mangaTable).set({ lastCheckedAt: new Date(), chaptersCount: newChaptersCount }).where(eq(mangaTable.id, manga.id));
+    } catch (error) {
+      logger.error({ mangaId: manga.id, mangaTitle: manga.title, error }, 'Failed to update manga in DB.');
+
+      result.errors.push({
+        mangaSourceName: manga.sourceName,
+        mangaId: manga.id,
+        mangaTitle: manga.title,
+        message: 'Failed to update manga in DB',
+        error: error as Error,
+      });
+
+      continue;
+    }
+
+    try {
+      const chapters = await db.insert(chapterTable).values(newChapters).returning();
+
+      result.updatedMangas.push({
+        sourceName: manga.sourceName,
+        id: manga.id,
+        title: manga.title,
+        url: manga.url,
+        chapters,
+        usersToNotify: [],
+      });
+    } catch (error) {
+      logger.error({ mangaId: manga.id, mangaTitle: manga.title, error }, 'Failed to insert new chapters in DB.');
+
+      result.errors.push({
+        mangaSourceName: manga.sourceName,
+        mangaId: manga.id,
+        mangaTitle: manga.title,
+        message: 'Failed to insert new chapters in DB',
+        error: error as Error,
+      });
+    }
+  }
+}
+
+async function retrieveUsersForUpdates(result: MangaUpdaterResult): Promise<void> {
+  logger.info('Starting user retrieval...');
+
+  const mangaIds = result.updatedMangas.map(manga => manga.id);
+  const userMangas = await db.query.userMangaTable.findMany({
+    where: (userMangaTable, { inArray }) => inArray(userMangaTable.mangaId, mangaIds),
+    with: {
+      user: true,
+    },
+  });
+
+  userMangas.forEach((userManga) => {
+    const manga = result.updatedMangas.find(manga => manga.id === userManga.mangaId);
+    if (!manga) {
+      return;
+    }
+
+    manga.usersToNotify.push({
+      id: userManga.user.id,
+      email: userManga.user.email,
+    });
+  });
+
+  logger.info(`Found ${userMangas.length} users to be notified.`);
+}
+
+async function notifyUsersForUpdates(result: MangaUpdaterResult): Promise<void> {
+  logger.info('Starting manga update notification...');
+
+  for (const manga of result.updatedMangas) {
+    if (manga.usersToNotify.length === 0) {
+      continue;
+    }
+
+    for (const chapter of manga.chapters) {
+      let subject = `${manga.title} - ${chapter.index}`;
+      if (chapter.title != null) {
+        subject += ` - ${chapter.title}`;
+      }
+
+      const imagesHtml = chapter.images!.map(image => `<img src="${image}" />`).join('<br />\n');
+      const html = `${imagesHtml}<br /><br />\n${subject}`;
+
+      for (const user of manga.usersToNotify) {
+        const isEmailSent = await sendEmail({
+          to: user.email,
+          subject,
+          html,
+          text: manga.url ?? '',
+        });
+
+        if (isEmailSent) {
+          result.emailsSent++;
+        } else {
+          logger.error({
+            mangaId: manga.id,
+            mangaTitle: manga.title,
+            userEmail: user.email,
+          }, 'Failed to send email to user.');
+
+          result.errors.push({
+            mangaSourceName: manga.sourceName,
+            mangaId: manga.id,
+            mangaTitle: manga.title,
+            message: 'Email send failed',
+            error: new Error('Email send failed'),
+          });
+        }
+      }
+    }
+  }
+
+  logger.info(`Sent ${result.emailsSent} emails to users.`);
+}
+
+export async function mangaUpdater(): Promise<MangaUpdaterResult> {
+  const result: MangaUpdaterResult = {
+    emailsSent: 0,
+    updatedMangas: [],
+    errors: [],
+  };
+
+  await checkMangasForUpdates(result);
+  await retrieveUsersForUpdates(result);
+  await notifyUsersForUpdates(result);
+
+  return result;
+}
 ```
 
 ---
@@ -3874,6 +5375,8 @@ export async function getManga(connectorName: string, id: string): Promise<Manga
 lib/validation/user.test.ts:
 
 ```ts
+import { describe, expect, it } from 'vitest';
+
 import { userValidation } from '@/lib/validation/user';
 
 describe('validation -> user', () => {
@@ -4035,8 +5538,9 @@ package.json:
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "db:generate": "drizzle-kit generate",
@@ -4060,12 +5564,11 @@ package.json:
     "@antfu/eslint-config": "^4.13.0",
     "@eslint-react/eslint-plugin": "^1.49.0",
     "@next/eslint-plugin-next": "^15.3.2",
-    "@types/jest": "^29.5.14",
     "@types/node": "^20",
     "@types/nodemailer": "^6.4.17",
     "@types/react": "^19",
     "@types/ws": "^8.18.1",
-    "cross-env": "^7.0.3",
+    "@vitest/coverage-v8": "^3.2.2",
     "dotenv": "^16.5.0",
     "dree": "^5.1.5",
     "drizzle-kit": "^0.31.1",
@@ -4075,30 +5578,10 @@ package.json:
     "eslint-plugin-react-refresh": "^0.4.20",
     "husky": "^9.1.7",
     "ignore": "^7.0.4",
-    "jest": "^29.7.0",
     "pino-pretty": "^13.0.0",
-    "ts-jest": "^29.3.2",
-    "typescript": "^5"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "setupFilesAfterEnv": [
-      "./test/setup.ts"
-    ],
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
-    },
-    "transform": {
-      "^.+.tsx?$": [
-        "ts-jest",
-        {}
-      ]
-    },
-    "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "<rootDir>/lib/logger.ts",
-      "<rootDir>/test"
-    ]
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.2"
   }
 }
 ```
@@ -4190,7 +5673,9 @@ writeFileSync(exportFilename, exportString, { encoding: 'utf-8' });
 test/log/index.ts:
 
 ```ts
-export const loggerWriteSpy = jest.fn();
+import { vi } from 'vitest';
+
+export const loggerWriteSpy = vi.fn();
 ```
 
 ---
@@ -4201,8 +5686,11 @@ test/mocks/bot/context.ts:
 import type { Conversation, ConversationControls } from '@grammyjs/conversations';
 import type { Api, CallbackQueryContext, CommandContext, RawApi } from 'grammy';
 import type { Message } from 'grammy/types';
+import type { Mocked } from 'vitest';
 
 import type { BotContext } from '@/lib/bot/types';
+
+import { vi } from 'vitest';
 
 export type MockMessageContext = BotContext;
 export type MockCommandContext = CommandContext<BotContext>;
@@ -4212,23 +5700,23 @@ function createBaseMockContext(chatId: number, userId: number): Partial<BotConte
   return {
     chat: { id: chatId, type: 'private', first_name: 'Test', username: 'testuser' },
     from: { id: userId, is_bot: false, first_name: 'Test', username: 'testuser' },
-    reply: jest.fn().mockResolvedValue(true),
+    reply: vi.fn().mockResolvedValue(true),
     conversation: {
-      enter: jest.fn().mockResolvedValue(undefined),
-      exit: jest.fn().mockResolvedValue(undefined),
-      active: jest.fn().mockReturnValue({}),
-      waitFor: jest.fn(),
-      external: jest.fn(async callback => callback()),
-      checkpoint: jest.fn(),
-      rewind: jest.fn().mockResolvedValue(undefined),
+      enter: vi.fn().mockResolvedValue(undefined),
+      exit: vi.fn().mockResolvedValue(undefined),
+      active: vi.fn().mockReturnValue({}),
+      waitFor: vi.fn(),
+      external: vi.fn(async callback => callback()),
+      checkpoint: vi.fn(),
+      rewind: vi.fn().mockResolvedValue(undefined),
     } as unknown as ConversationControls,
     api: {
-      raw: jest.fn().mockResolvedValue({ ok: true, result: true }),
-      call: jest.fn().mockResolvedValue({ ok: true, result: true }),
+      raw: vi.fn().mockResolvedValue({ ok: true, result: true }),
+      call: vi.fn().mockResolvedValue({ ok: true, result: true }),
     } as unknown as Api<RawApi>,
-    answerCallbackQuery: jest.fn().mockResolvedValue(true),
-    editMessageText: jest.fn().mockResolvedValue(true),
-    editMessageReplyMarkup: jest.fn().mockResolvedValue(true),
+    answerCallbackQuery: vi.fn().mockResolvedValue(true),
+    editMessageText: vi.fn().mockResolvedValue(true),
+    editMessageReplyMarkup: vi.fn().mockResolvedValue(true),
   };
 }
 
@@ -4295,20 +5783,20 @@ export function createMockCallbackQueryContext(
     },
     from: baseCtx.from,
     chat: baseCtx.chat,
-    answerCallbackQuery: jest.fn().mockResolvedValue(true),
-    editMessageText: jest.fn().mockResolvedValue(true),
+    answerCallbackQuery: vi.fn().mockResolvedValue(true),
+    editMessageText: vi.fn().mockResolvedValue(true),
   } as MockCallbackQueryContext;
 }
 
-export function createMockConversationControl(): jest.Mocked<Conversation> {
+export function createMockConversationControl(): Mocked<Conversation> {
   return {
-    waitFor: jest.fn(),
-    external: jest.fn(async (callback: () => any) => callback()),
-    checkpoint: jest.fn(),
-    rewind: jest.fn().mockResolvedValue(undefined),
-    log: jest.fn(),
-    skip: jest.fn(),
-    wait: jest.fn().mockResolvedValue(undefined),
+    waitFor: vi.fn(),
+    external: vi.fn(async (callback: () => any) => callback()),
+    checkpoint: vi.fn(),
+    rewind: vi.fn().mockResolvedValue(undefined),
+    log: vi.fn(),
+    skip: vi.fn(),
+    wait: vi.fn().mockResolvedValue(undefined),
   } as any;
 }
 ```
@@ -4320,18 +5808,20 @@ test/mocks/db/manga.ts:
 ```ts
 import type { Manga } from '@/lib/db/model';
 
+import { vi } from 'vitest';
+
 import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
 import { defaultManga } from '@/test/mocks/manga';
 
-// jest.mock('@/lib/db/action/manga', () => ({
-//   listTrackedMangas: jest.fn(),
-//   removeTrackedManga: jest.fn(),
-//   trackManga: jest.fn(),
+// vi.mock('@/lib/db/action/manga', () => ({
+//   listTrackedMangas: vi.fn(),
+//   removeTrackedManga: vi.fn(),
+//   trackManga: vi.fn(),
 // }));
 
-export const mockedListTrackedMangas = jest.mocked(listTrackedMangas);
-export const mockedTrackManga = jest.mocked(trackManga);
-export const mockedRemoveTrackedManga = jest.mocked(removeTrackedManga);
+export const mockedListTrackedMangas = vi.mocked(listTrackedMangas);
+export const mockedTrackManga = vi.mocked(trackManga);
+export const mockedRemoveTrackedManga = vi.mocked(removeTrackedManga);
 
 export function mockListTrackedMangasSuccess(partialMangas: Partial<Manga>[] = []): Manga[] {
   const mangas: Manga[] = partialMangas.map(manga => ({ ...defaultManga, ...manga }));
@@ -4371,17 +5861,19 @@ test/mocks/db/user.ts:
 ```ts
 import type { User } from '@/lib/db/model';
 
+import { vi } from 'vitest';
+
 import { findUserByTelegramId, upsertUser } from '@/lib/db/action/user';
 
-// jest.mock('@/lib/db/action/user', () => ({
-//   findUserByTelegramId: jest.fn(),
-//   upsertUser: jest.fn(),
+// vi.mock('@/lib/db/action/user', () => ({
+//   findUserByTelegramId: vi.fn(),
+//   upsertUser: vi.fn(),
 // }));
 
-export const mockedFindUserByTelegramId = jest.mocked(findUserByTelegramId);
-export const mockedUpsertUser = jest.mocked(upsertUser);
+export const mockedFindUserByTelegramId = vi.mocked(findUserByTelegramId);
+export const mockedUpsertUser = vi.mocked(upsertUser);
 
-const defaultUser: User = {
+export const defaultUser: User = {
   id: 'test-user-id',
   name: 'Test User',
   email: 'test@example.com',
@@ -4414,29 +5906,58 @@ export function mockUpsertUserDbError(databaseError = 'DB error'): void {
 
 ---
 
+test/mocks/email.ts:
+
+```ts
+import { vi } from 'vitest';
+
+import { sendEmail } from '@/lib/email';
+
+// vi.mock('@/lib/email', () => ({
+//   sendEmail: vi.fn(),
+// }));
+
+export const mockedSendEmail = vi.mocked(sendEmail);
+
+export function mockSendEmailSuccess(): void {
+  mockedSendEmail.mockResolvedValueOnce(true);
+}
+export function mockSendEmailError(): void {
+  mockedSendEmail.mockResolvedValueOnce(false);
+}
+```
+
+---
+
 test/mocks/manga.ts:
 
 ```ts
 import type { ConnectorNames } from '@zweer/manga-scraper';
 
-import type { Manga, MangaInsert } from '@/lib/db/model';
+import type { Chapter, Manga, MangaInsert } from '@/lib/db/model';
 import type { MangaAutocomplete } from '@/lib/manga';
 
-import { getManga, searchMangas } from '@/lib/manga';
+import { vi } from 'vitest';
 
-// jest.mock('@/lib/manga', () => ({
-//   getManga: jest.fn(),
-//   searchMangas: jest.fn(),
+import { getChapter, getChapters, getManga, searchMangas } from '@/lib/manga';
+
+// vi.mock('@/lib/manga', () => ({
+//   getManga: vi.fn(),
+//   searchMangas: vi.fn(),
+//   getChapters: vi.fn(),
+//   getChapter: vi.fn(),
 // }));
 
-export const mockedGetManga = jest.mocked(getManga);
-export const mockedSearchMangas = jest.mocked(searchMangas);
+export const mockedGetManga = vi.mocked(getManga);
+export const mockedSearchMangas = vi.mocked(searchMangas);
+export const mockedGetChapters = vi.mocked(getChapters);
+export const mockedGetChapter = vi.mocked(getChapter);
 
 export const testConnectorNameA = 'TestConnectorA' as ConnectorNames;
 
 export const defaultManga: Manga = {
   id: 'manga-id-123',
-  sourceName: 'TestConnectorA',
+  sourceName: testConnectorNameA,
   sourceId: 'manga-source-id-123',
   title: 'Epic Adventure Manga',
   chaptersCount: 10,
@@ -4452,16 +5973,31 @@ export const defaultManga: Manga = {
   releasedAt: new Date(),
   createdAt: new Date(),
   updatedAt: new Date(),
+  lastCheckedAt: new Date(),
+};
+
+export const defaultChapter: Chapter = {
+  id: 'chapter-id-123',
+  sourceName: testConnectorNameA,
+  sourceId: 'chapter-source-id-123',
+  mangaId: 'manga-id-123',
+  title: 'Epic Adventure Chapter',
+  index: 1,
+  url: 'chapter.url',
+  releasedAt: new Date(),
+  images: ['image-1', 'image-2'],
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 export function mockGetMangaSuccess(partialManga: Partial<MangaInsert> = {}): Manga {
   const manga: Manga = { ...defaultManga, ...partialManga };
-  mockedGetManga.mockResolvedValue(manga);
+  mockedGetManga.mockResolvedValueOnce(manga);
 
   return manga;
 }
 export function mockGetMangaConnectorError(message = 'Invalid connector name'): void {
-  mockedGetManga.mockRejectedValue(new Error(message));
+  mockedGetManga.mockRejectedValueOnce(new Error(message));
 }
 
 export function mockSearchMangaSuccess(partialAutocompleteMangas: Partial<MangaAutocomplete>[] = []): MangaAutocomplete[] {
@@ -4472,12 +6008,32 @@ export function mockSearchMangaSuccess(partialAutocompleteMangas: Partial<MangaA
     chaptersCount: defaultManga.chaptersCount as number,
     ...manga,
   }));
-  mockedSearchMangas.mockResolvedValue(autocompleteMangas);
+  mockedSearchMangas.mockResolvedValueOnce(autocompleteMangas);
 
   return autocompleteMangas;
 }
 export function mockSearchMangaError(message = 'Search error'): void {
-  mockedSearchMangas.mockRejectedValue(new Error(message));
+  mockedSearchMangas.mockRejectedValueOnce(new Error(message));
+}
+
+export function mockGetChaptersSuccess(partialChapters: Partial<Chapter>[] = []): Chapter[] {
+  const chapters: Chapter[] = partialChapters.map(chapter => ({ ...defaultChapter, ...chapter }));
+  mockedGetChapters.mockResolvedValueOnce(chapters);
+
+  return chapters;
+}
+export function mockGetChaptersError(message = 'Fetch error'): void {
+  mockedGetChapters.mockRejectedValueOnce(new Error(message));
+}
+
+export function mockGetChapterSuccess(partialChapter: Partial<Chapter> = {}): Chapter {
+  const chapter: Chapter = { ...defaultChapter, ...partialChapter };
+  mockedGetChapter.mockResolvedValueOnce(chapter);
+
+  return chapter;
+}
+export function mockGetChapterError(message = 'Fetch error'): void {
+  mockedGetChapter.mockRejectedValueOnce(new Error(message));
 }
 ```
 
@@ -4486,52 +6042,76 @@ export function mockSearchMangaError(message = 'Search error'): void {
 test/setup.ts:
 
 ```ts
+import type { Logger } from 'pino';
+
 import { resolve } from 'node:path';
 
 import { PgTable } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
+import pino from 'pino';
+import { afterAll, afterEach, beforeEach, vi } from 'vitest';
 
 import * as schema from '@/lib/db/model';
+import { loggerWriteSpy } from '@/test/log';
 
-export const testDb = drizzle({ schema, logger: false });
+vi.mock('@/lib/db', async () => {
+  const { PGlite } = await import('@electric-sql/pglite');
+  const pgliteInstance = new PGlite(undefined, { debug: 0 });
+  const testDbInstance = drizzle(pgliteInstance, { schema, logger: false });
 
-jest.mock('@/lib/db', () => ({
-  __esModule: true,
-  db: testDb,
-}));
-
-jest.mock('@/lib/log');
-
-async function applyMigrations() {
   const migrationsFolder = resolve(__dirname, '..', 'drizzle');
+  await migrate(testDbInstance, { migrationsFolder });
 
-  await migrate(testDb, { migrationsFolder });
-}
+  return {
+    db: testDbInstance,
+  };
+});
+
+vi.mock(import('@/lib/log'), async (importOriginal) => {
+  const { createChildLogger: actualCreateChildLogger } = await importOriginal();
+  const logger = pino({
+    level: 'trace',
+    timestamp: false,
+    base: null,
+    formatters: {
+      level: label => ({ level: label }),
+      log: object => object,
+    },
+  }, {
+    write(msg: string) {
+      loggerWriteSpy(JSON.parse(msg));
+    },
+  });
+
+  return {
+    createChildLogger(serviceName: string): Logger {
+      return actualCreateChildLogger(serviceName, logger);
+    },
+  };
+});
 
 export async function resetDatabase() {
+  const { db } = await import('@/lib/db');
+
   await Object.values(schema)
     .filter(table => table instanceof PgTable)
     .reduce(async (promise, table) => {
       await promise;
-      await testDb.delete(table);
+      await db.delete(table);
     }, Promise.resolve());
 }
-
-beforeAll(async () => {
-  await applyMigrations();
-});
 
 beforeEach(async () => {
   await resetDatabase();
 });
 
 afterEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 afterAll(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 ```
 
@@ -4567,4 +6147,34 @@ tsconfig.json:
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
+```
+
+---
+
+vitest.config.ts:
+
+```ts
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  plugins: [tsconfigPaths()],
+  test: {
+    environment: 'node',
+    setupFiles: ['./test/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/coverage/**',
+        '**/.{idea,git,cache,output,temp}/**',
+        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
+        'test/**/*',
+        'e2e/**/*',
+      ],
+    },
+  },
+});
 ```

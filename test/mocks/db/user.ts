@@ -1,16 +1,18 @@
 import type { User } from '@/lib/db/model';
 
+import { vi } from 'vitest';
+
 import { findUserByTelegramId, upsertUser } from '@/lib/db/action/user';
 
-// jest.mock('@/lib/db/action/user', () => ({
-//   findUserByTelegramId: jest.fn(),
-//   upsertUser: jest.fn(),
+// vi.mock('@/lib/db/action/user', () => ({
+//   findUserByTelegramId: vi.fn(),
+//   upsertUser: vi.fn(),
 // }));
 
-export const mockedFindUserByTelegramId = jest.mocked(findUserByTelegramId);
-export const mockedUpsertUser = jest.mocked(upsertUser);
+export const mockedFindUserByTelegramId = vi.mocked(findUserByTelegramId);
+export const mockedUpsertUser = vi.mocked(upsertUser);
 
-const defaultUser: User = {
+export const defaultUser: User = {
   id: 'test-user-id',
   name: 'Test User',
   email: 'test@example.com',

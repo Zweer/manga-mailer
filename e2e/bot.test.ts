@@ -3,6 +3,8 @@ import type { Update, UserFromGetMe } from 'grammy/types';
 
 import type { BotType } from '@/lib/bot/types';
 
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createBot } from '@/lib/bot';
 import { db } from '@/lib/db';
 import * as userActions from '@/lib/db/action/user';
@@ -66,7 +68,7 @@ beforeEach(async () => {
   outgoingRequests = [];
 });
 
-xdescribe('bot E2E-like Tests', () => {
+describe.skip('bot E2E-like Tests', () => {
   describe('/start (Signup Conversation)', () => {
     const chatId = 1000001;
     const userId = 1000001;
@@ -129,7 +131,7 @@ xdescribe('bot E2E-like Tests', () => {
     });
 
     it('should handle validation error for email and allow retry', async () => {
-      const upsertUserSpy = jest.spyOn(userActions, 'upsertUser');
+      const upsertUserSpy = vi.spyOn(userActions, 'upsertUser');
 
       // 1. /start
       await botInstance.handleUpdate(createMessageUpdate('/start', chatId, userId));

@@ -49,17 +49,17 @@ export async function sendEmail(options: MailOptions): Promise<boolean> {
     return true;
   }
 
-  const mailData = {
-    from: process.env.EMAIL_SENDER,
-    to: options.to,
-    subject: options.subject,
-    text: options.text,
-    html: options.html,
-  };
-
   try {
     logger.info({ to: options.to, subject: options.subject }, 'Attempting to send email...');
-    const info = await transporter.sendMail(mailData);
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_SENDER,
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+    });
+
     logger.info({ messageId: info.messageId, accepted: info.accepted, response: info.response }, 'Email sent successfully');
 
     return info.accepted.length > 0;

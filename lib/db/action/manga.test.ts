@@ -1,59 +1,45 @@
-import type { Manga, MangaInsert, User, UserInsert } from '@/lib/db/model';
+import type { MockInstance } from 'vitest';
+
+import type { Manga, User } from '@/lib/db/model';
 
 import { and, eq } from 'drizzle-orm';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { db } from '@/lib/db';
 import { listTrackedMangas, removeTrackedManga, trackManga } from '@/lib/db/action/manga';
 import { mangaTable, userMangaTable, userTable } from '@/lib/db/model';
-
-const testUser: UserInsert = {
-  name: 'Manga Tracker User',
-  email: 'tracker@example.com',
-  telegramId: 1001,
-};
-
-const testMangaData: MangaInsert = {
-  sourceName: 'Test Source',
-  sourceId: 'test-manga-001',
-  title: 'The Great Test Manga',
-  chaptersCount: 10,
-  slug: 'the-great-test-manga',
-  author: 'Test Author',
-  artist: 'Test Artist',
-  excerpt: 'An excerpt',
-  image: 'http://example.com/image.jpg',
-  url: 'http://example.com/manga',
-  status: 'Ongoing',
-  genres: ['action', 'test'],
-  score: 8.5,
-  releasedAt: new Date(),
-};
+import { defaultUser } from '@/test/mocks/db/user';
+import { defaultManga } from '@/test/mocks/manga';
 
 describe('db -> action -> manga', () => {
   let createdUser: User;
+  let insertSpy: MockInstance<typeof db.insert>;
+  let deleteSpy: MockInstance<typeof db.delete>;
 
   beforeEach(async () => {
-    [createdUser] = await db.insert(userTable).values(testUser).returning();
+    [createdUser] = await db.insert(userTable).values(defaultUser).returning();
+    insertSpy = vi.spyOn(db, 'insert');
+    deleteSpy = vi.spyOn(db, 'delete');
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('trackManga', () => {
     it('should track a new manga for a user successfully (manga not in DB)', async () => {
       const lastReadChapter = 0;
-      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
+      const result = await trackManga(defaultManga, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', true);
 
       const manga = await db.query.mangaTable.findFirst({
-        where: (manga, { eq }) => eq(manga.sourceId, testMangaData.sourceId),
+        where: (manga, { eq }) => eq(manga.sourceId, defaultManga.sourceId),
       });
       expect(manga).toBeDefined();
       if (typeof manga === 'undefined') {
         throw new TypeError('Invalid test');
       }
-      expect(manga).toHaveProperty('title', testMangaData.title);
+      expect(manga).toHaveProperty('title', defaultManga.title);
 
       const tracker = await db.query.userMangaTable.findFirst({
         where: (userManga, { and, eq }) => and(
@@ -69,7 +55,7 @@ describe('db -> action -> manga', () => {
     });
 
     it('should track an existing manga for a user successfully (manga already in DB)', async () => {
-      const [manga] = await db.insert(mangaTable).values(testMangaData).returning();
+      const [manga] = await db.insert(mangaTable).values(defaultManga).returning();
 
       const lastReadChapter = 1;
       const result = await trackManga(manga, createdUser.id, lastReadChapter);
@@ -90,7 +76,7 @@ describe('db -> action -> manga', () => {
 
     it('should return invalidUser if the user does not exist', async () => {
       const nonExistentUserId = 'user-id';
-      const result = await trackManga(testMangaData, nonExistentUserId, 0);
+      const result = await trackManga(defaultManga, nonExistentUserId, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
@@ -101,9 +87,9 @@ describe('db -> action -> manga', () => {
 
     it('should return alreadyTracked if the manga is already tracked by the user', async () => {
       const lastReadChapter = 0;
-      await trackManga(testMangaData, createdUser.id, lastReadChapter);
+      await trackManga(defaultManga, createdUser.id, lastReadChapter);
 
-      const result = await trackManga(testMangaData, createdUser.id, lastReadChapter);
+      const result = await trackManga(defaultManga, createdUser.id, lastReadChapter);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
@@ -114,51 +100,49 @@ describe('db -> action -> manga', () => {
 
     it('should return databaseError if inserting manga fails', async () => {
       const simulatedError = 'DB Error on Manga Insert';
-      const insertMangaSpy = jest.spyOn(db, 'insert')
-        .mockImplementationOnce(() => ({
-          values: jest.fn().mockReturnThis(),
-          returning: jest.fn().mockRejectedValue(new Error(simulatedError) as never),
-        } as any));
+      insertSpy.mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockRejectedValue(new Error(simulatedError) as never),
+      } as any));
 
-      const result = await trackManga(testMangaData, createdUser.id, 0);
+      const result = await trackManga(defaultManga, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
       expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
-      expect(insertMangaSpy).toHaveBeenCalledTimes(1);
+
+      expect(insertSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should return databaseError if inserting userManga (tracker) fails', async () => {
       const simulatedError = 'DB Error on Tracker Insert';
-      const insertUserMangaSpy = jest.spyOn(db, 'insert')
+      insertSpy.mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValue([defaultManga] as never),
+      } as any))
         .mockImplementationOnce(() => ({
-          values: jest.fn().mockReturnThis(),
-          returning: jest.fn().mockResolvedValue([testMangaData] as never),
+          values: vi.fn().mockRejectedValue(new Error(simulatedError) as never),
         } as any))
         .mockImplementationOnce(() => ({
-          values: jest.fn().mockRejectedValue(new Error(simulatedError) as never),
-        } as any));
-
-      const mangaInsertSpy = jest.spyOn(db, 'insert')
-        .mockImplementationOnce(() => ({
-          values: jest.fn().mockReturnThis(),
-          returning: jest.fn().mockResolvedValueOnce([{ ...testMangaData, id: 'mocked-manga-id' }] as never), // Simula che il manga sia stato inserito
+          values: vi.fn().mockReturnThis(),
+          returning: vi.fn().mockResolvedValueOnce([{ ...defaultManga, id: 'mocked-manga-id' }] as never),
         } as any))
         .mockImplementationOnce(() => ({
-          values: jest.fn().mockRejectedValueOnce(new Error(simulatedError) as never),
+          values: vi.fn().mockRejectedValueOnce(new Error(simulatedError) as never),
         } as any));
 
-      const result = await trackManga(testMangaData, createdUser.id, 0);
+      const result = await trackManga(defaultManga, createdUser.id, 0);
       expect(result).toHaveProperty('success', false);
       if (result.success) {
         throw new Error('Test failed');
       }
       expect(result).toHaveProperty('alreadyTracked', false);
       expect(result).toHaveProperty('databaseError', simulatedError);
-      expect(insertUserMangaSpy).toHaveBeenCalledTimes(2);
-      expect(mangaInsertSpy).toHaveBeenCalledTimes(2);
+
+      expect(insertSpy).toHaveBeenCalledTimes(2);
+      expect(insertSpy).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -167,8 +151,18 @@ describe('db -> action -> manga', () => {
     let manga2: Manga;
 
     beforeEach(async () => {
-      [manga1] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-remove-1', title: 'Manga To Remove 1' }).returning();
-      [manga2] = await db.insert(mangaTable).values({ ...testMangaData, sourceId: 'manga-to-keep-1', title: 'Manga To Keep 1' }).returning();
+      [manga1] = await db.insert(mangaTable).values({
+        ...defaultManga,
+        id: 'manga-id-123-1',
+        sourceId: 'manga-to-remove-1',
+        title: 'Manga To Remove 1',
+      }).returning();
+      [manga2] = await db.insert(mangaTable).values({
+        ...defaultManga,
+        id: 'manga-id-123-2',
+        sourceId: 'manga-to-keep-1',
+        title: 'Manga To Keep 1',
+      }).returning();
 
       await db.insert(userMangaTable).values([
         { userId: createdUser.id, mangaId: manga1.id, lastReadChapter: 1 },
@@ -220,10 +214,9 @@ describe('db -> action -> manga', () => {
 
     it('should return databaseError if db.delete fails', async () => {
       const simulatedError = 'DB Error on Delete';
-      // Spy su db.delete e fallo fallire
-      const deleteSpy = jest.spyOn(db, 'delete').mockImplementationOnce(
-        () => ({ // db.delete(userMangaTable) restituisce un builder
-          where: jest.fn().mockRejectedValue(new Error(simulatedError)),
+      deleteSpy.mockImplementationOnce(
+        () => ({
+          where: vi.fn().mockRejectedValue(new Error(simulatedError)),
         } as any),
       );
 
@@ -234,9 +227,8 @@ describe('db -> action -> manga', () => {
         throw new Error('Test should have failed');
       }
       expect(result.databaseError).toBe(simulatedError);
+
       expect(deleteSpy).toHaveBeenCalledTimes(1);
-      // Non possiamo facilmente verificare .where() qui senza mockare più a fondo la catena
-      // ma lo spyOn(db, 'delete') ci dice che è stato tentato.
     });
   });
 
@@ -247,9 +239,9 @@ describe('db -> action -> manga', () => {
     });
 
     it('should return a list of tracked mangas for the user, ordered by title', async () => {
-      const manga1Data = { ...testMangaData, sourceId: 'manga001', title: 'Alpha Test Manga' };
-      const manga2Data = { ...testMangaData, sourceId: 'manga002', title: 'Zulu Test Manga' };
-      const manga3Data = { ...testMangaData, sourceId: 'manga003', title: 'Beta Test Manga' };
+      const manga1Data = { ...defaultManga, id: 'manga-id-123-1', sourceId: 'manga001', title: 'Alpha Test Manga' };
+      const manga2Data = { ...defaultManga, id: 'manga-id-123-2', sourceId: 'manga002', title: 'Zulu Test Manga' };
+      const manga3Data = { ...defaultManga, id: 'manga-id-123-3', sourceId: 'manga003', title: 'Beta Test Manga' };
 
       const [manga1] = await db.insert(mangaTable).values(manga1Data).returning();
       const [manga2] = await db.insert(mangaTable).values(manga2Data).returning();

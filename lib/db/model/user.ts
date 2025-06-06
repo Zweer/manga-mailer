@@ -44,6 +44,12 @@ export const userRelations = relations(userTable, ({ many }) => ({
 }));
 
 export const userMangaRelations = relations(userMangaTable, ({ one }) => ({
-  user: one(userTable),
-  manga: one(mangaTable),
+  user: one(userTable, {
+    fields: [userMangaTable.userId],
+    references: [userTable.id],
+  }),
+  manga: one(mangaTable, {
+    fields: [userMangaTable.mangaId],
+    references: [mangaTable.id],
+  }),
 }));

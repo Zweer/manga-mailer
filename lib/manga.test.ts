@@ -1,30 +1,33 @@
+import type { Mock } from 'vitest';
+
 import type { mangaTable } from '@/lib/db/model/manga';
 
 import * as mangaScraper from '@zweer/manga-scraper';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getManga, searchMangas } from '@/lib/manga';
 
-jest.mock('@zweer/manga-scraper', () => ({
+vi.mock('@zweer/manga-scraper', () => ({
   __esModule: true,
   connectors: {
     TestConnectorA: {
-      getMangas: jest.fn(),
-      getManga: jest.fn(),
-      getChapters: jest.fn(),
-      getChapter: jest.fn(),
+      getMangas: vi.fn(),
+      getManga: vi.fn(),
+      getChapters: vi.fn(),
+      getChapter: vi.fn(),
     },
     TestConnectorB: {
-      getMangas: jest.fn(),
-      getManga: jest.fn(),
-      getChapters: jest.fn(),
-      getChapter: jest.fn(),
+      getMangas: vi.fn(),
+      getManga: vi.fn(),
+      getChapters: vi.fn(),
+      getChapter: vi.fn(),
     },
   },
 }));
 
 const mockedConnectors = mangaScraper.connectors as unknown as {
-  TestConnectorA: { getMangas: jest.Mock; getManga: jest.Mock; getChapters: jest.Mock; getChapter: jest.Mock };
-  TestConnectorB: { getMangas: jest.Mock; getManga: jest.Mock; getChapters: jest.Mock; getChapter: jest.Mock };
+  TestConnectorA: { getMangas: Mock; getManga: Mock; getChapters: Mock; getChapter: Mock };
+  TestConnectorB: { getMangas: Mock; getManga: Mock; getChapters: Mock; getChapter: Mock };
 };
 
 describe('manga Library Functions (lib/manga.ts)', () => {

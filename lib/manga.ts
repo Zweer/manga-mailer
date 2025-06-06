@@ -1,6 +1,6 @@
 import type { ConnectorNames } from '@zweer/manga-scraper';
 
-import type { MangaInsert } from '@/lib/db/model/manga';
+import type { ChapterInsert, MangaInsert } from '@/lib/db/model/manga';
 
 import { connectors } from '@zweer/manga-scraper';
 
@@ -76,6 +76,60 @@ export async function getManga(connectorName: string, id: string): Promise<Manga
     };
   } catch (error) {
     logger.error(`[get] Error with connector ${connectorName} while getting manga "${id}":`, error);
+    throw error;
+  }
+}
+
+export async function getChapters(connectorName: string, mangaId: string): Promise<ChapterInsert[]> {
+  const connector = connectors[connectorName as ConnectorNames];
+  // eslint-disable-next-line ts/strict-boolean-expressions
+  if (!connector) {
+    throw new Error('Invalid connector name');
+  }
+
+  try {
+    logger.debug(`[getChapters] Getting manga "${mangaId}" chapters with connector: ${connectorName}`);
+    const chapters = await connector.getChapters(mangaId);
+
+    return chapters.map(chapter => ({
+      mangaId,
+      sourceName: connectorName,
+      sourceId: chapter.id,
+      title: chapter.title,
+      index: chapter.index,
+      url: chapter.url,
+      releasedAt: chapter.releasedAt && new Date(chapter.releasedAt),
+      images: chapter.images,
+    }));
+  } catch (error) {
+    logger.error(`[getChapters] Error with connector ${connectorName} while getting manga "${mangaId}" chapters:`, error);
+    throw error;
+  }
+}
+
+export async function getChapter(connectorName: string, mangaId: string, chapterId: string): Promise<ChapterInsert> {
+  const connector = connectors[connectorName as ConnectorNames];
+  // eslint-disable-next-line ts/strict-boolean-expressions
+  if (!connector) {
+    throw new Error('Invalid connector name');
+  }
+
+  try {
+    logger.debug(`[getChapter] Getting manga "${mangaId}" chapter "${chapterId}" with connector: ${connectorName}`);
+    const chapter = await connector.getChapter(mangaId, chapterId);
+
+    return {
+      mangaId,
+      sourceName: connectorName,
+      sourceId: chapter.id,
+      title: chapter.title,
+      index: chapter.index,
+      url: chapter.url,
+      releasedAt: chapter.releasedAt && new Date(chapter.releasedAt),
+      images: chapter.images,
+    };
+  } catch (error) {
+    logger.error(`[getChapter] Error with connector ${connectorName} while getting manga "${mangaId}" chapter "${chapterId}":`, error);
     throw error;
   }
 }

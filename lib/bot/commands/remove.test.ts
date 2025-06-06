@@ -1,5 +1,6 @@
 /* eslint-disable ts/unbound-method */
 import type { Conversation } from '@grammyjs/conversations';
+import type { Mock, Mocked } from 'vitest';
 
 import type { BotContext, BotType } from '@/lib/bot/types';
 import type { Manga, User } from '@/lib/db/model';
@@ -8,6 +9,7 @@ import type {
 } from '@/test/mocks/bot/context';
 
 import { InlineKeyboard } from 'grammy';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createRemoveConversation, removeConversationLogic } from '@/lib/bot/commands/remove';
 import { removeConversationId } from '@/lib/bot/constants';
@@ -25,24 +27,26 @@ import {
 } from '@/test/mocks/db/manga';
 import { mockedFindUserByTelegramId, mockFindUserByTelegramIdSuccess } from '@/test/mocks/db/user';
 
-jest.mock('@/lib/db/action/manga', () => ({
-  listTrackedMangas: jest.fn(),
-  removeTrackedManga: jest.fn(),
+vi.mock('@/lib/db/action/manga', () => ({
+  listTrackedMangas: vi.fn(),
+  removeTrackedManga: vi.fn(),
+  trackManga: vi.fn(),
 }));
-jest.mock('@/lib/db/action/user', () => ({
-  findUserByTelegramId: jest.fn(),
+vi.mock('@/lib/db/action/user', () => ({
+  findUserByTelegramId: vi.fn(),
+  upsertUser: vi.fn(),
 }));
 
 describe('bot -> commands -> remove', () => {
   let removeCommandHandler: ((ctx: MockCommandContext) => Promise<void>);
 
   const mockBotInstance: Partial<BotType> = {
-    command: jest.fn((commandName, handler) => {
+    command: vi.fn((commandName, handler) => {
       if (commandName === 'remove') {
         removeCommandHandler = handler;
       }
     }) as any,
-    use: jest.fn().mockReturnThis(),
+    use: vi.fn().mockReturnThis(),
   };
 
   beforeAll(() => {
@@ -50,7 +54,7 @@ describe('bot -> commands -> remove', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // eslint-disable-next-line ts/strict-boolean-expressions
     if (!removeCommandHandler) {
       throw new Error('/remove command handler not registered');
@@ -118,17 +122,17 @@ describe('bot -> commands -> remove', () => {
   });
 
   describe('conversation Logic: removeConversationLogic', () => {
-    let mockConversationControls: jest.Mocked<Conversation>;
+    let mockConversationControls: Mocked<Conversation>;
     let context: BotContext;
     let user: User;
 
     beforeEach(() => {
       mockConversationControls = {
-        waitFor: jest.fn(),
-        external: jest.fn(async (callback: () => any) => callback()),
-        log: jest.fn(),
-        skip: jest.fn(),
-        wait: jest.fn().mockResolvedValue(undefined),
+        waitFor: vi.fn(),
+        external: vi.fn(async (callback: () => any) => callback()),
+        log: vi.fn(),
+        skip: vi.fn(),
+        wait: vi.fn().mockResolvedValue(undefined),
         session: {} as any,
         __flavor: undefined as any,
       } as any;
@@ -143,7 +147,7 @@ describe('bot -> commands -> remove', () => {
 
       await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-      const replyMock = context.reply as jest.Mock;
+      const replyMock = context.reply as Mock;
       expect(replyMock).toHaveBeenCalledWith('You\'re not tracking any manga right now. Nothing to remove!');
       expect(mockConversationControls.waitFor).not.toHaveBeenCalled();
     });
@@ -168,9 +172,9 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const replyMock = context.reply as jest.Mock;
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const replyMock = context.reply as Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
 
         const expectedKeyboard = new InlineKeyboard();
         trackedMangas.forEach(m => expectedKeyboard.text(`❌ ${m.title} (${m.chaptersCount})`, `remove:${m.id}`).row());
@@ -215,8 +219,8 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
         expect(answerCallbackQueryMock).toHaveBeenCalledWith('Operation cancelled.');
         expect(editMessageTextMock).toHaveBeenCalledWith('Manga removal cancelled.', { reply_markup: undefined });
         expect(mockedRemoveTrackedManga).not.toHaveBeenCalled();
@@ -240,8 +244,8 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
 
         expect(answerCallbackQueryMock).toHaveBeenCalledWith('Removal cancelled.');
         expect(editMessageTextMock).toHaveBeenLastCalledWith(`Ok, "${mangaToRemove.title}" will remain in your tracking list.`, { reply_markup: undefined });
@@ -268,8 +272,8 @@ describe('bot -> commands -> remove', () => {
 
         await removeConversationLogic(mockConversationControls, context, user, trackedMangas);
 
-        const editMessageTextMock = (context as any).editMessageText as jest.Mock;
-        const answerCallbackQueryMock = (context as any).answerCallbackQuery as jest.Mock;
+        const editMessageTextMock = (context as any).editMessageText as Mock;
+        const answerCallbackQueryMock = (context as any).answerCallbackQuery as Mock;
 
         expect(answerCallbackQueryMock).toHaveBeenCalledWith('Error!');
         expect(editMessageTextMock).toHaveBeenLastCalledWith('Could not remove manga tracking due to an error. Please try again later.', { reply_markup: undefined });
