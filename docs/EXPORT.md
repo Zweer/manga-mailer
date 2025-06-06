@@ -571,7 +571,7 @@ Please include:
 *   Expected behavior.
 *   Actual behavior.
 *   Screenshots or logs, if applicable.
-*   Your environment details (e.g., Node.js version, OS).
+*   Your environment details (e.g., Node.js version, OS, Vitest version).
 
 ## Suggesting Features
 
@@ -579,7 +579,8 @@ If you have an idea for a new feature or an improvement to an existing one, plea
 
 ## Development Setup
 
-Please refer to the [README.md](./README.md#️-installation) for instructions on how to set up the development environment.
+Please refer to the [README.md](../README.md#️-installation) for instructions on how to set up the development environment.
+Unit tests are run using [Vitest](https://vitest.dev/).
 
 ## Making Changes (Pull Requests)
 
@@ -592,12 +593,15 @@ Please refer to the [README.md](./README.md#️-installation) for instructions o
     # git checkout -b fix/your-bug-fix-name
     ```
 4.  **Make your changes**. Ensure you follow the project's coding style (ESLint should help with this).
-5.  **Test your changes** thoroughly. Add new tests if you are adding new functionality.
+5.  **Test your changes** thoroughly:
+    *   Run unit tests: `npm test` (or `yarn test`).
+    *   Ensure good test coverage: `npm run test:coverage` (or `yarn test:coverage`).
+    *   Add new tests if you are adding new functionality or fixing a bug that wasn't covered.
 6.  **Commit your changes** with a clear and descriptive commit message. We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification (scopes are defined in `.vscode/settings.json`).
     ```bash
-    git commit -m "feat(bot): add new command for X"
+    git commit -m "feat(bot): add new /settings command"
     # or
-    # git commit -m "fix(database): resolve issue with Y query"
+    # git commit -m "fix(database): resolve issue with manga chapter query"
     ```
 7.  **Push your changes** to your forked repository:
     ```bash
@@ -606,13 +610,15 @@ Please refer to the [README.md](./README.md#️-installation) for instructions o
 8.  **Open a Pull Request (PR)** from your branch in your fork to the `main` (or `develop`) branch of the original Manga Mailer repository.
     *   Provide a clear title and description for your PR.
     *   Reference any related issues (e.g., "Closes #123").
+    *   Ensure all automated checks (linting, tests) pass.
 
 ## Coding Guidelines
 
-*   **Follow ESLint rules**: Run `yarn lint` to check your code.
-*   **TypeScript**: Use TypeScript's features appropriately for type safety.
-*   **Clarity**: Write clear, understandable, and maintainable code. Add comments where necessary to explain complex logic.
-*   **Database Migrations**: If you make changes to the database schema (`lib/db/model/`), you **must** generate a new migration file using `yarn db:generate`. Do not edit migration files manually unless you know what you are doing. Commit the generated migration file with your changes.
+*   **Follow ESLint rules**: Run `npm run lint` (or `yarn lint`) to check your code.
+*   **TypeScript**: Use TypeScript's features appropriately for type safety and clarity.
+*   **Clarity & Maintainability**: Write clear, understandable, and maintainable code. Add comments where necessary to explain complex logic.
+*   **Database Migrations**: If you make changes to the database schema (`lib/db/model/`), you **must** generate a new migration file using `npm run db:generate` (or `yarn db:generate`). Do not edit migration files manually unless you know what you are doing. Commit the generated migration file with your changes.
+*   **Logging**: Utilize the provided Pino logger (`lib/log/`) for structured logging. Use appropriate log levels (`debug`, `info`, `warn`, `error`).
 
 ## Code of Conduct
 
@@ -628,129 +634,107 @@ docs/PROJECT_DETAILS.md:
 ```md
 # Manga Mailer Project Details
 
-This document provides a more in-depth look at the architecture, internal workings, and key components of the Manga Mailer project.
+This document provides an in-depth look at the architecture, internal workings, and key components of the Manga Mailer project.
 
 ## 1. Introduction
 
-Manga Mailer is an application built to allow users to track their favorite manga via a Telegram bot and, in a later phase, receive email updates. The system relies on a Telegram bot for user interaction and a Next.js backend that manages bot logic and database interaction.
+Manga Mailer is an application built to allow users to track their favorite manga via a Telegram bot and receive email updates when new chapters are released. The system relies on a Telegram bot for user interaction, a Next.js backend for webhook handling and API endpoints, and a scheduled task for checking manga updates.
 
 ## 2. Architecture
 
-The project primarily consists of three parts:
+The project primarily consists of:
 
-*   **Telegram Bot (User Interface)**: Built with the `grammY` library. It handles user commands, conversations for information gathering, and data display.
-*   **Backend (Next.js)**:
+*   **Telegram Bot (User Interface)**: Built with the `grammY` library, using the `@grammyjs/conversations` plugin for multi-step interactions.
+*   **Backend (Next.js API Routes)**:
     *   Serves as the endpoint for Telegram's webhook (`app/route.ts`).
-    *   Contains business logic for database interactions (actions in `lib/db/action/`).
-    *   In the future, it will host cron jobs (or integrate with external services) for checking manga updates.
+    *   Provides an API endpoint for scheduled cron jobs to trigger manga updates (`app/api/cron/manga-updates/route.ts`).
+*   **Core Logic (`lib/`)**:
+    *   Bot command handlers and conversation logic (`lib/bot/commands/`).
+    *   Database interaction layer (Drizzle ORM actions in `lib/db/action/`).
+    *   Manga scraping and data processing (`lib/manga.ts` using `@zweer/manga-scraper`).
+    *   Email sending service (`lib/email.ts` using `nodemailer`).
+    *   Manga update checking service (`lib/service/mangaUpdater.ts`).
+    *   Structured logging (`lib/log/` using `pino`).
 *   **Database (PostgreSQL)**:
-    *   Uses Drizzle ORM for schema definition, queries, and migrations.
-    *   Stores information about users, tracked manga, and their associations.
+    *   Managed with Drizzle ORM for schema definition (`lib/db/model/`), queries, and migrations.
+    *   Stores user information, manga details (including chapters), and user-manga tracking data.
+*   **Scheduled Tasks (Cron Jobs)**:
+    *   Configured via Vercel Cron Jobs (`vercel.json`) to periodically trigger the manga update service.
 
-### Typical Interaction Flow (Webhook)
+### Typical Interaction Flow (User to Bot)
 
-1.  The user sends a message/command to the Telegram bot.
-2.  Telegram forwards the message (update) to the configured webhook endpoint (e.g., `https://<your-domain>/api/route`).
-3.  The Next.js application receives the update via `app/route.ts`.
-4.  `grammY` processes the update, triggering appropriate command handlers or conversations defined in `lib/bot/`.
-5.  Handlers interact with database action modules (`lib/db/action/`) to read or write data.
-6.  The bot responds to the user via the Telegram API.
+1.  User sends a message/command to the Telegram bot.
+2.  Telegram forwards the update to the Next.js webhook endpoint (`app/route.ts`).
+3.  `grammY` processes the update, activating command handlers or conversations.
+4.  Handlers/conversations may interact with database actions or manga scraping services.
+5.  The bot responds to the user via the Telegram API.
+
+### Typical Flow (Scheduled Manga Update)
+
+1.  Vercel Cron Job triggers the `/api/cron/manga-updates` endpoint at a scheduled interval.
+2.  The API route handler invokes the `mangaUpdater` service.
+3.  `mangaUpdater` service:
+    a.  Fetches tracked manga and their latest chapter information from the database.
+    b.  Uses `@zweer/manga-scraper` to get the newest chapter data from external sources.
+    c.  Compares local data with fresh data to identify new chapters.
+    d.  Updates the `mangaTable` and `chapterTable` in the database with new information.
+    e.  Identifies users subscribed to manga with new chapters (and who haven't read them yet).
+    f.  Uses `lib/email.ts` to send email notifications to relevant users.
+4.  The API route returns a summary of the update process.
 
 ## 3. Telegram Bot Operation
 
-The bot is the core of user interaction.
+(This section can remain largely the same as before, but ensure it mentions the `/remove` command.)
 
 ### 3.1. Initialization (`lib/bot/index.ts`)
-
-*   `createBot()`: Initializes the bot instance, registers plugins (like `@grammyjs/conversations`), and sets up handlers for commands and generic messages.
-*   **Webhook Setup (`instrumentation.ts`)**: For production deployments on Vercel, this script automatically sets the Telegram bot's webhook URL when the application starts.
+*   `createBot()`: Initializes the `grammY` bot instance, registers the `conversations` plugin, and sets up handlers for all defined commands (`/start`, `/track`, `/list`, `/remove`, `/help`) and a generic message fallback.
 
 ### 3.2. Main Commands
-
-*   **`/start` (Signup - `lib/bot/commands/signup.ts`)**:
-    *   Initiates a conversation to register a new user or update an existing user's data.
-    *   Requests name and email address.
-    *   Uses `upsertUser` to save/update data in the database.
-    *   Includes data validation via Zod (`lib/validation/user.ts`).
-
-*   **`/track` (Manga Tracking - `lib/bot/commands/track.ts`)**:
-    *   Starts a conversation to track a new manga.
-    *   Asks the user for the title of the manga to search.
-    *   Uses `searchMangas` (from `lib/manga.ts`, which in turn uses `@zweer/manga-scraper`) to find matching manga from various sources.
-    *   Presents results to the user with inline buttons for selection.
-    *   Once selected, retrieves manga details with `getManga`.
-    *   Saves the manga and the user-manga association in the database via `trackManga`.
-    *   Handles cases like unregistered users (redirects to signup) or already tracked manga.
-
-*   **`/list` (List Manga - `lib/bot/commands/list.ts`)**:
-    *   Retrieves and displays all manga the user is currently tracking.
-    *   Uses `findUserByTelegramId` to identify the user.
-    *   Uses `listTrackedMangas` to get manga from the database.
-    *   Informs the user if they are not tracking any manga.
-
-*   **`/help` (Help - `lib/bot/commands/help.ts`)**:
-    *   Displays a formatted message with the list of available commands and a brief description for each, taken from `lib/bot/constants.ts`.
-
-### 3.3. Generic Message Handling
-
-If the bot receives a message that doesn't match any registered command, it replies with a message prompting the user to use `/help`.
+*   **`/start`**: Initiates the `signupConversationLogic` for user registration.
+*   **`/track`**: Initiates the `trackConversationLogic` to search and track new manga.
+*   **`/list`**: Directly lists manga tracked by the user via `createListConversation`.
+*   **`/remove`**: Initiates the `removeConversationLogic` to allow users to select and untrack manga.
+*   **`/help`**: Displays a help message with command descriptions via `createHelpMessage`.
 
 ## 4. Database (Drizzle ORM)
 
-The database schema is defined in `lib/db/model/`.
-
 ### 4.1. Main Tables
-
-*   **`userTable` (`lib/db/model/user.ts`)**:
-    *   Stores user information (ID, name, email, Telegram ID, timestamps).
-    *   Has indexes on `telegramId` and `email` for fast lookups and uniqueness.
-
-*   **`mangaTable` (`lib/db/model/manga.ts`)**:
-    *   Stores manga details (ID, source, title, author, chapters, URL, etc.).
-    *   Has a unique index on the combination of `sourceName` and `sourceId` to prevent duplicates from the same source.
-    *   Includes a `statusType` enum for manga status.
-
-*   **`userMangaTable` (`lib/db/model/user.ts`)**:
-    *   Join table for the many-to-many relationship between users and manga.
-    *   Contains `userId` and `mangaId` as a composite primary key and foreign keys to their respective tables.
-    *   Uses `onDelete: 'cascade'` so if a user or manga is deleted, related associations in this table are automatically removed.
+*   **`userTable`**: Stores user profiles.
+*   **`mangaTable`**: Stores manga metadata, including `chaptersCount` and `lastCheckedAt`.
+*   **`chapterTable` (New)**: Stores individual chapter details for each manga (ID, source ID, manga ID, title, index, URL, release date, images). This allows for more granular tracking and notification.
+*   **`userMangaTable`**: Join table for the many-to-many relationship between users and manga, now including `lastReadChapter` to track user progress.
 
 ### 4.2. Database Actions (`lib/db/action/`)
+*   `user.ts`: `upsertUser`, `findUserByTelegramId`.
+*   `manga.ts`: `trackManga`, `listTrackedMangas`, `removeTrackedManga`. (Database actions for `chapterTable` might be implicitly handled by `mangaUpdater` or could be separate if needed).
 
-These files contain the logic for interacting with the database:
+## 5. Manga Update Service (`lib/service/mangaUpdater.ts`)
+*   **`mangaUpdater()`**: Orchestrates the entire update process.
+    *   `checkMangasForUpdates()`:
+        *   Fetches tracked manga.
+        *   For each manga, uses `getManga()` and `getChapters()` (from `lib/manga.ts`) to get the latest data from the source.
+        *   Compares chapter counts and individual chapters against `chapterTable`.
+        *   Updates `mangaTable` (e.g., `chaptersCount`, `lastCheckedAt`) and inserts new chapters into `chapterTable`.
+    *   `retrieveUsersForUpdates()`: Queries `userMangaTable` and `userTable` to find users who are tracking updated manga and whose `lastReadChapter` is less than the newest available chapter index.
+    *   `notifyUsersForUpdates()`:
+        *   Iterates through users પાણી be notified and the new chapters for their tracked manga.
+        *   Constructs and sends an email notification using `sendEmail()` from `lib/email.ts`.
 
-*   `lib/db/action/user.ts`:
-    *   `upsertUser`: Creates a new user or updates an existing one. Includes input data validation.
-    *   `findUserByTelegramId`: Finds a user by their Telegram ID.
+## 6. Email Service (`lib/email.ts`)
+*   Uses `nodemailer` to send emails.
+*   Configured via environment variables for an SMTP provider (Mailtrap for development/testing).
+*   Provides a `sendEmail` function for dispatching emails.
 
-*   `lib/db/action/manga.ts`:
-    *   `trackManga`: Handles the logic for tracking a manga. It first checks if the user exists, then if the manga already exists in the DB (inserting it if not), and finally if the user is already tracking that manga.
-    *   `listTrackedMangas`: Retrieves all manga tracked by a specific user, ordered by title.
+## 7. Testing
+*   Unit tests are written using **Vitest**.
+*   **PGLite** is used for an in-memory PostgreSQL-compatible database during tests.
+*   Helper utilities for mocking bot contexts and database actions are located in `test/mocks/`.
+*   A global logger spy (`loggerWriteSpy`) is used for asserting log outputs, configured via a manual mock in `test/setup.ts` activating `lib/log/__mocks__/index.ts`.
 
-### 4.3. Migrations
-
-Drizzle Kit is used to generate and manage database migrations:
-
-*   `yarn db:generate`: Analyzes the schema in `lib/db/model` and generates SQL migration files in `drizzle/`.
-*   `yarn db:migrate`: Applies pending migrations to the configured database.
-
-## 5. Manga Searching (`lib/manga.ts`)
-
-*   **`searchMangas(title)`**:
-    *   Iterates over all available connectors from `@zweer/manga-scraper`.
-    *   Calls `connector.getMangas(title)` for each connector.
-    *   Aggregates and sorts the results before returning them.
-*   **`getManga(connectorName, id)`**:
-    *   Retrieves detailed information for a specific manga from a specific connector.
-    *   Maps the data to the format expected by `mangaTable.$inferInsert`.
-
-## 6. Important Configurations
-
-*   **`.env`**: Crucial file for environment variables (see `README.md`).
-*   **`drizzle.config.ts`**: Configuration for Drizzle Kit, particularly `DATABASE_URL_UNPOOLED` for migrations.
-*   **`eslint.config.mjs`**: Code standards and linting.
-*   **`tsconfig.json`**: TypeScript compiler options.
-*   **`next.config.ts`**: Next.js configuration (currently minimal).
+## 8. Deployment & Scheduling
+*   The Next.js application (including the bot webhook) is designed for deployment on **Vercel**.
+*   The `instrumentation.ts` file handles webhook registration in production on Vercel.
+*   Scheduled tasks (manga updates) are managed using **Vercel Cron Jobs**, defined in `vercel.json`, which trigger an API endpoint.
 ```
 
 ---
@@ -762,86 +746,79 @@ docs/TODO.md:
 
 This file tracks planned tasks, features, and improvements for the Manga Mailer project.
 
-## 🤖 Bot Features & Commands
+## ✅ Completed (MVP Reached)
 
-*   [ ] **Implement `/remove` command**:
-    *   [ ] Create `createRemoveConversation(bot)` in `lib/bot/commands/`.
-    *   [ ] Allow users to list their tracked manga with an option to select one for removal.
-    *   [ ] Implement `removeTrackedManga(userId, mangaId)` action in `lib/db/action/manga.ts`.
-    *   [ ] Add command to `lib/bot/constants.ts` and `lib/bot/index.ts`.
-*   [ ] **Improve `/track` flow**:
-    *   [ ] Handle cases where `searchMangas` returns a very large number of results (e.g., pagination or more specific search prompts).
-    *   [ ] Allow users to confirm manga details before tracking.
+*   [x] **User Registration** (`/start` conversation)
+*   [x] **Manga Tracking** (`/track` conversation)
+    *   [x] Search manga from multiple sources
+    *   [x] Select manga for tracking
+    *   [x] Store last read chapter
+*   [x] **List Tracked Manga** (`/list` command)
+*   [x] **Remove Tracked Manga** (`/remove` conversation)
+*   [x] **Help Command** (`/help`)
+*   [x] **Fallback Message Handler** for unknown messages
+*   [x] **Database Setup** (PostgreSQL with Drizzle ORM)
+    *   [x] User, Manga, Chapter, UserManga tables
+*   [x] **Email Sending Service** (`lib/email.ts` with Nodemailer & Mailtrap)
+*   [x] **Manga Update Service (`mangaUpdater`)**
+    *   [x] Fetches latest manga and chapter data
+    *   [x] Compares with DB to find new chapters
+    *   [x] Updates manga and chapter info in DB
+    *   [x] Identifies users needing notification (based on `lastReadChapter`)
+    *   [x] Sends email notifications for new chapters
+*   [x] **Scheduled Task Execution** (Vercel Cron Job triggering API endpoint)
+*   [x] **Structured Logging** (Pino with child loggers)
+*   [x] **Comprehensive Unit Test Suite** (Vitest, PGLite, Mocking helpers)
+
+## 🎯 Next Steps & MVP Refinements (v1.1 -> v1.x)
+
+### 🤖 Bot Experience & Features
+*   [ ] **Refine `/track` flow**:
+    *   [ ] Allow users to confirm manga details (author, status, etc.) before finalizing tracking.
+    *   [ ] Better handling for too many `searchMangas` results (e.g., pagination, more specific search prompts).
+*   [ ] **Command: `/setchapter [manga_query] [chapter_number]`**:
+    *   Allow users to manually update their `lastReadChapter` for a specific manga.
+    *   Requires a way to resolve `manga_query` to a specific tracked manga (could be a mini-conversation if ambiguous).
 *   [ ] **Refine User Onboarding (`/start`)**:
-    *   [ ] Consider allowing users to update their email or name separately after initial signup.
-*   [ ] **User Settings Command (e.g., `/settings`)**:
-    *   [ ] Allow users to view/change their registered email.
-    *   [ ] (Future) Configure notification preferences.
+    *   [ ] Consider allowing users to update their email or name separately after initial signup (e.g., via a `/settings` command).
+*   [ ] **Improve Error Handling & User Feedback**:
+    *   More specific error messages from the bot.
+    *   Clearer guidance if user input is malformed.
+*   [ ] **Handle `/cancel` Consistently in All Conversations.**
 
-## 📧 Email Notification System
+### 📧 Email Notifications
+*   [ ] **Enhanced Email Templates**:
+    *   Use more structured HTML (e.g., with `mjml` or similar).
+    *   Include manga cover image in notification emails.
+    *   Clearer call-to-action buttons/links.
+*   [ ] **Group Notifications**: If a manga has multiple new chapters, send a single summary email per manga update cycle, rather than one email per chapter.
+*   [ ] **Direct Chapter Links in Emails**: If feasible based on scraper data, provide direct links to new chapters.
 
-*   [ ] **Email Service Integration**:
-    *   [ ] Choose and integrate an email sending service (e.g., Resend, SendGrid, Nodemailer with an SMTP provider).
-    *   [ ] Add necessary environment variables for the email service.
-*   [ ] **Email Templating**:
-    *   [ ] Design and implement email templates for new chapter notifications.
-    *   [ ] Consider using a templating engine if emails become complex.
-*   [ ] **Logic for Sending Emails**:
-    *   [ ] Create a function/module to send emails to users when new chapters are detected.
+### ⚙️ Backend, Services & Operations
+*   [ ] **Manga Update Service (`mangaUpdater`) Optimizations**:
+    *   **Scraper Rate Limiting**: Implement delays between calls to `getManga`/`getChapters` for different manga to be a good web citizen.
+    *   **Error Resilience (Scraper):** More robust handling if a specific manga source is down or changes format (e.g., temporary skip, mark manga as "needs attention").
+    *   **Efficiency:** Review DB queries for fetching tracked manga and users to ensure they scale well.
+*   [ ] **Production Email Provider**: Transition from Mailtrap to a production-ready email provider (Resend, SendGrid, AWS SES, etc.) and update environment variables.
+*   [ ] **Database Indexing Review**: Periodically review query performance and add/tweak DB indexes as data grows.
 
-## 🔄 Cron Jobs / Scheduled Tasks
+### 🧪 Testing
+*   [ ] **(Ongoing) Maintain High Unit Test Coverage** for new features and refactors.
+*   [ ] **(Future) Basic E2E Tests**: Once core features are very stable, explore simple E2E tests for key user flows (e.g., using local bot instance tests as a starting point).
 
-*   [ ] **Manga Update Checker**:
-    *   [ ] Design a system to periodically check for new chapters of all tracked manga.
-        *   Iterate through all `mangaTable` entries that are being tracked by at least one user.
-        *   Use `@zweer/manga-scraper`'s `getManga` or a similar function to fetch the latest chapter count/list.
-        *   Compare with the stored `chaptersCount` (or a more detailed chapter list if implemented).
-    *   [ ] Update `mangaTable` with new chapter information.
-*   [ ] **Notification Trigger**:
-    *   [ ] If new chapters are found, trigger the email notification system for subscribed users.
-*   [ ] **Cron Job Implementation**:
-    *   [ ] Choose a cron job provider/method (e.g., Vercel Cron Jobs, GitHub Actions scheduled workflow, a separate Node.js process with `node-cron` or similar).
-    *   [ ] Implement the job to run the manga update checker at a regular interval (e.g., daily, hourly).
+## 🌟 Longer-Term Vision (v2.0+)
 
-## ⚙️ Backend & Database
-
-*   [ ] **Detailed Chapter Tracking (Optional Enhancement)**:
-    *   [ ] Instead of just `chaptersCount`, consider a new table `mangaChapterTable` to store individual chapter details (number, title, URL, release date). This would allow more precise notifications.
-    *   [ ] This would require significant changes to manga fetching, storage, and update logic.
-*   [ ] **Error Handling & Logging**:
-    *   [ ] Implement more robust error handling across all modules.
-    *   [ ] Integrate a logging service for production (e.g., Sentry, Logtail) or improve console logging with levels.
-*   [ ] **Database Indexing Review**:
-    *   [ ] As data grows, review and optimize database queries and indexes.
-*   [ ] **API Security**:
-    *   [ ] Review webhook security (e.g., verifying requests from Telegram if necessary, though grammY might handle some of this).
-
-## 🧪 Testing
-
-*   [ ] **Unit Tests**:
-    *   [ ] Write unit tests for helper functions, validation schemas, and critical business logic in database actions.
-    *   [ ] Consider a testing framework like Jest or Vitest.
-*   [ ] **Integration Tests**:
-    *   [ ] Test interactions between different modules (e.g., bot command triggering database action).
-    *   [ ] Test the conversation flows.
-*   [ ] **E2E Tests (Optional)**:
-    *   [ ] Simulate user interaction with the bot from start to finish for key scenarios.
-
-## 📚 Documentation
-
-*   [ ] **API Documentation (if internal APIs expand)**:
-    *   [ ] Document any internal API routes if the project grows beyond just the bot webhook.
-*   [ ] **Deployment Guide**:
-    *   [ ] Expand on deployment options beyond Vercel if needed.
-*   [ ] **Keep `PROJECT_DETAILS.md` up-to-date** as features are added/changed.
-
-## 🌐 Miscellaneous
-
-*   [ ] **Internationalization (i18n)**:
-    *   [ ] Plan for supporting multiple languages in bot responses.
-*   [ ] **Code Refactoring**:
-    *   [ ] Periodically review and refactor code for clarity, performance, and maintainability.
-*   [ ] **Add a License File**: E.g., `LICENSE.md` with MIT or another open-source license.
+*   [ ] **User Settings Command (`/settings`)**:
+    *   [ ] View/Change notification email.
+    *   [ ] Pause/Resume all notifications.
+    *   [ ] Pause/Resume notifications for specific manga.
+    *   [ ] Set notification frequency preferences (if applicable).
+*   [ ] **Advanced Chapter Data in Emails**: If `chapterTable` stores chapter titles, include them in notification emails.
+*   [ ] **Web Interface (Optional Frontend)**:
+    *   User dashboard to manage tracked manga, view notification history, update settings.
+*   [ ] **Support for More Manga Sources**: If `@zweer/manga-scraper` adds new connectors or if you integrate others.
+*   [ ] **Internationalization (i18n)** for bot messages.
+*   [ ] **Admin Dashboard/Monitoring Tools.**
 ```
 
 ---

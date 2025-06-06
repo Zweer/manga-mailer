@@ -2,83 +2,76 @@
 
 This file tracks planned tasks, features, and improvements for the Manga Mailer project.
 
-## 🤖 Bot Features & Commands
+## ✅ Completed (MVP Reached)
 
-*   [ ] **Implement `/remove` command**:
-    *   [ ] Create `createRemoveConversation(bot)` in `lib/bot/commands/`.
-    *   [ ] Allow users to list their tracked manga with an option to select one for removal.
-    *   [ ] Implement `removeTrackedManga(userId, mangaId)` action in `lib/db/action/manga.ts`.
-    *   [ ] Add command to `lib/bot/constants.ts` and `lib/bot/index.ts`.
-*   [ ] **Improve `/track` flow**:
-    *   [ ] Handle cases where `searchMangas` returns a very large number of results (e.g., pagination or more specific search prompts).
-    *   [ ] Allow users to confirm manga details before tracking.
+*   [x] **User Registration** (`/start` conversation)
+*   [x] **Manga Tracking** (`/track` conversation)
+    *   [x] Search manga from multiple sources
+    *   [x] Select manga for tracking
+    *   [x] Store last read chapter
+*   [x] **List Tracked Manga** (`/list` command)
+*   [x] **Remove Tracked Manga** (`/remove` conversation)
+*   [x] **Help Command** (`/help`)
+*   [x] **Fallback Message Handler** for unknown messages
+*   [x] **Database Setup** (PostgreSQL with Drizzle ORM)
+    *   [x] User, Manga, Chapter, UserManga tables
+*   [x] **Email Sending Service** (`lib/email.ts` with Nodemailer & Mailtrap)
+*   [x] **Manga Update Service (`mangaUpdater`)**
+    *   [x] Fetches latest manga and chapter data
+    *   [x] Compares with DB to find new chapters
+    *   [x] Updates manga and chapter info in DB
+    *   [x] Identifies users needing notification (based on `lastReadChapter`)
+    *   [x] Sends email notifications for new chapters
+*   [x] **Scheduled Task Execution** (Vercel Cron Job triggering API endpoint)
+*   [x] **Structured Logging** (Pino with child loggers)
+*   [x] **Comprehensive Unit Test Suite** (Vitest, PGLite, Mocking helpers)
+
+## 🎯 Next Steps & MVP Refinements (v1.1 -> v1.x)
+
+### 🤖 Bot Experience & Features
+*   [ ] **Refine `/track` flow**:
+    *   [ ] Allow users to confirm manga details (author, status, etc.) before finalizing tracking.
+    *   [ ] Better handling for too many `searchMangas` results (e.g., pagination, more specific search prompts).
+*   [ ] **Command: `/setchapter [manga_query] [chapter_number]`**:
+    *   Allow users to manually update their `lastReadChapter` for a specific manga.
+    *   Requires a way to resolve `manga_query` to a specific tracked manga (could be a mini-conversation if ambiguous).
 *   [ ] **Refine User Onboarding (`/start`)**:
-    *   [ ] Consider allowing users to update their email or name separately after initial signup.
-*   [ ] **User Settings Command (e.g., `/settings`)**:
-    *   [ ] Allow users to view/change their registered email.
-    *   [ ] (Future) Configure notification preferences.
+    *   [ ] Consider allowing users to update their email or name separately after initial signup (e.g., via a `/settings` command).
+*   [ ] **Improve Error Handling & User Feedback**:
+    *   More specific error messages from the bot.
+    *   Clearer guidance if user input is malformed.
+*   [ ] **Handle `/cancel` Consistently in All Conversations.**
 
-## 📧 Email Notification System
+### 📧 Email Notifications
+*   [ ] **Enhanced Email Templates**:
+    *   Use more structured HTML (e.g., with `mjml` or similar).
+    *   Include manga cover image in notification emails.
+    *   Clearer call-to-action buttons/links.
+*   [ ] **Group Notifications**: If a manga has multiple new chapters, send a single summary email per manga update cycle, rather than one email per chapter.
+*   [ ] **Direct Chapter Links in Emails**: If feasible based on scraper data, provide direct links to new chapters.
 
-*   [ ] **Email Service Integration**:
-    *   [ ] Choose and integrate an email sending service (e.g., Resend, SendGrid, Nodemailer with an SMTP provider).
-    *   [ ] Add necessary environment variables for the email service.
-*   [ ] **Email Templating**:
-    *   [ ] Design and implement email templates for new chapter notifications.
-    *   [ ] Consider using a templating engine if emails become complex.
-*   [ ] **Logic for Sending Emails**:
-    *   [ ] Create a function/module to send emails to users when new chapters are detected.
+### ⚙️ Backend, Services & Operations
+*   [ ] **Manga Update Service (`mangaUpdater`) Optimizations**:
+    *   **Scraper Rate Limiting**: Implement delays between calls to `getManga`/`getChapters` for different manga to be a good web citizen.
+    *   **Error Resilience (Scraper):** More robust handling if a specific manga source is down or changes format (e.g., temporary skip, mark manga as "needs attention").
+    *   **Efficiency:** Review DB queries for fetching tracked manga and users to ensure they scale well.
+*   [ ] **Production Email Provider**: Transition from Mailtrap to a production-ready email provider (Resend, SendGrid, AWS SES, etc.) and update environment variables.
+*   [ ] **Database Indexing Review**: Periodically review query performance and add/tweak DB indexes as data grows.
 
-## 🔄 Cron Jobs / Scheduled Tasks
+### 🧪 Testing
+*   [ ] **(Ongoing) Maintain High Unit Test Coverage** for new features and refactors.
+*   [ ] **(Future) Basic E2E Tests**: Once core features are very stable, explore simple E2E tests for key user flows (e.g., using local bot instance tests as a starting point).
 
-*   [ ] **Manga Update Checker**:
-    *   [ ] Design a system to periodically check for new chapters of all tracked manga.
-        *   Iterate through all `mangaTable` entries that are being tracked by at least one user.
-        *   Use `@zweer/manga-scraper`'s `getManga` or a similar function to fetch the latest chapter count/list.
-        *   Compare with the stored `chaptersCount` (or a more detailed chapter list if implemented).
-    *   [ ] Update `mangaTable` with new chapter information.
-*   [ ] **Notification Trigger**:
-    *   [ ] If new chapters are found, trigger the email notification system for subscribed users.
-*   [ ] **Cron Job Implementation**:
-    *   [ ] Choose a cron job provider/method (e.g., Vercel Cron Jobs, GitHub Actions scheduled workflow, a separate Node.js process with `node-cron` or similar).
-    *   [ ] Implement the job to run the manga update checker at a regular interval (e.g., daily, hourly).
+## 🌟 Longer-Term Vision (v2.0+)
 
-## ⚙️ Backend & Database
-
-*   [ ] **Detailed Chapter Tracking (Optional Enhancement)**:
-    *   [ ] Instead of just `chaptersCount`, consider a new table `mangaChapterTable` to store individual chapter details (number, title, URL, release date). This would allow more precise notifications.
-    *   [ ] This would require significant changes to manga fetching, storage, and update logic.
-*   [ ] **Error Handling & Logging**:
-    *   [ ] Implement more robust error handling across all modules.
-    *   [ ] Integrate a logging service for production (e.g., Sentry, Logtail) or improve console logging with levels.
-*   [ ] **Database Indexing Review**:
-    *   [ ] As data grows, review and optimize database queries and indexes.
-*   [ ] **API Security**:
-    *   [ ] Review webhook security (e.g., verifying requests from Telegram if necessary, though grammY might handle some of this).
-
-## 🧪 Testing
-
-*   [ ] **Unit Tests**:
-    *   [ ] Write unit tests for helper functions, validation schemas, and critical business logic in database actions.
-    *   [ ] Consider a testing framework like Jest or Vitest.
-*   [ ] **Integration Tests**:
-    *   [ ] Test interactions between different modules (e.g., bot command triggering database action).
-    *   [ ] Test the conversation flows.
-*   [ ] **E2E Tests (Optional)**:
-    *   [ ] Simulate user interaction with the bot from start to finish for key scenarios.
-
-## 📚 Documentation
-
-*   [ ] **API Documentation (if internal APIs expand)**:
-    *   [ ] Document any internal API routes if the project grows beyond just the bot webhook.
-*   [ ] **Deployment Guide**:
-    *   [ ] Expand on deployment options beyond Vercel if needed.
-*   [ ] **Keep `PROJECT_DETAILS.md` up-to-date** as features are added/changed.
-
-## 🌐 Miscellaneous
-
-*   [ ] **Internationalization (i18n)**:
-    *   [ ] Plan for supporting multiple languages in bot responses.
-*   [ ] **Code Refactoring**:
-    *   [ ] Periodically review and refactor code for clarity, performance, and maintainability.
-*   [ ] **Add a License File**: E.g., `LICENSE.md` with MIT or another open-source license.
+*   [ ] **User Settings Command (`/settings`)**:
+    *   [ ] View/Change notification email.
+    *   [ ] Pause/Resume all notifications.
+    *   [ ] Pause/Resume notifications for specific manga.
+    *   [ ] Set notification frequency preferences (if applicable).
+*   [ ] **Advanced Chapter Data in Emails**: If `chapterTable` stores chapter titles, include them in notification emails.
+*   [ ] **Web Interface (Optional Frontend)**:
+    *   User dashboard to manage tracked manga, view notification history, update settings.
+*   [ ] **Support for More Manga Sources**: If `@zweer/manga-scraper` adds new connectors or if you integrate others.
+*   [ ] **Internationalization (i18n)** for bot messages.
+*   [ ] **Admin Dashboard/Monitoring Tools.**
