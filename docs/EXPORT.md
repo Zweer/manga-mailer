@@ -208,6 +208,8 @@ README.md:
 ```md
 # Manga Mailer Bot
 
+![Coverage Badge](https://img.shields.io/badge/coverage-91%25-yellow?style=flat)
+
 Manga Mailer is a Telegram bot designed to help users track their favorite manga and receive email notifications when new chapters are released.
 
 ## ✨ Key Features (Current)
@@ -5810,7 +5812,8 @@ package.json:
     "lint:fix": "npm run lint -- --fix",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "export:code": "node -r esbuild-register script/export.ts"
+    "script:export": "node -r esbuild-register script/export.ts",
+    "script:coverage": "node -r esbuild-register script/readme-coverage.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.1",
@@ -5931,6 +5934,61 @@ ${tree}
 ${filesExport}`;
 
 writeFileSync(exportFilename, exportString, { encoding: 'utf-8' });
+```
+
+---
+
+script/readme-coverage.ts:
+
+```ts
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+interface CoverageDetail {
+  covered: number;
+  pct: number;
+  skipped: number;
+  total: number;
+}
+
+interface FileCoverage {
+  branches: CoverageDetail;
+  branchesTrue: CoverageDetail;
+  functions: CoverageDetail;
+  lines: CoverageDetail;
+  statements: CoverageDetail;
+}
+
+type Coverage = {
+  total: FileCoverage;
+} & {
+  [file: string]: FileCoverage;
+};
+
+const readmePath = join(__dirname, '..', 'README.md');
+const readme = readFileSync(readmePath, 'utf8');
+
+const coveragePath = join(__dirname, '..', 'coverage', 'coverage-summary.json');
+const coverageSummary = JSON.parse(readFileSync(coveragePath, 'utf8')) as Coverage;
+const coverage = Math.round(coverageSummary.total.lines.pct);
+
+let color: 'brightgreen' | 'green' | 'yellow' | 'yellowgreen' | 'orange' | 'red' | 'blue' | 'grey' | 'lightgrey';
+if (coverage > 98) {
+  color = 'brightgreen';
+} else if (coverage > 95) {
+  color = 'green';
+} else if (coverage > 90) {
+  color = 'yellow';
+} else if (coverage > 80) {
+  color = 'yellowgreen';
+} else if (coverage > 50) {
+  color = 'orange';
+} else {
+  color = 'red';
+}
+
+const newReadme = readme.replace(/(!\[Coverage Badge\]\(https:\/\/img.shields.io\/badge\/coverage-)(\d+)(%25-)(\w+)(\?style=flat\))/, `$1${coverage}$3${color}$5`);
+writeFileSync(readmePath, newReadme);
 ```
 
 ---
@@ -6445,7 +6503,7 @@ export default defineConfig({
     setupFiles: ['./test/setup.ts'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'html'],
       exclude: [
         '**/node_modules/**',
         '**/dist/**',

@@ -1,5 +1,7 @@
 # Manga Mailer Bot
 
+![Coverage Badge](https://img.shields.io/badge/coverage-91%25-yellow?style=flat)
+
 Manga Mailer is a Telegram bot designed to help users track their favorite manga and receive email notifications when new chapters are released.
 
 ## ✨ Key Features (Current)

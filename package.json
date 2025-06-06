@@ -14,7 +14,8 @@
     "lint:fix": "npm run lint -- --fix",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "export:code": "node -r esbuild-register script/export.ts"
+    "script:export": "node -r esbuild-register script/export.ts",
+    "script:coverage": "node -r esbuild-register script/readme-coverage.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.1",
