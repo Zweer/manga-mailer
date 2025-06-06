@@ -1,4 +1,6 @@
-import type { LoggerOptions } from 'pino';
+import type { Logger, LoggerOptions } from 'pino';
+
+import pino from 'pino';
 
 let level = process.env.LOG_LEVEL;
 if (typeof level === 'undefined') {
@@ -18,7 +20,7 @@ if (typeof level === 'undefined') {
   }
 }
 
-export const config: LoggerOptions = { level };
+const config: LoggerOptions = { level };
 
 if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') {
   config.transport = {
@@ -29,4 +31,10 @@ if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') 
       ignore: 'pid,hostname',
     },
   };
+}
+
+const logger = pino(config);
+
+export function createChildLogger(serviceName: string, parent: Logger = logger): Logger {
+  return parent.child({ serviceName });
 }
