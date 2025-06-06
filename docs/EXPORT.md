@@ -12,6 +12,11 @@ manga-mailer
  │   └── settings.json
  ├── README.md
  ├─> app
+ │   ├─> api
+ │   │   └─> cron
+ │   │       └─> manga-updates
+ │   │           ├── route.test.ts
+ │   │           └── route.ts
  │   └── route.ts
  ├─> docs
  │   ├── CONTRIBUTING.md
@@ -101,6 +106,7 @@ manga-mailer
  │   │   └── manga.ts
  │   └── setup.ts
  ├── tsconfig.json
+ ├── vercel.json
  └── vitest.config.ts
 ```
 
@@ -265,6 +271,254 @@ DATABASE_URL="postgresql://user:password@host:port/database?sslmode=require"
 # (For Vercel deployment, these variables are usually set in the Vercel UI)
 # VERCEL_ENV="production" # or "development", "preview"
 # VERCEL_PROJECT_PRODUCTION_URL="yourdomain.vercel.app" # Without https://
+```
+
+---
+
+app/api/cron/manga-updates/route.test.ts:
+
+```ts
+import type { Mock } from 'vitest';
+
+import { NextResponse } from 'next/server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { loggerWriteSpy } from '@/test/log';
+
+import { GET } from './route';
+
+const mockedMangaUpdater = vi.hoisted(() => vi.fn().mockResolvedValue({
+  emailsSent: 0,
+  updatedMangas: [],
+  errors: [],
+}));
+
+vi.mock('@/lib/service/mangaUpdater', () => ({
+  mangaUpdater: mockedMangaUpdater,
+}));
+
+vi.mock('next/server', async () => {
+  const actual = await vi.importActual('next/server');
+  return {
+    ...actual,
+    NextResponse: {
+      json: vi.fn((body, init) => ({
+        json: async () => body,
+        status: init?.status ?? 200,
+        ok: (init?.status ?? 200) < 400,
+      })),
+    },
+  };
+});
+
+const mockedNextResponseJson = NextResponse.json as Mock;
+
+describe('aPI Route: /api/cron/manga-updates (GET)', () => {
+  const originalCronSecret = process.env.CRON_SECRET;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.CRON_SECRET = 'test-secret';
+  });
+
+  afterEach(() => {
+    process.env.CRON_SECRET = originalCronSecret;
+  });
+
+  function createMockRequest(authorizationHeader?: string): Request {
+    const headers = new Headers();
+    if (typeof authorizationHeader !== 'undefined') {
+      headers.set('authorization', authorizationHeader);
+    }
+    return {
+      headers,
+    } as Request;
+  }
+
+  it('should return 401 Unauthorized if CRON_SECRET is set and not provided or incorrect', async () => {
+    const requestWithoutAuth = createMockRequest();
+    await GET(requestWithoutAuth);
+    expect(mockedNextResponseJson).toHaveBeenCalledWith({ error: 'Unauthorized' }, { status: 401 });
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(2);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      msg: 'Manga update cron job triggered.',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'warn',
+      msg: 'Unauthorized attempt to trigger cron job.',
+      serviceName: 'api:cron:manga-updates',
+    });
+
+    const requestWithWrongAuth = createMockRequest('Bearer wrong-secret');
+    await GET(requestWithWrongAuth);
+    expect(mockedNextResponseJson).toHaveBeenCalledWith({ error: 'Unauthorized' }, { status: 401 });
+  });
+
+  it('should call mangaUpdater and return success if authorization is valid', async () => {
+    const mockUpdaterResult = {
+      emailsSent: 5,
+      updatedMangas: [{ title: 'Manga X', chapters: [{ index: 1 }] }],
+      errors: [],
+    };
+    mockedMangaUpdater.mockResolvedValue(mockUpdaterResult);
+    const request = createMockRequest(`Bearer ${process.env.CRON_SECRET}`);
+
+    await GET(request);
+
+    expect(mockedMangaUpdater).toHaveBeenCalledTimes(1);
+    expect(mockedNextResponseJson).toHaveBeenCalledWith({
+      message: 'Manga update process finished.',
+      details: {
+        emailsSent: 5,
+        updatedMangas: [{
+          title: 'Manga X',
+          chapters: [{ index: 1 }],
+        }],
+        errors: [],
+      },
+    });
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      msg: 'Manga update cron job triggered.',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      msg: 'Starting mangaUpdater service...',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      level: 'info',
+      msg: 'Manga updater service finished.',
+      emailsSent: 5,
+      errorsCount: 0,
+      updatedMangasCount: 1,
+      serviceName: 'api:cron:manga-updates',
+    });
+  });
+
+  it('should return 500 if mangaUpdater throws an error', async () => {
+    const errorMessage = 'Updater failed catastrophically';
+    mockedMangaUpdater.mockRejectedValue(new Error(errorMessage));
+    const request = createMockRequest(`Bearer ${process.env.CRON_SECRET}`);
+
+    await GET(request);
+
+    expect(mockedMangaUpdater).toHaveBeenCalledTimes(1);
+    expect(mockedNextResponseJson).toHaveBeenCalledWith(
+      { error: 'Failed to run manga update process', details: errorMessage },
+      { status: 500 },
+    );
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      msg: 'Manga update cron job triggered.',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      msg: 'Starting mangaUpdater service...',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      error: expect.any(Object),
+      level: 'error',
+      msg: 'Critical error in manga update cron job API handler.',
+      serviceName: 'api:cron:manga-updates',
+    });
+  });
+
+  it('should proceed if CRON_SECRET is not set (environment without secret)', async () => {
+    // @ts-expect-error I should delete the secret to see if the no-auth is handled correctly
+    delete process.env.CRON_SECRET;
+    mockedMangaUpdater.mockResolvedValue({ emailsSent: 0, updatedMangas: [], errors: [] });
+    const request = createMockRequest();
+
+    await GET(request);
+
+    expect(mockedMangaUpdater).toHaveBeenCalledTimes(1);
+    expect(mockedNextResponseJson).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Manga update process finished.' }),
+    );
+
+    expect(loggerWriteSpy).toHaveBeenCalledTimes(3);
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(1, {
+      level: 'info',
+      msg: 'Manga update cron job triggered.',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(2, {
+      level: 'info',
+      msg: 'Starting mangaUpdater service...',
+      serviceName: 'api:cron:manga-updates',
+    });
+    expect(loggerWriteSpy).toHaveBeenNthCalledWith(3, {
+      level: 'info',
+      msg: 'Manga updater service finished.',
+      emailsSent: 0,
+      errorsCount: 0,
+      updatedMangasCount: 0,
+      serviceName: 'api:cron:manga-updates',
+    });
+  });
+});
+```
+
+---
+
+app/api/cron/manga-updates/route.ts:
+
+```ts
+import { NextResponse } from 'next/server';
+
+import { createChildLogger } from '@/lib/log';
+import { mangaUpdater } from '@/lib/service/mangaUpdater';
+
+declare global {
+
+  namespace NodeJS {
+    interface ProcessEnv {
+      CRON_SECRET: string;
+    }
+  }
+}
+
+const logger = createChildLogger('api:cron:manga-updates');
+
+export async function GET(request: Request) {
+  logger.info('Manga update cron job triggered.');
+
+  const CRON_SECRET = process.env.CRON_SECRET;
+  const authorizationHeader = request.headers.get('authorization');
+  if (CRON_SECRET && authorizationHeader !== `Bearer ${CRON_SECRET}`) {
+    logger.warn('Unauthorized attempt to trigger cron job.');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    logger.info('Starting mangaUpdater service...');
+    const details = await mangaUpdater();
+    logger.info({
+      emailsSent: details.emailsSent,
+      updatedMangasCount: details.updatedMangas.length,
+      errorsCount: details.errors.length,
+    }, 'Manga updater service finished.');
+
+    return NextResponse.json({
+      message: 'Manga update process finished.',
+      details,
+    });
+  } catch (error) {
+    logger.error({ error }, 'Critical error in manga update cron job API handler.');
+    return NextResponse.json({ error: 'Failed to run manga update process', details: (error as Error).message }, { status: 500 });
+  }
+}
 ```
 
 ---
@@ -6192,6 +6446,22 @@ tsconfig.json:
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
+}
+```
+
+---
+
+vercel.json:
+
+```json
+{
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/manga-updates",
+      "schedule": "0 * * * *"
+    }
+  ]
 }
 ```
 
