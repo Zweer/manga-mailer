@@ -74,9 +74,7 @@ manga-mailer
  │   │       └── user.ts
  │   ├── email.test.ts
  │   ├── email.ts
- │   ├─> log
- │   │   ├── config.ts
- │   │   └── index.ts
+ │   ├── log.ts
  │   ├── manga.test.ts
  │   ├── manga.ts
  │   ├─> service
@@ -3810,10 +3808,12 @@ export async function sendEmail(options: MailOptions): Promise<boolean> {
 
 ---
 
-lib/log/config.ts:
+lib/log.ts:
 
 ```ts
-import type { LoggerOptions } from 'pino';
+import type { Logger, LoggerOptions } from 'pino';
+
+import pino from 'pino';
 
 let level = process.env.LOG_LEVEL;
 if (typeof level === 'undefined') {
@@ -3833,7 +3833,7 @@ if (typeof level === 'undefined') {
   }
 }
 
-export const config: LoggerOptions = { level };
+const config: LoggerOptions = { level };
 
 if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') {
   config.transport = {
@@ -3845,18 +3845,6 @@ if (process.env.NODE_ENV !== 'production' && process.env.LOG_FORMAT !== 'json') 
     },
   };
 }
-```
-
----
-
-lib/log/index.ts:
-
-```ts
-import type { Logger } from 'pino';
-
-import pino from 'pino';
-
-import { config } from '@/lib/log/config';
 
 const logger = pino(config);
 
@@ -6464,6 +6452,16 @@ export default defineConfig({
         '**/coverage/**',
         '**/.{idea,git,cache,output,temp}/**',
         '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
+
+        'drizzle.config.ts',
+        'eslint.config.mjs',
+        'next-env.d.ts',
+        'next.config.ts',
+        'instrumentation.ts',
+        '.next',
+        'lib/db/index.ts',
+        'lib/log.ts',
+        'script',
         'test/**/*',
         'e2e/**/*',
       ],
