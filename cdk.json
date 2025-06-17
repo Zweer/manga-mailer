@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/manga-mailer.ts",
+  "app": "npx tsx bin/manga-mailer.ts",
   "watch": {
     "include": [
       "**"
