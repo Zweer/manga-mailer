@@ -1,16 +1,20 @@
 import type { NestedStackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
 
-import { NestedStack, Tags } from 'aws-cdk-lib';
-import { pascalCase } from 'change-case';
+import type { CommonStack } from './common-stack.js';
 
-import { PROJECT_NAME } from '../constants.js';
+import { NestedStack } from 'aws-cdk-lib';
+
+import { tagMe } from '../utils.js';
+
+interface BotStackProps extends NestedStackProps {
+  commonStack: CommonStack;
+}
 
 export class BotStack extends NestedStack {
-  constructor(scope: Construct, id: string, props?: NestedStackProps) {
+  constructor(scope: Construct, id: string, props: BotStackProps) {
     super(scope, id, props);
 
-    Tags.of(this).add('Project', pascalCase(PROJECT_NAME));
-    Tags.of(this).add('Module', pascalCase('bot'));
+    tagMe(this, 'bot');
   }
 }

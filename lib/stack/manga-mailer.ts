@@ -1,19 +1,20 @@
 import type { StackProps } from 'aws-cdk-lib';
 import type { Construct } from 'constructs';
 
-import { Stack, Tags } from 'aws-cdk-lib';
-import { pascalCase } from 'change-case';
+import { Stack } from 'aws-cdk-lib';
 
-import { PROJECT_NAME } from '../constants.js';
+import { tagMe } from '../utils.js';
 import { BotStack } from './bot-stack.js';
+import { CommonStack } from './common-stack.js';
 
 export class MangaMailerStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    Tags.of(this).add('Project', pascalCase(PROJECT_NAME));
-    Tags.of(this).add('Module', pascalCase(PROJECT_NAME));
+    tagMe(this);
 
-    new BotStack(this, 'BotStack');
+    const commonStack = new CommonStack(this, 'CommonStack');
+
+    new BotStack(this, 'BotStack', { commonStack });
   }
 }
