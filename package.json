@@ -2,7 +2,7 @@
   "name": "@zweer/manga-mailer",
   "type": "module",
   "version": "0.1.0",
-  "private": "true",
+  "private": true,
   "description": "The AWS infrastructure fot the Manga Mailer project",
   "author": "Zweer <n.olivieriachille@gmail.com>",
   "license": "MIT",
