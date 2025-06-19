@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/Zweer/manga-mailer/compare/v1.2.2...v1.2.3) (2025-06-19)
+
+
+### Bug Fixes
+
+* **infra:** :ambulance: Fixed the `TokenSecret` name ([7413e1e](https://github.com/Zweer/manga-mailer/commit/7413e1e31a870e867eb242a07fba6da062d1c930))
+
 ## [1.2.2](https://github.com/Zweer/manga-mailer/compare/v1.2.1...v1.2.2) (2025-06-19)
 
 
