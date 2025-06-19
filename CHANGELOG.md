@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/Zweer/manga-mailer/compare/v1.2.1...v1.2.2) (2025-06-19)
+
+
+### Performance Improvements
+
+* **infra:** :bricks: Increased lambda timeout ([1d2b095](https://github.com/Zweer/manga-mailer/commit/1d2b0950214fdf4f41f8dfdb0379c84638a6ab06))
+
 ## [1.2.1](https://github.com/Zweer/manga-mailer/compare/v1.2.0...v1.2.1) (2025-06-19)
 
 
