@@ -9,7 +9,7 @@ import { retrieveToken } from '../utils.js';
 
 type BotContext = ConversationFlavor<Context>;
 const Bot = BotConstructor<BotContext>;
-type BotType = BotConstructor<BotContext>;
+export type BotType = BotConstructor<BotContext>;
 
 const logger = new Logger();
 
