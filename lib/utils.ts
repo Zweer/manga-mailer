@@ -4,7 +4,7 @@ import type { Construct } from 'constructs';
 
 import { join } from 'node:path';
 
-import { Tags } from 'aws-cdk-lib';
+import { Duration, Tags } from 'aws-cdk-lib';
 import { LoggingFormat, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { pascalCase } from 'change-case';
@@ -35,5 +35,6 @@ export function getNodejsFunctionProps(logGroup: LogGroup): NodejsFunctionProps 
     logGroup,
     loggingFormat: LoggingFormat.JSON,
     tracing: Tracing.ACTIVE,
+    timeout: Duration.seconds(15),
   };
 }
