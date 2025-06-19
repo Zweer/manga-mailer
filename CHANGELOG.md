@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/Zweer/manga-mailer/compare/v1.2.0...v1.2.1) (2025-06-19)
+
+
+### Bug Fixes
+
+* **bot:** :fire: Removing the tracer and the metric handlers ([bfd555d](https://github.com/Zweer/manga-mailer/commit/bfd555d679a0587e95db60e8da17800aa70096ec))
+
 # [1.2.0](https://github.com/Zweer/manga-mailer/compare/v1.1.0...v1.2.0) (2025-06-19)
 
 
