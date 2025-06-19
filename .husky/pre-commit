@@ -10,5 +10,6 @@ npm run test:coverage
 npm run lint
 npm run build
 npm run clean
+npx cdk synth
 
 git update-index --again

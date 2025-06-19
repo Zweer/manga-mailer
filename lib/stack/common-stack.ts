@@ -1,4 +1,5 @@
 import type { NestedStackProps } from 'aws-cdk-lib';
+import type { HttpStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import type { Construct } from 'constructs';
 
 import { NestedStack, RemovalPolicy } from 'aws-cdk-lib';
@@ -12,6 +13,7 @@ import { tagMe } from '../utils.js';
 export class CommonStack extends NestedStack {
   logGroup: LogGroup;
   httpApi: HttpApi;
+  httpApiStage: HttpStage;
 
   constructor(scope: Construct, id: string, props?: NestedStackProps) {
     super(scope, id, props);
@@ -28,7 +30,7 @@ export class CommonStack extends NestedStack {
       apiName: PROJECT_NAME,
       createDefaultStage: false,
     });
-    this.httpApi.addStage('prod', {
+    this.httpApiStage = this.httpApi.addStage('prod', {
       autoDeploy: true,
       accessLogSettings: {
         destination: new LogGroupLogDestination(this.logGroup),

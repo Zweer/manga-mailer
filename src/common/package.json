@@ -1,0 +1,16 @@
+{
+  "name": "@zweer/manga-mailer-common",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Utilities to use in the lambdas",
+  "author": "Zweer <n.olivieriachille@gmail.com>",
+  "license": "MIT",
+  "keywords": [
+    "utilities"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
