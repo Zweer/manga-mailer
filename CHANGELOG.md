@@ -1,3 +1,11 @@
+# [1.2.0](https://github.com/Zweer/manga-mailer/compare/v1.1.0...v1.2.0) (2025-06-19)
+
+
+### Features
+
+* **bot:** :sparkles: Added the `handle-updates` endpoint ([ef779a1](https://github.com/Zweer/manga-mailer/commit/ef779a1d3ca882a018ab35c8d875ed1bfe89d1a4))
+* **bot:** :sparkles: Added the `register-endpoint` lambda ([301a0fb](https://github.com/Zweer/manga-mailer/commit/301a0fb7e215218bfe6cdeca54b930d3135ecd0d))
+
 # [1.1.0](https://github.com/Zweer/manga-mailer/compare/v1.0.0...v1.1.0) (2025-06-18)
 
 
