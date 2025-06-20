@@ -3,12 +3,9 @@ import type { CdkCustomResourceEvent, CloudFormationCustomResourceResponseCommon
 
 import type { BotCustomResourceProperties } from '../../lib/types.js';
 
-import { Logger } from '@aws-lambda-powertools/logger';
-
 import { commands } from './lib/bot/constants.js';
 import { createBot } from './lib/bot/index.js';
-
-const logger = new Logger();
+import { logger } from './utils.js';
 
 class Lambda implements LambdaInterface {
   @logger.injectLambdaContext()

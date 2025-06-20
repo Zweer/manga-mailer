@@ -3,12 +3,10 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 
 import type { BotType } from './lib/bot/index.js';
 
-import { Logger } from '@aws-lambda-powertools/logger';
 import { webhookCallback } from 'grammy';
 
 import { createBot } from './lib/bot/index.js';
-
-const logger = new Logger();
+import { logger } from './utils.js';
 
 class Lambda implements LambdaInterface {
   protected bot: BotType | null = null;

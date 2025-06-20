@@ -23,6 +23,7 @@ export function getNodejsFunctionProps(logGroup: LogGroup): NodejsFunctionProps 
     depsLockFilePath: join(rootFolder, 'package-lock.json'),
     environment: {
       NODE_OPTIONS: '--enable-source-maps',
+      POWERTOOLS_SERVICE_NAME: PROJECT_NAME,
     },
     bundling: {
       banner: 'import { createRequire } from \'module\';const require = createRequire(import.meta.url);',

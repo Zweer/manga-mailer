@@ -1,17 +1,16 @@
 import type { ConversationFlavor } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
-import { Logger } from '@aws-lambda-powertools/logger';
 import { conversations } from '@grammyjs/conversations';
 import { Bot as BotConstructor } from 'grammy';
 
+import { logger } from '../../utils.js';
 import { retrieveToken } from '../utils.js';
+import { handleHelpCommand } from './command/help.js';
 
 type BotContext = ConversationFlavor<Context>;
 const Bot = BotConstructor<BotContext>;
 export type BotType = BotConstructor<BotContext>;
-
-const logger = new Logger();
 
 export async function createBot(init = true): Promise<BotType> {
   const token = await retrieveToken();
@@ -19,6 +18,8 @@ export async function createBot(init = true): Promise<BotType> {
 
   if (init) {
     bot.use(conversations());
+
+    handleHelpCommand(bot);
   }
 
   bot.on('message', async (ctx) => {
