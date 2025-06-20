@@ -1,3 +1,15 @@
+# [1.5.0](https://github.com/Zweer/manga-mailer/compare/v1.4.0...v1.5.0) (2025-06-20)
+
+
+### Features
+
+* **bot:** :sparkles: Added the `start` conversation (with both `signup` and `edit`) ([25180b7](https://github.com/Zweer/manga-mailer/commit/25180b7ba6217feb379052106202d5aad9760501))
+
+
+### Performance Improvements
+
+* **bot:** :wrench: Added the start command handling ([c87dca4](https://github.com/Zweer/manga-mailer/commit/c87dca49291e2506616c8c98f5cb27114ebe1de0))
+
 # [1.4.0](https://github.com/Zweer/manga-mailer/compare/v1.3.0...v1.4.0) (2025-06-20)
 
 
