@@ -44,6 +44,8 @@ async function startConversationLogic(conversation: Conversation, ctx: Context, 
       logger.warn('Received a strange callbackQuery:', answer.callbackQuery.data);
     }
 
+    await ctx.reply('❌ Operation cancelled', { reply_markup: undefined });
+
     return;
   }
 
