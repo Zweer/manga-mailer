@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/Zweer/manga-mailer/compare/v1.6.1...v1.6.2) (2025-06-20)
+
+
+### Performance Improvements
+
+* **bot:** :sparkles: Added a confirmation message when exiting from the conversation ([44ae622](https://github.com/Zweer/manga-mailer/commit/44ae622ce6b5f334ea16de90cbf94c8c1d0ee4d4))
+
 ## [1.6.1](https://github.com/Zweer/manga-mailer/compare/v1.6.0...v1.6.1) (2025-06-20)
 
 
