@@ -1,3 +1,15 @@
+# [1.6.0](https://github.com/Zweer/manga-mailer/compare/v1.5.0...v1.6.0) (2025-06-20)
+
+
+### Features
+
+* **infra:** :bricks: Added the `DatabaseStack` ([7530338](https://github.com/Zweer/manga-mailer/commit/75303380b9b0e0ba59737fb64993d24111abbf53))
+
+
+### Performance Improvements
+
+* **infra:** :label: Added the tags ([c90c606](https://github.com/Zweer/manga-mailer/commit/c90c6068672273e6a721a71b834a8000617242f6))
+
 # [1.5.0](https://github.com/Zweer/manga-mailer/compare/v1.4.0...v1.5.0) (2025-06-20)
 
 
