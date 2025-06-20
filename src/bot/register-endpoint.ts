@@ -4,20 +4,14 @@ import type { CdkCustomResourceEvent, CloudFormationCustomResourceResponseCommon
 import type { BotCustomResourceProperties } from '../../lib/types.js';
 
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
 
 import { commands } from './lib/bot/constants.js';
 import { createBot } from './lib/bot/index.js';
 
-const tracer = new Tracer();
 const logger = new Logger();
-const metrics = new Metrics();
 
 class Lambda implements LambdaInterface {
-  @tracer.captureLambdaHandler()
   @logger.injectLambdaContext()
-  @metrics.logMetrics()
   async handler(event: CdkCustomResourceEvent<BotCustomResourceProperties>, _context: unknown) {
     const bot = await createBot();
 

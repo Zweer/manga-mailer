@@ -26,7 +26,7 @@ export class BotStack extends NestedStack {
 
     tagMe(this, 'bot');
 
-    const tokenSecret = Secret.fromSecretNameV2(this, 'TokenSecret', `${PROJECT_NAME}-bot`);
+    const tokenSecret = Secret.fromSecretNameV2(this, 'TokenSecret', `${PROJECT_NAME}/bot`);
 
     const projectFolder = join(rootFolder, 'src', 'bot');
     const functionNamePrefix = `${PROJECT_INITIALS.toUpperCase()}-bot`;
