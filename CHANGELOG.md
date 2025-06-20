@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Zweer/manga-mailer/compare/v1.2.4...v1.3.0) (2025-06-20)
+
+
+### Features
+
+* **bot:** :sparkles: Added the `help` command ([f9d4037](https://github.com/Zweer/manga-mailer/commit/f9d40378f22dc283e124a42175d51a85735cc478))
+
 ## [1.2.4](https://github.com/Zweer/manga-mailer/compare/v1.2.3...v1.2.4) (2025-06-20)
 
 
