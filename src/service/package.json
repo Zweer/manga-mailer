@@ -1,0 +1,21 @@
+{
+  "name": "@zweer/manga-mailer-service",
+  "version": "0.0.1",
+  "description": "Business logic for the Manga Mailer",
+  "author": "Zweer <n.olivieriachille@gmail.com>",
+  "license": "MIT",
+  "keywords": [
+    "business",
+    "logic",
+    "service"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.21.0",
+    "@aws-sdk/client-dynamodb": "^3.830.0",
+    "@aws-sdk/lib-dynamodb": "^3.830.0"
+  }
+}
