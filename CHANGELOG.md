@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/Zweer/manga-mailer/compare/v1.2.3...v1.2.4) (2025-06-20)
+
+
+### Bug Fixes
+
+* **infra:** :bug: Fixed the endpoint path ([d9eea1a](https://github.com/Zweer/manga-mailer/commit/d9eea1a17fcdd7a20cd7c72b94b39e8535ab0594))
+
 ## [1.2.3](https://github.com/Zweer/manga-mailer/compare/v1.2.2...v1.2.3) (2025-06-19)
 
 
