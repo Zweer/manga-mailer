@@ -3,6 +3,7 @@ import type { Construct } from 'constructs';
 
 import type { BotCustomResourceProperties } from '../types.js';
 import type { CommonStack } from './common-stack.js';
+import type { DatabaseStack } from './database-stack.js';
 
 import { join } from 'node:path';
 
@@ -14,11 +15,18 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Provider } from 'aws-cdk-lib/custom-resources';
 
-import { BOT_SESSION_TABLE_ENV, BOT_TOKEN_SECRET_ENV, PROJECT_INITIALS, PROJECT_NAME } from '../constants.js';
+import {
+  BOT_SESSION_TABLE_ENV,
+  BOT_TOKEN_SECRET_ENV,
+  PROJECT_INITIALS,
+  PROJECT_NAME,
+  USER_TABLE_ENV,
+} from '../constants.js';
 import { getNodejsFunctionProps, rootFolder, tagMe } from '../utils.js';
 
 interface BotStackProps extends NestedStackProps {
   commonStack: CommonStack;
+  databaseStack: DatabaseStack;
 }
 
 export class BotStack extends NestedStack {
@@ -49,6 +57,8 @@ export class BotStack extends NestedStack {
     tokenSecret.grantRead(handleUpdatesFunction);
     handleUpdatesFunction.addEnvironment(BOT_SESSION_TABLE_ENV, sessionTable.tableName);
     sessionTable.grantReadWriteData(handleUpdatesFunction);
+    handleUpdatesFunction.addEnvironment(USER_TABLE_ENV, props.databaseStack.userTable.tableName);
+    props.databaseStack.userTable.grantReadWriteData(handleUpdatesFunction);
     const handleUpdatesRoute = new HttpRoute(this, 'HandleUpdatesRoute', {
       httpApi: props.commonStack.httpApi,
       routeKey: HttpRouteKey.with('/api/bot', HttpMethod.POST),
