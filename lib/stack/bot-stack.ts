@@ -38,7 +38,7 @@ export class BotStack extends NestedStack {
     });
     handleUpdatesFunction.addEnvironment(TELEGRAM_TOKEN_SECRET_ENV, tokenSecret.secretName);
     tokenSecret.grantRead(handleUpdatesFunction);
-    new HttpRoute(this, 'HandleUpdatesRoute', {
+    const handleUpdatesRoute = new HttpRoute(this, 'HandleUpdatesRoute', {
       httpApi: props.commonStack.httpApi,
       routeKey: HttpRouteKey.with('/api/bot', HttpMethod.POST),
       integration: new HttpLambdaIntegration('HandleUpdatesIntegration', handleUpdatesFunction),
@@ -57,7 +57,7 @@ export class BotStack extends NestedStack {
     });
 
     const properties: BotCustomResourceProperties = {
-      endpoint: props.commonStack.httpApiStage.url,
+      endpoint: `${props.commonStack.httpApiStage.url}${handleUpdatesRoute.path}`,
     };
     new CustomResource(this, 'RegisterEndpointResource', {
       serviceToken: crProvider.serviceToken,
