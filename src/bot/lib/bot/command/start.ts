@@ -15,7 +15,7 @@ async function startConversationLogic(conversation: Conversation, ctx: Context, 
   logger.debug('Entered start conversation', { userId, user });
   let emailMessage: string;
 
-  if (typeof user === 'undefined') {
+  if (!user) {
     user = {
       id: userId,
       name: '',

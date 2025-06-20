@@ -57,11 +57,11 @@ export async function upsertUser(user: User): Promise<UpsertUserResult> {
   }
 }
 
-export async function getUser(id: number): Promise<User | undefined> {
+export async function getUser(id: number): Promise<User | null> {
   const { Item: user } = await ddbDocClient.send(new GetCommand({
     TableName: tableName,
     Key: { id },
   }));
 
-  return user as User | undefined;
+  return user as User | null;
 }
