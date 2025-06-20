@@ -20,7 +20,9 @@
     "@aws-lambda-powertools/metrics": "^2.21.0",
     "@aws-lambda-powertools/parameters": "^2.21.0",
     "@aws-lambda-powertools/tracer": "^2.21.0",
+    "@aws-sdk/client-dynamodb": "^3.830.0",
     "@aws-sdk/client-secrets-manager": "^3.830.0",
+    "@aws-sdk/lib-dynamodb": "^3.830.0",
     "@grammyjs/conversations": "^2.1.0",
     "grammy": "^1.36.3"
   },

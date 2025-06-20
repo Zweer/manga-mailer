@@ -7,6 +7,7 @@ import { Bot as BotConstructor } from 'grammy';
 import { logger } from '../../utils.js';
 import { retrieveToken } from '../utils.js';
 import { handleHelpCommand } from './command/help.js';
+import { DynamoDBAdapter } from './storage.js';
 
 type BotContext = ConversationFlavor<Context>;
 const Bot = BotConstructor<BotContext>;
@@ -17,7 +18,13 @@ export async function createBot(init = true): Promise<BotType> {
   const bot = new Bot(token);
 
   if (init) {
-    bot.use(conversations());
+    bot.use(conversations({
+      storage: {
+        type: 'key',
+        version: 0,
+        adapter: new DynamoDBAdapter(),
+      },
+    }));
 
     handleHelpCommand(bot);
   }
