@@ -64,7 +64,7 @@ async function startConversationLogic(conversation: Conversation, ctx: Context, 
   }
 }
 
-export function createSignupConversation(bot: BotType) {
+export function handleStartCommand(bot: BotType) {
   bot.use(createConversation(startConversationLogic, {
     id: startConversationId,
   }));
