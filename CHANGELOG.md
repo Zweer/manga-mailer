@@ -1,3 +1,11 @@
+# [1.4.0](https://github.com/Zweer/manga-mailer/compare/v1.3.0...v1.4.0) (2025-06-20)
+
+
+### Features
+
+* **bot:** :card_file_box: Added the session storage ([9c8b1c0](https://github.com/Zweer/manga-mailer/commit/9c8b1c0d274c74ec6f209dd82ad815c067e048d5))
+* **bot:** :sparkles: Adding the signup command ([cad6d89](https://github.com/Zweer/manga-mailer/commit/cad6d89790435aa05c4802f22b7a6e870593cdab))
+
 # [1.3.0](https://github.com/Zweer/manga-mailer/compare/v1.2.4...v1.3.0) (2025-06-20)
 
 
