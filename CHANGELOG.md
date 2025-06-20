@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/Zweer/manga-mailer/compare/v1.6.0...v1.6.1) (2025-06-20)
+
+
+### Bug Fixes
+
+* **bot:** :ambulance: Better type handling ([6f9fb78](https://github.com/Zweer/manga-mailer/commit/6f9fb784f49a42ed52c896c8b7b05b7afe927094))
+
 # [1.6.0](https://github.com/Zweer/manga-mailer/compare/v1.5.0...v1.6.0) (2025-06-20)
 
 
