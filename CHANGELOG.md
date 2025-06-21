@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/Zweer/manga-mailer/compare/v1.7.0...v1.7.1) (2025-06-21)
+
+
+### Bug Fixes
+
+* **bot:** :bug: Added the track command to the bot ([6d428e3](https://github.com/Zweer/manga-mailer/commit/6d428e31076b01c71dc5a0a6c467c5c37b20bfee))
+
 # [1.7.0](https://github.com/Zweer/manga-mailer/compare/v1.6.2...v1.7.0) (2025-06-21)
 
 
