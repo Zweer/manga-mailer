@@ -8,6 +8,7 @@ import { logger } from '../../utils.js';
 import { retrieveToken } from '../utils.js';
 import { handleHelpCommand } from './command/help.js';
 import { handleStartCommand } from './command/start.js';
+import { handleTrackCommand } from './command/track.js';
 import { DynamoDBAdapter } from './storage.js';
 
 type BotContext = ConversationFlavor<Context>;
@@ -29,6 +30,7 @@ export async function createBot(init = true): Promise<BotType> {
 
     handleHelpCommand(bot);
     handleStartCommand(bot);
+    handleTrackCommand(bot);
   }
 
   bot.on('message', async (ctx) => {

@@ -69,7 +69,7 @@ export async function trackConversationLogic(conversation: Conversation, ctx: Co
   }
 }
 
-export function createTrackConversation(bot: BotType) {
+export function handleTrackCommand(bot: BotType) {
   bot.use(createConversation(trackConversationLogic, {
     id: trackConversationId,
   }));
