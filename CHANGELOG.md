@@ -1,3 +1,11 @@
+# [1.7.0](https://github.com/Zweer/manga-mailer/compare/v1.6.2...v1.7.0) (2025-06-21)
+
+
+### Features
+
+* **bot:** :sparkles: Added the `track` command ([76ca84d](https://github.com/Zweer/manga-mailer/commit/76ca84d1df5b20c07cafb7a53376f3e0fbc28740))
+* **infra:** :bricks: Added the `manga`, `chapter` and `tracker` tables ([f61ed89](https://github.com/Zweer/manga-mailer/commit/f61ed8973d3d8eea99cf69b69b9080b620a82de5))
+
 ## [1.6.2](https://github.com/Zweer/manga-mailer/compare/v1.6.1...v1.6.2) (2025-06-20)
 
 
