@@ -18,8 +18,11 @@ import { Provider } from 'aws-cdk-lib/custom-resources';
 import {
   BOT_SESSION_TABLE_ENV,
   BOT_TOKEN_SECRET_ENV,
+  CHAPTER_TABLE_ENV,
+  MANGA_TABLE_ENV,
   PROJECT_INITIALS,
   PROJECT_NAME,
+  TRACKER_TABLE_ENV,
   USER_TABLE_ENV,
 } from '../constants.js';
 import { getNodejsFunctionProps, rootFolder, tagMe } from '../utils.js';
@@ -59,6 +62,12 @@ export class BotStack extends NestedStack {
     sessionTable.grantReadWriteData(handleUpdatesFunction);
     handleUpdatesFunction.addEnvironment(USER_TABLE_ENV, props.databaseStack.userTable.tableName);
     props.databaseStack.userTable.grantReadWriteData(handleUpdatesFunction);
+    handleUpdatesFunction.addEnvironment(MANGA_TABLE_ENV, props.databaseStack.mangaTable.tableName);
+    props.databaseStack.mangaTable.grantReadWriteData(handleUpdatesFunction);
+    handleUpdatesFunction.addEnvironment(CHAPTER_TABLE_ENV, props.databaseStack.chapterTable.tableName);
+    props.databaseStack.chapterTable.grantReadWriteData(handleUpdatesFunction);
+    handleUpdatesFunction.addEnvironment(TRACKER_TABLE_ENV, props.databaseStack.trackerTable.tableName);
+    props.databaseStack.trackerTable.grantReadWriteData(handleUpdatesFunction);
     const handleUpdatesRoute = new HttpRoute(this, 'HandleUpdatesRoute', {
       httpApi: props.commonStack.httpApi,
       routeKey: HttpRouteKey.with('/api/bot', HttpMethod.POST),

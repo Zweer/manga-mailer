@@ -9,6 +9,9 @@ import { tagMe } from '../utils.js';
 
 export class DatabaseStack extends NestedStack {
   userTable: TableV2;
+  mangaTable: TableV2;
+  chapterTable: TableV2;
+  trackerTable: TableV2;
 
   constructor(scope: Construct, id: string, props?: NestedStackProps) {
     super(scope, id, props);
@@ -20,6 +23,42 @@ export class DatabaseStack extends NestedStack {
       partitionKey: {
         name: 'id',
         type: AttributeType.NUMBER,
+      },
+    });
+
+    this.mangaTable = new TableV2(this, 'MangaTable', {
+      tableName: `${PROJECT_NAME}-manga`,
+      partitionKey: {
+        name: 'connector',
+        type: AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'id',
+        type: AttributeType.STRING,
+      },
+    });
+
+    this.chapterTable = new TableV2(this, 'ChapterTable', {
+      tableName: `${PROJECT_NAME}-chapter`,
+      partitionKey: {
+        name: 'mangaId',
+        type: AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'id',
+        type: AttributeType.STRING,
+      },
+    });
+
+    this.trackerTable = new TableV2(this, 'TrackerTable', {
+      tableName: `${PROJECT_NAME}-tracker`,
+      partitionKey: {
+        name: 'userId',
+        type: AttributeType.NUMBER,
+      },
+      sortKey: {
+        name: 'mangaId',
+        type: AttributeType.STRING,
       },
     });
   }
