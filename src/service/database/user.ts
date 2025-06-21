@@ -1,11 +1,13 @@
+import type { UpsertResult } from './utils.js';
+
 import process from 'node:process';
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import * as z from 'zod';
 
-import { USER_TABLE_ENV } from '../../lib/constants.js';
-import { logger } from './utils.js';
+import { USER_TABLE_ENV } from '../../../lib/constants.js';
+import { logger } from '../utils.js';
 
 const client = new DynamoDBClient({});
 const ddbDocClient = DynamoDBDocumentClient.from(client);
@@ -24,14 +26,7 @@ const userSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
 }).partial();
 
-type UpsertUserResult = {
-  success: true;
-} | {
-  success: false;
-  validationErrors?: { field: string; error: string }[];
-  databaseError?: string;
-};
-export async function upsertUser(user: User): Promise<UpsertUserResult> {
+export async function upsertUser(user: User): Promise<UpsertResult> {
   const parsingResult = userSchema.safeParse(user);
   if (!parsingResult.success) {
     logger.error('[upsertUser] Validation error:', parsingResult.error);
