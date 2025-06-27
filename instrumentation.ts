@@ -18,7 +18,7 @@ async function registerTelegramWebhook() {
   const logger = createLogger(serviceName, 'registerTelegramWebhook');
   const bot = createBot(false);
 
-  const endpoint = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  const endpoint = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/api/bot`;
   logger.debug('setting new endpoint:', endpoint);
 
   try {
