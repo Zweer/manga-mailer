@@ -1,5 +1,6 @@
 import type { AdapterAccountType } from 'next-auth/adapters';
 
+import { relations } from 'drizzle-orm';
 import {
   boolean,
   integer,
@@ -7,7 +8,10 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
+
+import { watchlistTable } from './manga';
 
 export const userTable = pgTable('user', {
   id: text()
@@ -17,7 +21,15 @@ export const userTable = pgTable('user', {
   email: text().unique(),
   emailVerified: timestamp({ mode: 'date' }),
   image: text(),
-});
+  telegramId: integer().unique(),
+}, user => [
+  {
+    emailIndex: uniqueIndex('email_index').on(user.email),
+    telegramIdIndex: uniqueIndex('telegram_id_index').on(user.telegramId),
+  },
+]);
+export type UserInsert = typeof userTable.$inferInsert;
+export type User = typeof userTable.$inferSelect;
 
 export const accountTable = pgTable('account', {
   userId: text()
@@ -40,6 +52,8 @@ export const accountTable = pgTable('account', {
     }),
   },
 ]);
+export type AccountInsert = typeof accountTable.$inferInsert;
+export type Account = typeof accountTable.$inferSelect;
 
 export const sessionTable = pgTable('session', {
   sessionToken: text().primaryKey(),
@@ -48,6 +62,8 @@ export const sessionTable = pgTable('session', {
     .references(() => userTable.id, { onDelete: 'cascade' }),
   expires: timestamp({ mode: 'date' }).notNull(),
 });
+export type SessionInsert = typeof sessionTable.$inferInsert;
+export type Session = typeof sessionTable.$inferSelect;
 
 export const verificationTokenTable = pgTable('verificationToken', {
   identifier: text().notNull(),
@@ -60,6 +76,8 @@ export const verificationTokenTable = pgTable('verificationToken', {
     }),
   },
 ]);
+export type VerificationTokenInsert = typeof verificationTokenTable.$inferInsert;
+export type VerificationToken = typeof verificationTokenTable.$inferSelect;
 
 export const authenticatorTable = pgTable('authenticator', {
   credentialID: text().notNull().unique(),
@@ -79,3 +97,9 @@ export const authenticatorTable = pgTable('authenticator', {
     }),
   },
 ]);
+export type AuthenticatorInsert = typeof authenticatorTable.$inferInsert;
+export type Authenticator = typeof authenticatorTable.$inferSelect;
+
+export const userRelations = relations(userTable, ({ many }) => ({
+  userMangas: many(watchlistTable),
+}));
