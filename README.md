@@ -1,104 +1,122 @@
-# Manga Mailer
+# Manga Tracker
 
-A Next.js-based manga notification system that tracks manga updates and sends notifications via Telegram bot. Users can subscribe to their favorite manga series and receive instant notifications when new chapters are released.
+A comprehensive manga/webtoon tracking platform that solves the fragmentation problem of manga distribution across multiple sources.
 
-## What's Inside
+## Table of Contents
 
-### Core Components
+- [Why](#why)
+- [How](#how)
+- [Project Phases](#project-phases)
+- [Architecture](#architecture)
+- [Current Status](#current-status)
 
-**Telegram Bot (`lib/bot/`)**
-- Grammy-based bot with conversation support
-- Webhook handler at `/api/bot/route.ts`
-- Message routing and command processing
-- Session management for user interactions
+## Why
 
-**Database Layer (`lib/db/`)**
-- Drizzle ORM with PostgreSQL
-- Four main entities: Users, Manga, Chapters, Watchlist
-- Relational schema with proper foreign keys and indexes
-- Migration system in `drizzle/` directory
+### The Problem
 
-**API Routes (`app/api/`)**
-- RESTful endpoints for manga operations
-- Telegram webhook integration
-- Planned cron job endpoints for chapter checking
+The manga and webtoon ecosystem is highly fragmented. While there are numerous platforms publishing manga content - some with original rights, others with authorized copies - no single platform has comprehensive coverage of all available titles. This creates several pain points for readers:
 
-### Architecture
+1. **Source Fragmentation**: Popular manga might be available on multiple platforms, but niche titles are often exclusive to one or two sources
+2. **Update Tracking**: Readers must manually check multiple platforms to stay updated on their favorite series
+3. **Reading Progress**: Most platforms don't offer cross-device reading progress synchronization
+4. **Discovery**: Finding where a specific manga is available requires searching across multiple platforms
 
-**Data Flow**
-1. Cron jobs scrape manga sources for new chapters
-2. New chapters trigger notifications to subscribed users
-3. Users interact via Telegram bot to manage subscriptions
-4. All data persisted in PostgreSQL with proper relationships
+### The Solution
 
-**Key Files**
-- `lib/bot/index.ts` - Bot initialization and message handling
-- `lib/db/model/manga.ts` - Database schema definitions
-- `app/api/bot/route.ts` - Telegram webhook endpoint
-- `drizzle.config.ts` - Database configuration
+Manga Tracker aims to centralize manga tracking and notifications across multiple sources, providing:
 
-### Tech Stack
+- **Unified Watchlist**: Track manga from any supported source in one place
+- **Real-time Notifications**: Get notified immediately when new chapters are published
+- **Email Integration**: Receive chapter images via email for offline reading and archival
+- **Progress Tracking**: Centralized reading progress that works across devices and sources
+- **Source Agnostic**: Support for multiple manga platforms through a unified interface
 
-- **Framework**: Next.js 15 with App Router
+## How
+
+### Technology Stack
+
+- **Frontend & Backend**: Next.js 15 with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Bot Framework**: Grammy (Telegram Bot API)
 - **Authentication**: NextAuth.js v5 (beta)
-- **Manga Scraping**: @zweer/manga-scraper
-- **Logging**: Pino with structured logging
-- **Deployment**: Vercel with automatic releases
+- **Bot Framework**: Grammy (Telegram Bot API)
+- **Scraping**: @zweer/manga-scraper for multi-source manga data
+- **Email**: Nodemailer for chapter delivery
+- **Hosting**: Vercel for seamless deployment and serverless functions
+- **Logging**: Pino for structured logging
 
-## Project Structure
+### Key Technical Decisions
 
-```
-├── app/
-│   ├── api/bot/          # Telegram webhook handler
-│   └── route.ts          # Main API route
-├── lib/
-│   ├── bot/              # Bot logic and types
-│   ├── db/model/         # Database schema (users, manga, chapters)
-│   └── logger.ts         # Structured logging setup
-├── drizzle/              # Database migrations and snapshots
-└── doc/TODO.md           # Development roadmap
-```
+1. **Source-Specific Schema**: Each manga is tracked per source rather than attempting to merge duplicates across platforms
+2. **Telegram-First Approach**: Starting with Telegram bot for immediate user interaction before building the full web interface
+3. **Serverless Architecture**: Leveraging Vercel's serverless functions for scalability and cost-effectiveness
+4. **Real-time Processing**: Cron-based chapter checking with immediate notification delivery
 
-## Database Schema
+## Project Phases
 
-**Core Entities**
-- `userTable` - User accounts with Telegram ID linking
-- `mangaTable` - Canonical manga with source information
-- `chapterTable` - Individual chapters with metadata
-- `watchlistTable` - User subscriptions (many-to-many)
+### Phase 1: Telegram Bot & Core Engine
+**Goal**: Functional notification system via Telegram
 
-**Key Features**
-- Unique constraints on source identifiers
-- Cascade deletes for data integrity
-- Indexed fields for performance
-- JSON storage for chapter images
+- ✅ Database schema and models
+- ✅ Basic bot infrastructure
+- 🔄 User registration and manga tracking commands
+- 🔄 Automated chapter checking and notifications
+- 📋 Email delivery with chapter images
 
-## Development Status
+### Phase 1.5: Enhanced Notifications
+**Goal**: Rich notification experience
 
-**Completed (Phase 0)**
-- ✅ Next.js project setup with Vercel deployment
-- ✅ Database schema with Drizzle ORM
-- ✅ Basic Telegram bot structure
-- ✅ Environment configuration
+- 📋 Email notifications with embedded chapter images
+- 📋 Notification preferences and customization
+- 📋 Batch notifications and digest options
 
-**In Progress (Phase 1)**
-- 🚧 Cron job system for chapter checking
-- 🚧 Notification logic implementation
-- 🚧 Multi-source manga scraping
+### Phase 2: Web Portal
+**Goal**: Full-featured web application
 
-**Planned (Phase 2+)**
-- 📋 Complete bot command interface
-- 📋 User registration flow
-- 🔮 Web portal for manga management
-- 🔮 Email notifications with images
+- 📋 Web-based manga reader
+- 📋 Reading progress tracking across devices
+- 📋 Advanced search and discovery features
+- 📋 User dashboard and analytics
+- 📋 Social features (reviews, ratings, recommendations)
 
-See [TODO.md](doc/TODO.md) for detailed roadmap.
+## Architecture
 
-## Available Scripts
+### Database Design
 
-- `npm run dev` - Development server with Turbopack
-- `npm run db:generate` - Generate database migrations
-- `npm run db:migrate` - Apply database changes
-- `npm run lint` - ESLint with custom configuration
+The system uses a source-specific approach where each manga is tracked individually per platform:
+
+- **Users**: Support both web authentication and Telegram integration
+- **Manga**: Source-specific entries with denormalized metadata for performance
+- **Chapters**: Individual chapter tracking with publication timestamps
+- **Watchlist**: Many-to-many relationship between users and manga
+- **Progress Tracking**: Reading state management (planned for Phase 2)
+
+### Notification Pipeline
+
+1. **Scheduled Checking**: Cron jobs query all tracked manga for updates
+2. **Change Detection**: Compare latest chapters against stored state
+3. **Notification Dispatch**: Send immediate notifications via Telegram
+4. **Email Processing**: Generate and send chapter emails with images
+5. **State Update**: Update manga metadata and chapter records
+
+### Scalability Considerations
+
+- **Connector Pooling**: Reuse scraper instances to minimize initialization overhead
+- **Rate Limiting**: Respect source platform limits to avoid blocking
+- **Caching Strategy**: Cache manga metadata to reduce redundant scraping
+- **Queue System**: Decouple notification sending from chapter detection
+
+## Current Status
+
+**Phase 1 - In Progress**
+
+- ✅ Project setup and database schema
+- ✅ Basic Telegram bot infrastructure
+- 🔄 Core bot commands implementation
+- 🔄 Chapter checking automation
+- 📋 Email notification system
+
+The project is currently in active development with the core tracking and notification system being built out.
+
+---
+
+*Legend: ✅ Complete | 🔄 In Progress | 📋 Planned*
