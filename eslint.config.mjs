@@ -36,5 +36,5 @@ export default antfu({
     }],
   },
 }, {
-  ignores: ['.next/*'],
+  ignores: ['.next/*', '.vercel/*'],
 });
