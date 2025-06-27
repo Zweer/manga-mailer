@@ -11,8 +11,8 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
-import { timestamps } from './helpers';
-import { userTable } from './user';
+import { timestamps } from '@/lib/db/model/helpers';
+import { userTable } from '@/lib/db/model/user';
 
 export const mangaTable = pgTable('manga', {
   id: text()
@@ -22,8 +22,7 @@ export const mangaTable = pgTable('manga', {
   sourceId: text().notNull(),
   title: text().notNull(),
   slug: text().notNull().unique(),
-  lastChapterIndex: real().notNull().default(0),
-  totalChapters: integer().notNull().default(0),
+  chaptersCount: integer().notNull(),
   lastCheckedAt: timestamp({ mode: 'date' }),
   ...timestamps,
 }, manga => [
@@ -47,7 +46,7 @@ export const chapterTable = pgTable('chapter', {
     .notNull(),
   title: text(),
   index: real(),
-  publishedAt: timestamp({ withTimezone: true }).notNull(),
+  releasedAt: timestamp({ withTimezone: true }),
   images: jsonb().$type<string[]>(),
   ...timestamps,
 }, chapter => [

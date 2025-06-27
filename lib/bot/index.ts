@@ -22,6 +22,10 @@ export function createBot(doInit = true) {
 
   if (doInit) {
     bot.use(conversations());
+
+    handleHelpCommand(bot);
+    handleStartCommand(bot);
+    handleTrackCommand(bot);
   }
 
   bot.on('message', async (ctx) => {

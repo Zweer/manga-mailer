@@ -11,7 +11,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
-import { watchlistTable } from './manga';
+import { watchlistTable } from '@/lib/db/model/manga';
 
 export const userTable = pgTable('user', {
   id: text()
