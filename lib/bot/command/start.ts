@@ -1,4 +1,4 @@
-import type { Conversation } from '@grammyjs/conversations';
+import type { Checkpoint, Conversation } from '@grammyjs/conversations';
 import type { Context } from 'grammy';
 
 import type { BotType } from '@/lib/bot/types';
@@ -7,13 +7,32 @@ import type { User } from '@/lib/db/model';
 import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
 
-import { startConversationId } from '@/lib/bot/constants.js';
+import { createUserConversationId, editUserConversationId } from '@/lib/bot/constants.js';
 import { createLogger } from '@/lib/logger';
+import { getUserByTelegramId } from '@/lib/db/service/user';
 
 const logger = createLogger('bot:help');
 
-async function retrieveEmail(message): Promise<string> {
+async function retrieveEmail(message: string, conversation: Conversation, ctx: Context): Promise<{ email: string, emailCheckpoint: Checkpoint }> {
+  const keyboard = new InlineKeyboard();
+  const keyboardCancelValue = 'cancel';
+  keyboard.text('❌ Cancel Operation', keyboardCancelValue).row();
+  await ctx.reply(message, { reply_markup: keyboard });
+  const emailCheckpoint = conversation.checkpoint();
 
+  const answer = await conversation.waitFor(['message:text', 'callback_query:data']);
+  if (answer.callbackQuery) {
+    if (answer.callbackQuery.data !== keyboardCancelValue) {
+      logger.warn('Received a strange callbackQuery:', answer.callbackQuery.data);
+    }
+
+    await ctx.reply('❌ Operation cancelled', { reply_markup: undefined });
+    await conversation.halt();
+  }
+
+  const email = answer.message!.text;
+
+  return { email, emailCheckpoint };
 }
 
 async function startConversationLogic(conversation: Conversation, ctx: Context, user?: User): Promise<void> {
@@ -72,16 +91,39 @@ async function startConversationLogic(conversation: Conversation, ctx: Context, 
   }
 }
 
+async function createUserConversationLogic(conversation: Conversation, ctx: Context, telegramId: number): Promise<void> {
+  await ctx.reply('Hi there! What is your name?');
+
+  const ctxName = await conversation.waitFor('message:text');
+  const name = ctxName.message.text;
+  logger.debug(`Received name: "${name}" from ${telegramId}`);
+  await ctx.reply(`Welcome to Manga Mailer, ${name}!`);
+
+  const { email, emailCheckpoint } = await retrieveEmail('Where do you want us to mail you updates?', conversation, ctx);
+}
+
+async function editUserConversationId(conversation: Conversation, ctx: Context, user: User): Promise<void> {
+  const { email, emailCheckpoint } = await retrieveEmail(`Hi ${user.name}! Do you want to change your email address? (${user.email})`, conversation, ctx);
+}
+
 export function handleStartCommand(bot: BotType) {
-  bot.use(createConversation(startConversationLogic, {
-    id: startConversationId,
+  bot.use(createConversation(createUserConversationLogic, {
+    id: createUserConversationId,
+  }));
+  bot.use(createConversation(editUserConversationLogic, {
+    id: editUserConversationId,
   }));
 
   bot.command('start', async (ctx) => {
-    const userId = ctx.from!.id;
-    logger.debug('Received /start command', { userId });
+    const telegramId = ctx.from!.id;
+    logger.debug('Received /start command', { telegramId });
 
-    const user = await getUser(userId);
-    await ctx.conversation.enter(startConversationId, user);
+    const user = await getUserByTelegramId(telegramId);
+
+    if (user) {
+      await ctx.conversation.enter(editUserConversationId, user);
+    } else {
+      await ctx.conversation.enter(createUserConversationId, telegramId);
+    }
   });
 }

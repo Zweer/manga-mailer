@@ -7,5 +7,6 @@ export const commands: BotCommand[] = [
   { command: 'remove', description: 'Remove a tracked manga' },
 ];
 
-export const startConversationId = 'start';
+export const createUserConversationId = 'createUser';
+export const editUserConversationId = 'editUser';
 export const trackConversationId = 'track';

@@ -8,7 +8,7 @@ import { createLogger } from '@/lib/logger';
 
 export type MangaAutocomplete = Pick<MangaInsert, 'sourceName' | 'sourceId' | 'title' | 'chaptersCount'>;
 
-const serviceName = 'lib:manga';
+const serviceName = 'lib:service:manga';
 
 export async function searchMangas(title: string): Promise<MangaAutocomplete[]> {
   const logger = createLogger(serviceName, 'searchMangas');
