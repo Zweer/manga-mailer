@@ -8,12 +8,12 @@ import { createConversation } from '@grammyjs/conversations';
 import { InlineKeyboard } from 'grammy';
 
 import { createUserConversationId, editUserConversationId } from '@/lib/bot/constants.js';
-import { createLogger } from '@/lib/logger';
 import { getUserByTelegramId } from '@/lib/db/service/user';
+import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('bot:help');
 
-async function retrieveEmail(message: string, conversation: Conversation, ctx: Context): Promise<{ email: string, emailCheckpoint: Checkpoint }> {
+async function retrieveEmail(message: string, conversation: Conversation, ctx: Context): Promise<{ email: string; emailCheckpoint: Checkpoint }> {
   const keyboard = new InlineKeyboard();
   const keyboardCancelValue = 'cancel';
   keyboard.text('❌ Cancel Operation', keyboardCancelValue).row();
