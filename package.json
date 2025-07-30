@@ -33,7 +33,7 @@
     "next-auth": "^5.0.0-beta.29",
     "nodemailer": "^6.10.1",
     "pino": "^9.7.0",
-    "ws": "^8.18.2",
+    "ws": "^8.18.3",
     "zod": "^3.25.67"
   },
   "devDependencies": {
