@@ -29,7 +29,7 @@
     "drizzle-orm": "^0.44.2",
     "drizzle-zod": "^0.8.2",
     "grammy": "^1.36.3",
-    "next": "15.3.4",
+    "next": "15.3.5",
     "next-auth": "^5.0.0-beta.29",
     "nodemailer": "^6.10.1",
     "pino": "^9.7.0",
