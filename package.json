@@ -24,7 +24,7 @@
   "dependencies": {
     "@grammyjs/conversations": "^2.1.0",
     "@neondatabase/serverless": "^1.0.1",
-    "@zweer/manga-scraper": "^2.1.2",
+    "@zweer/manga-scraper": "^2.2.0",
     "bufferutil": "^4.0.9",
     "drizzle-orm": "^0.44.2",
     "drizzle-zod": "^0.8.2",
